@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-electron/
+/artifacts/
+/release/
+.aistudio/
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.cer
+*.crt
+*.key

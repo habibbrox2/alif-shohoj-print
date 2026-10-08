@@ -1,0 +1,28 @@
+import type { PrintJob } from '../../../src/shared/types.js';
+
+export const createTestJob = (fileUrl = 'data:application/pdf;base64,JVBERi0xLjQK'): PrintJob => ({
+  id: 'job-test-1',
+  tokenCode: '101',
+  customerPhone: '01700000000',
+  customerName: 'Test Customer',
+  serviceType: 'doc_a4',
+  serviceLabel: 'A4 Document',
+  serviceLabelBn: 'A4 ডকুমেন্ট',
+  paperSize: 'A4 (8.27x11.69 in)',
+  paperFinish: 'normal',
+  copies: 2,
+  colorMode: 'color',
+  status: 'queued',
+  targetPrinterId: 'printer-test',
+  targetPrinterName: 'Test Printer',
+  routingReason: 'Test',
+  priceBDT: 20,
+  paymentMethod: 'counter_cash',
+  paymentStatus: 'paid_counter',
+  fileUrl,
+  fileName: 'test.pdf',
+  fileSize: '1 KB',
+  createdAt: Date.now(),
+  autoDeleteCountdownSeconds: 900,
+  auditLogs: [],
+});
