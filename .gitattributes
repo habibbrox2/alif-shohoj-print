@@ -1,0 +1,50 @@
+# Normalize text files to LF in the repository; Git detects binary files automatically.
+* text=auto eol=lf
+
+# Common image and icon formats.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.bmp binary
+*.tif binary
+*.tiff binary
+*.avif binary
+*.svg text eol=lf
+
+# Documents, archives, installers, and compiled/binary assets.
+*.pdf binary
+*.zip binary
+*.7z binary
+*.rar binary
+*.gz binary
+*.tar binary
+*.exe binary
+*.msi binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.node binary
+*.wasm binary
+*.pfx binary
+*.p12 binary
+*.cer binary
+*.crt binary
+*.key binary
+
+# Audio and video.
+*.mp3 binary
+*.wav binary
+*.ogg binary
+*.m4a binary
+*.mp4 binary
+*.mov binary
+*.avi binary
+*.webm binary
+
+# Local/runtime databases and SQLite files.
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
