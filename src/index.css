@@ -280,48 +280,82 @@
     --tw-divide-color: var(--color-border-secondary);
   }
 
+  /*
+   * Legacy emerald was this app's primary colour; the design references use
+   * teal, so every emerald surface, label and border becomes the brand colour.
+   */
   .fluent-ui [class~="bg-emerald-950"],
   .fluent-ui [class*="bg-emerald-950/"],
   .fluent-ui [class~="bg-emerald-900"],
   .fluent-ui [class*="bg-emerald-900/"],
   .fluent-ui [class~="bg-emerald-800"],
   .fluent-ui [class*="bg-emerald-800/"],
+  .fluent-ui [class~="bg-emerald-100"],
+  .fluent-ui [class~="bg-emerald-50"],
   .fluent-ui [class*="bg-emerald-600/"],
   .fluent-ui [class*="bg-emerald-500/"] {
-    background-color: var(--color-accent-light);
+    background-color: var(--color-brand-soft);
+  }
+
+  .fluent-ui [class~="hover:bg-emerald-950"]:hover {
+    background-color: var(--color-brand-soft);
   }
 
   .fluent-ui [class~="bg-emerald-700"],
-  .fluent-ui [class~="bg-emerald-600"],
-  .fluent-ui [class~="bg-emerald-500"] {
-    background-color: var(--color-accent);
+  .fluent-ui [class~="bg-emerald-600"] {
+    background-color: var(--color-brand);
   }
 
-  .fluent-ui [class~="hover:bg-emerald-500"]:hover,
-  .fluent-ui [class~="hover:bg-emerald-400"]:hover,
-  .fluent-ui [class~="hover:bg-emerald-600"]:hover {
-    background-color: var(--color-accent-hover);
+  .fluent-ui [class~="hover:bg-emerald-600"]:hover,
+  .fluent-ui [class~="hover:bg-emerald-500"]:hover {
+    background-color: var(--color-brand-hover);
   }
 
+  .fluent-ui [class~="text-emerald-200"],
   .fluent-ui [class~="text-emerald-300"],
   .fluent-ui [class*="text-emerald-300/"],
   .fluent-ui [class~="text-emerald-400"],
   .fluent-ui [class*="text-emerald-400/"],
   .fluent-ui [class~="text-emerald-500"],
-  .fluent-ui [class~="text-emerald-600"] {
-    color: var(--color-accent);
+  .fluent-ui [class~="text-emerald-600"],
+  .fluent-ui [class~="text-emerald-700"],
+  .fluent-ui [class~="text-emerald-800"],
+  .fluent-ui [class~="text-emerald-900"] {
+    color: var(--color-brand);
   }
 
   .fluent-ui [class~="hover:text-emerald-300"]:hover,
   .fluent-ui [class~="hover:text-emerald-400"]:hover {
-    color: var(--color-accent-hover);
+    color: var(--color-brand-hover);
   }
 
+  .fluent-ui [class~="border-emerald-300"],
   .fluent-ui [class~="border-emerald-400"],
   .fluent-ui [class~="border-emerald-500"],
+  .fluent-ui [class~="border-emerald-600"],
+  .fluent-ui [class~="border-emerald-700"],
   .fluent-ui [class~="border-emerald-800"],
   .fluent-ui [class*="border-emerald-800/"] {
-    border-color: var(--color-accent);
+    border-color: var(--color-brand);
+  }
+
+  .fluent-ui [class~="accent-emerald-500"] {
+    accent-color: var(--color-brand);
+  }
+
+  /* Online/ready dots, pulses and fills stay green, exactly like the reference. */
+  .fluent-ui [class~="bg-emerald-500"],
+  .fluent-ui [class~="bg-emerald-400"] {
+    background-color: var(--color-success);
+  }
+
+  .fluent-ui [class~="hover:bg-emerald-400"]:hover {
+    background-color: var(--color-success);
+  }
+
+  .fluent-ui [class~="fill-emerald-500"],
+  .fluent-ui [class~="fill-emerald-400"] {
+    fill: var(--color-success);
   }
 
   .fluent-ui [class~="bg-amber-950"],
@@ -375,11 +409,35 @@
   .fluent-ui [class~="bg-emerald-700"][class~="text-white"],
   .fluent-ui [class~="bg-rose-600"][class~="text-white"],
   .fluent-ui [class~="bg-red-600"][class~="text-white"] {
-    color: var(--color-accent-text);
+    color: var(--color-on-brand);
   }
 
-  .fluent-ui [class*="from-emerald-950"] {
-    background-image: linear-gradient(110deg, var(--color-accent-light), var(--color-surface));
+  .fluent-ui [class*="from-emerald-950"],
+  .fluent-ui [class*="from-emerald-500"] {
+    background-image: linear-gradient(110deg, var(--color-brand-soft), var(--color-surface));
+  }
+
+  .fluent-ui [class~="ring-emerald-500"],
+  .fluent-ui [class*="ring-emerald-500/"],
+  .fluent-ui [class~="ring-emerald-400"] {
+    --tw-ring-color: var(--color-brand);
+  }
+
+  .fluent-ui [class~="shadow-emerald-900"],
+  .fluent-ui [class*="shadow-emerald-900/"],
+  .fluent-ui [class~="shadow-emerald-950"],
+  .fluent-ui [class*="shadow-emerald-950/"],
+  .fluent-ui [class~="shadow-emerald-500"] {
+    --tw-shadow-color: rgba(15, 118, 110, 0.35);
+  }
+
+  /*
+   * Preview scrims must stay translucent: the slate group above maps every
+   * bg-slate-950/* token to the solid surface colour, which would hide the order
+   * thumbnail instead of dimming it.
+   */
+  .fluent-ui [class~="bg-slate-950/40"] {
+    background-color: rgba(2, 6, 23, 0.35);
   }
 }
 
