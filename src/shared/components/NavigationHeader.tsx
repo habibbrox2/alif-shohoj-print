@@ -40,31 +40,33 @@ export const NavigationHeader: React.FC = () => {
           </div>
         </div>
 
-        {/* Zone 2: Navigation views with clean segmented controls */}
-        <nav aria-label="Main navigation" className="col-span-2 flex min-w-0 max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border-primary bg-surface-elevated p-1 lg:col-span-1 lg:justify-self-center">
-          {navOptions.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => setActiveView(opt.value)}
-              aria-current={activeView === opt.value ? 'page' : undefined}
-              aria-label={opt.label}
-              className={`flex min-h-9 shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-                activeView === opt.value
-                  ? 'border border-accent/30 bg-accent-light text-accent shadow-sm'
-                  : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-              }`}
-            >
-              {opt.icon}
-              <span className="sm:hidden">{opt.compactLabel}</span>
-              <span className="hidden sm:inline">{opt.label}</span>
-              {opt.badge && (
-                <span className="w-4 h-4 rounded-full bg-error text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
-                  {opt.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
+        {/* Development preview only: the shipped desktop shell has its own tab bar. */}
+        {import.meta.env.DEV && (
+          <nav aria-label="Main navigation" className="col-span-2 flex min-w-0 max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border-primary bg-surface-elevated p-1 lg:col-span-1 lg:justify-self-center">
+            {navOptions.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setActiveView(opt.value)}
+                aria-current={activeView === opt.value ? 'page' : undefined}
+                aria-label={opt.label}
+                className={`flex min-h-9 shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                  activeView === opt.value
+                    ? 'border border-accent/30 bg-accent-light text-accent shadow-sm'
+                    : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+                }`}
+              >
+                {opt.icon}
+                <span className="sm:hidden">{opt.compactLabel}</span>
+                <span className="hidden sm:inline">{opt.label}</span>
+                {opt.badge && (
+                  <span className="w-4 h-4 rounded-full bg-error text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
+                    {opt.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        )}
 
         {/* Zone 3: Actions (Theme, DND, Counter Poster, Exe Download) */}
         <div className="col-start-2 row-start-1 flex shrink-0 items-center justify-end gap-1.5 lg:col-auto lg:row-auto lg:gap-2">

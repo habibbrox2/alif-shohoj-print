@@ -163,7 +163,7 @@ const createWindow = async (): Promise<void> => {
   });
 
   if (app.isPackaged) {
-    await mainWindow.loadFile(join(app.getAppPath(), 'dist', 'index.html'));
+    await mainWindow.loadFile(join(app.getAppPath(), 'dist', 'desktop.html'));
   } else {
     await mainWindow.loadURL(developmentUrl);
   }
@@ -188,7 +188,7 @@ const registerIpcHandlers = (token: string): void => {
     if (app.isPackaged && !hasWebSocketTls) return null;
     const protocol = app.isPackaged ? 'https' : 'http';
     const port = app.isPackaged ? gatewayPort : 3000;
-    return `${protocol}://${getLanIpv4Address()}:${port}/?view=customer_pwa`;
+    return `${protocol}://${getLanIpv4Address()}:${port}/pwa.html`;
   });
   ipcMain.handle('desktop:customer-pwa:publish-config', (_event, config: CustomerAppConfig) => {
     if (!config || !Array.isArray(config.counters) || !Array.isArray(config.services)) {

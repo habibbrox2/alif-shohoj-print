@@ -173,7 +173,9 @@ export class LocalGateway {
       response.writeHead(403).end();
       return;
     }
-    if (!existsSync(filePath) || !statSync(filePath).isFile()) filePath = join(webRoot, 'index.html');
+    // Unknown paths fall back to the customer PWA: the shopkeeper shell must
+    // never be served to a customer phone that mistypes a URL.
+    if (!existsSync(filePath) || !statSync(filePath).isFile()) filePath = join(webRoot, 'pwa.html');
     if (!existsSync(filePath)) {
       response.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' }).end('The customer app has not been built.');
       return;
@@ -181,7 +183,7 @@ export class LocalGateway {
     response.writeHead(200, {
       'Content-Type': CONTENT_TYPES[extname(filePath).toLowerCase()] || 'application/octet-stream',
       'X-Content-Type-Options': 'nosniff',
-      'Cache-Control': filePath.endsWith('index.html') ? 'no-cache' : 'public, max-age=3600',
+      'Cache-Control': extname(filePath).toLowerCase() === '.html' ? 'no-cache' : 'public, max-age=3600',
     });
     if (headOnly) response.end();
     else createReadStream(filePath).pipe(response);

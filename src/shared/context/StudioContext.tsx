@@ -38,8 +38,8 @@ import type { CustomerAppConfig, DesktopQueueJob } from '../desktop-api';
 
 interface StudioContextType {
   // Current view
-  activeView: 'windows_agent' | 'customer_pwa' | 'shop_pos';
-  setActiveView: (view: 'windows_agent' | 'customer_pwa' | 'shop_pos') => void;
+  activeView: StudioView;
+  setActiveView: (view: StudioView) => void;
   installationConfig: InstallationConfig | null;
   isMaster: boolean;
   configureInstallation: (config: InstallationConfig) => boolean;
@@ -435,8 +435,21 @@ const loadStudioServices = (): StudioService[] => {
   }
 };
 
-export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeView, setActiveView] = useState<'windows_agent' | 'customer_pwa' | 'shop_pos'>(() => {
+export type StudioView = 'windows_agent' | 'customer_pwa' | 'shop_pos';
+
+interface StudioProviderProps {
+  children: React.ReactNode;
+  /**
+   * Set by the dedicated renderer entries (desktop shell / customer PWA) so each
+   * one opens on its own view instead of relying on a `?view=` query parameter.
+   * The dev harness leaves this undefined and keeps reading the URL.
+   */
+  initialView?: StudioView;
+}
+
+export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initialView }) => {
+  const [activeView, setActiveView] = useState<StudioView>(() => {
+    if (initialView) return initialView;
     const requestedView = new URLSearchParams(window.location.search).get('view');
     return requestedView === 'customer_pwa' ? 'customer_pwa' : 'shop_pos';
   });
