@@ -39,13 +39,13 @@ npm run app:dist
 
 This command runs verification and creates a dual-architecture per-user NSIS installer in `artifacts/releases/`. The single installer automatically selects the x64 or 32-bit (ia32) app for the Windows PC. It lets the user choose a destination and adds Start Menu and desktop shortcuts. Uninstalling preserves local settings and queued-job data.
 
-On first launch, choose whether this PC is the master/shopkeeper PC or a counter/operator PC. The app opens in Shop POS by default. In Shop POS settings, enable **Start with Windows** to start the app hidden in the system tray after login. Open it from the tray menu or double-click the tray icon.
+On first launch, choose whether this PC is the master/shopkeeper PC or a counter/operator PC. The app opens on the **Status** tab and switches pages with the tab bar below the Windows title bar. In Shop POS settings, enable **Start with Windows** to start the app hidden in the system tray after login. Open it from the tray menu or double-click the tray icon.
 
 ### Counter QR orders and offline alerts
 
 The master PC hosts the customer PWA and its order gateway on port `43822`. Configure `ALIF_SHOHOJ_PRINT_WS_TLS_CERT` and `ALIF_SHOHOJ_PRINT_WS_TLS_KEY` before launching the packaged app; both the customer PWA and gateway use HTTPS, and the certificate must be trusted by customer/counter devices and include the master host/IP in its SAN. Allow TCP port `43822` through Windows Firewall for the shop LAN. Without TLS, the packaged gateway listens on loopback and the app does not generate a LAN QR URL.
 
-In Shop POS, print each counter's QR poster. Customers on the same LAN scan it and submit orders through the master PC, which stores them in its SQLite queue for the shopkeeper to review, edit, confirm, or reject. The master speaks the counter number for new orders. Configure each counter PC as a counter and enter the master gateway base URL (use the same host and port as the QR, without its `?shop=...` query; for example, `https://192.168.1.105:43822`); the counter app sends a heartbeat every 10 seconds. If no heartbeat arrives for 30 seconds, the counter is marked offline and new orders remain queued for master review. Counter PCs need network access to the master gateway while running.
+In Shop POS, print each counter's QR poster. The QR opens the customer app at `/pwa.html` on the master gateway, so a customer phone never loads the shopkeeper shell. Customers on the same LAN scan it and submit orders through the master PC, which stores them in its SQLite queue for the shopkeeper to review, edit, confirm, or reject. The master speaks the counter number for new orders. Configure each counter PC as a counter and enter the master gateway base URL (use the same host and port as the QR, without its `?shop=...` query; for example, `https://192.168.1.105:43822`); the counter app sends a heartbeat every 10 seconds. If no heartbeat arrives for 30 seconds, the counter is marked offline and new orders remain queued for master review. Counter PCs need network access to the master gateway while running.
 
 #### Code signing
 
@@ -156,6 +156,11 @@ electron/             Electron main process and desktop services
 scripts/              Runtime and signing verification helpers
 artifacts/releases/   Packaged installers
 ```
+
+The renderer has three entry documents: `desktop.html` is the shopkeeper shell the
+Electron app loads, `pwa.html` is the customer phone flow served by the LAN
+gateway, and `index.html` stays the Vite dev harness and the browser POS that
+counter PCs open on the master PC.
 
 ## Data and privacy
 
