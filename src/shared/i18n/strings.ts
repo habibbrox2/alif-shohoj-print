@@ -77,10 +77,6 @@ export const STRINGS = {
   'job.nidPhoto': { en: 'NID Photo', bn: 'এনআইডি ছবি' },
 
   'upcoming.title': { en: 'Coming in the next step', bn: 'পরবর্তী ধাপে আসছে' },
-  'upcoming.status': {
-    en: 'The status window from the design reference lands in step 3.',
-    bn: 'ডিজাইন রেফারেন্সের স্ট্যাটাস উইন্ডো ধাপ ৩-এ আসছে।'
-  },
   'upcoming.dashboard': {
     en: 'The order inbox (card layout, reject reason, edit drawer) lands in step 4.',
     bn: 'অর্ডার ইনবক্স (কার্ড লেআউট, বাতিলের কারণ, এডিট ড্রয়ার) ধাপ ৪-এ আসছে।'

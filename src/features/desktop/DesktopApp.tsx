@@ -21,6 +21,7 @@ import { ShopPosView } from '../shop-pos/ShopPosView';
 import { WindowsAgentView, type AgentPage } from '../print-agent/WindowsAgentView';
 import { WindowsExePackageModal } from '../print-agent/WindowsExePackageModal';
 import { ProductMark } from './components/ProductMark';
+import { StatusPage } from './pages/StatusPage';
 import { UpcomingPage } from './pages/UpcomingPage';
 import type { DesktopPage } from './navigation';
 import type { TranslationKey } from '../../shared/i18n/strings';
@@ -206,7 +207,7 @@ export const DesktopApp: React.FC = () => {
       </div>
 
       <main className="min-h-0 flex-1 overflow-hidden">
-        {page === 'status' && <UpcomingPage step="Step 3" descriptionKey="upcoming.status" />}
+        {page === 'status' && <StatusPage onNavigate={setPage} />}
         {page === 'printers' && (
           <WindowsAgentView key={agentPage} initialPage={agentPage} onPageChange={setAgentPage} />
         )}
