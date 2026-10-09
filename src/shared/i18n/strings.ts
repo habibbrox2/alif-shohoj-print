@@ -1,0 +1,106 @@
+/**
+ * Translation dictionary for the desktop shell and the pages it hosts.
+ *
+ * Every label is keyed so the shopkeeper can switch the interface between
+ * English and Bengali later without touching components. Values follow the
+ * design references: chrome labels are English, order content and the Settings
+ * group names are Bengali.
+ */
+export const LANGUAGES = ['en', 'bn'] as const;
+
+export type Language = (typeof LANGUAGES)[number];
+
+export const DEFAULT_LANGUAGE: Language = 'en';
+
+export const STRINGS = {
+  'nav.status': { en: 'Status', bn: 'স্ট্যাটাস' },
+  'nav.dashboard': { en: 'Dashboard', bn: 'ড্যাশবোর্ড' },
+  'nav.printers': { en: 'Printers', bn: 'প্রিন্টার' },
+  'nav.jobs': { en: 'Jobs', bn: 'জব' },
+  'nav.pos': { en: 'POS', bn: 'পিওএস' },
+  'nav.reports': { en: 'Reports', bn: 'রিপোর্ট' },
+  'nav.settings': { en: 'Settings', bn: 'সেটিংস' },
+
+  'shell.help': { en: 'Help', bn: 'সাহায্য' },
+  'shell.help.printers': { en: 'Scan for printers', bn: 'প্রিন্টার স্ক্যান করুন' },
+  'shell.help.services': { en: 'Service manager', bn: 'সার্ভিস ম্যানেজার' },
+  'shell.help.server': { en: 'Local server status', bn: 'লোকাল সার্ভার স্ট্যাটাস' },
+  'shell.help.package': { en: 'Windows agent package', bn: 'উইন্ডোজ এজেন্ট প্যাকেজ' },
+  'shell.shopCode': { en: 'Shop Code: {code}', bn: 'শপ কোড: {code}' },
+  'shell.shopMenu.title': { en: 'Shop', bn: 'দোকান' },
+  'shell.shopMenu.settings': { en: 'Shop settings', bn: 'দোকানের সেটিংস' },
+  'shell.shopMenu.poster': { en: 'Counter QR poster', bn: 'কাউন্টার QR পোস্টার' },
+
+  'status.connected': { en: 'Connected', bn: 'সংযুক্ত' },
+  'status.connectedDetail': { en: '{product} is connected', bn: '{product} সংযুক্ত আছে' },
+  'status.subscription': { en: 'Subscription:', bn: 'সাবস্ক্রিপশন:' },
+  'status.subscriptionActive': { en: 'Active', bn: 'সক্রিয়' },
+  'status.printers': { en: 'PRINTERS ({count})', bn: 'প্রিন্টার ({count})' },
+  'status.viewAllPrinters': { en: 'View all printers', bn: 'সব প্রিন্টার দেখুন' },
+  'status.printersEmpty': { en: 'No printers detected yet.', bn: 'এখনো কোনো প্রিন্টার পাওয়া যায়নি।' },
+
+  'status.overview': { en: 'OVERVIEW', bn: 'সারসংক্ষেপ' },
+  'status.pending': { en: 'Pending', bn: 'পেন্ডিং' },
+  'status.today': { en: 'Today', bn: 'আজ' },
+  'status.thisMonth': { en: 'This Month', bn: 'এই মাস' },
+  'status.viewJobs': { en: 'View jobs', bn: 'জব দেখুন' },
+  'status.viewReport': { en: 'View report', bn: 'রিপোর্ট দেখুন' },
+
+  'status.recentJobs': { en: 'RECENT JOBS', bn: 'সাম্প্রতিক জব' },
+  'status.viewAllJobs': { en: 'View all jobs', bn: 'সব জব দেখুন' },
+  'status.table.jobName': { en: 'Job Name', bn: 'জবের নাম' },
+  'status.table.printer': { en: 'Printer', bn: 'প্রিন্টার' },
+  'status.table.status': { en: 'Status', bn: 'স্ট্যাটাস' },
+  'status.table.time': { en: 'Time', bn: 'সময়' },
+  'status.jobsEmpty': { en: 'No print jobs yet.', bn: 'এখনো কোনো প্রিন্ট জব নেই।' },
+  'status.jobsLoading': { en: 'Loading jobs…', bn: 'জব লোড হচ্ছে…' },
+  'status.jobsError': { en: 'Could not read the local print queue.', bn: 'লোকাল প্রিন্ট কিউ পড়া যায়নি।' },
+
+  'status.openDashboard': { en: 'Open Dashboard', bn: 'ড্যাশবোর্ড খুলুন' },
+  'status.printerSettings': { en: 'Printer Settings', bn: 'প্রিন্টার সেটিংস' },
+  'status.shop': { en: 'Shop', bn: 'দোকান' },
+
+  'printer.online': { en: 'online', bn: 'অনলাইন' },
+  'printer.offline': { en: 'offline', bn: 'অফলাইন' },
+  'printer.menu': { en: 'Printer actions', bn: 'প্রিন্টারের কাজ' },
+  'printer.menu.testPrint': { en: 'Send a test print', bn: 'টেস্ট প্রিন্ট পাঠান' },
+  'printer.menu.setOnline': { en: 'Mark as online', bn: 'অনলাইন হিসেবে চিহ্নিত করুন' },
+  'printer.menu.setOffline': { en: 'Mark as offline', bn: 'অফলাইন হিসেবে চিহ্নিত করুন' },
+  'printer.menu.viewPrinters': { en: 'Open printer settings', bn: 'প্রিন্টার সেটিংস খুলুন' },
+
+  'job.status.printed': { en: 'Printed', bn: 'প্রিন্ট হয়েছে' },
+  'job.status.failed': { en: 'Failed', bn: 'ব্যর্থ' },
+  'job.status.pending': { en: 'Pending', bn: 'অপেক্ষমাণ' },
+  'job.status.printing': { en: 'Printing…', bn: 'প্রিন্ট হচ্ছে…' },
+  'job.status.rejected': { en: 'Rejected', bn: 'বাতিল' },
+
+  'job.nidPhoto': { en: 'NID Photo', bn: 'এনআইডি ছবি' },
+
+  'upcoming.title': { en: 'Coming in the next step', bn: 'পরবর্তী ধাপে আসছে' },
+  'upcoming.status': {
+    en: 'The status window from the design reference lands in step 3.',
+    bn: 'ডিজাইন রেফারেন্সের স্ট্যাটাস উইন্ডো ধাপ ৩-এ আসছে।'
+  },
+  'upcoming.dashboard': {
+    en: 'The order inbox (card layout, reject reason, edit drawer) lands in step 4.',
+    bn: 'অর্ডার ইনবক্স (কার্ড লেআউট, বাতিলের কারণ, এডিট ড্রয়ার) ধাপ ৪-এ আসছে।'
+  },
+  'upcoming.jobs': {
+    en: 'The full job list with status, printer and date filters lands in step 6.',
+    bn: 'স্ট্যাটাস, প্রিন্টার ও তারিখ ফিল্টারসহ পূর্ণ জব তালিকা ধাপ ৬-এ আসছে।'
+  },
+  'upcoming.reports': {
+    en: 'Today and this-month reporting lands in step 6.',
+    bn: 'আজ ও এই মাসের রিপোর্ট ধাপ ৬-এ আসছে।'
+  },
+  'upcoming.settings': {
+    en: 'The 11-group settings panel lands in step 7.',
+    bn: '১১ গ্রুপের সেটিংস প্যানেল ধাপ ৭-এ আসছে।'
+  },
+  'upcoming.printers': {
+    en: 'The printer selection dialog lands in step 5.',
+    bn: 'প্রিন্টার নির্বাচনের ডায়ালগ ধাপ ৫-এ আসছে।'
+  }
+} as const;
+
+export type TranslationKey = keyof typeof STRINGS;

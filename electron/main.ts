@@ -1,4 +1,4 @@
-import { app, BrowserWindow, crashReporter, Menu, nativeImage, Notification, Tray, ipcMain } from 'electron';
+import { app, BrowserWindow, crashReporter, Menu, nativeImage, Notification, Tray, ipcMain, screen } from 'electron';
 import { randomBytes } from 'node:crypto';
 import { cpSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -110,12 +110,77 @@ const createTray = (): void => {
   tray.on('double-click', showWindow);
 };
 
+interface PersistedWindowState {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+  maximized?: boolean;
+}
+
+const DEFAULT_WINDOW_STATE: PersistedWindowState = { width: 1180, height: 780 };
+
+const windowStateFile = (): string => join(app.getPath('userData'), 'window-state.json');
+
+/** Restore the last window size/position, dropping a position that no longer lands on a display. */
+const readWindowState = (): PersistedWindowState => {
+  try {
+    const parsed = JSON.parse(readFileSync(windowStateFile(), 'utf8')) as Partial<PersistedWindowState>;
+    const width = Number(parsed.width);
+    const height = Number(parsed.height);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width < 900 || height < 600) {
+      return DEFAULT_WINDOW_STATE;
+    }
+    const state: PersistedWindowState = {
+      width: Math.round(width),
+      height: Math.round(height),
+      maximized: parsed.maximized === true,
+    };
+    const x = Number(parsed.x);
+    const y = Number(parsed.y);
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      const isOnScreen = screen.getAllDisplays().some(display => {
+        const { x: displayX, y: displayY, width: displayWidth, height: displayHeight } = display.workArea;
+        return x + 40 < displayX + displayWidth && x + state.width - 40 > displayX &&
+          y + 10 < displayY + displayHeight && y + state.height - 10 > displayY;
+      });
+      if (isOnScreen) {
+        state.x = Math.round(x);
+        state.y = Math.round(y);
+      }
+    }
+    return state;
+  } catch {
+    return DEFAULT_WINDOW_STATE;
+  }
+};
+
+const writeWindowState = (): void => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    const isMaximized = mainWindow.isMaximized();
+    const bounds = isMaximized ? mainWindow.getNormalBounds() : mainWindow.getBounds();
+    const state: PersistedWindowState = {
+      width: bounds.width,
+      height: bounds.height,
+      x: bounds.x,
+      y: bounds.y,
+      maximized: isMaximized,
+    };
+    writeFileSync(windowStateFile(), JSON.stringify(state), 'utf8');
+  } catch (error) {
+    logger?.error('Could not save the window position.', error);
+  }
+};
+
 const createWindow = async (): Promise<void> => {
+  const windowState = readWindowState();
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 960,
+    width: windowState.width,
+    height: windowState.height,
+    ...(windowState.x !== undefined && windowState.y !== undefined ? { x: windowState.x, y: windowState.y } : {}),
     minWidth: 900,
-    minHeight: 640,
+    minHeight: 600,
     show: false,
     webPreferences: {
       preload: join(appDirectory, 'preload.cjs'),
@@ -125,10 +190,24 @@ const createWindow = async (): Promise<void> => {
     },
   });
 
+  if (windowState.maximized) mainWindow.maximize();
+
+  // Persist the size/position so the operator's layout survives a restart.
+  let windowStateTimer: NodeJS.Timeout | null = null;
+  const scheduleWindowStateSave = (): void => {
+    if (windowStateTimer) clearTimeout(windowStateTimer);
+    windowStateTimer = setTimeout(writeWindowState, 500);
+  };
+  mainWindow.on('resize', scheduleWindowStateSave);
+  mainWindow.on('move', scheduleWindowStateSave);
+  mainWindow.on('maximize', scheduleWindowStateSave);
+  mainWindow.on('unmaximize', scheduleWindowStateSave);
+
   mainWindow.once('ready-to-show', () => {
     if (!process.argv.includes('--hidden')) showWindow();
   });
   mainWindow.on('close', event => {
+    writeWindowState();
     if (!isQuitting) {
       event.preventDefault();
       mainWindow?.hide();

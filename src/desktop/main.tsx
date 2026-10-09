@@ -7,14 +7,10 @@
  */
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { StudioProvider, useStudio } from '../shared/context/StudioContext';
+import { StudioProvider } from '../shared/context/StudioContext';
 import { ThemeProvider } from '../shared/context/ThemeContext';
-import { InstallationSetup } from '../shared/components/InstallationSetup';
-import { WindowsToast } from '../shared/components/WindowsToast';
-import { OrderCardModal } from '../features/shop-pos/OrderCardModal';
-import { CounterPosterModal } from '../features/shop-pos/CounterPosterModal';
-import { WindowsExePackageModal } from '../features/print-agent/WindowsExePackageModal';
-import { WindowsAgentView } from '../features/print-agent/WindowsAgentView';
+import { I18nProvider } from '../shared/i18n/I18nContext';
+import { DesktopApp } from '../features/desktop/DesktopApp';
 import { registerServiceWorker } from '../shared/services/registerServiceWorker';
 import '../index.css';
 
@@ -23,36 +19,14 @@ if (!container) throw new Error('Root container missing in desktop.html');
 
 registerServiceWorker();
 
-const DesktopEntry: React.FC = () => {
-  const { installationConfig } = useStudio();
-
-  if (!installationConfig) {
-    return (
-      <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col">
-        <InstallationSetup />
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col selection:bg-accent selection:text-accent-text">
-      <main className="min-w-0 flex-1">
-        <WindowsAgentView />
-      </main>
-      <WindowsToast />
-      <OrderCardModal />
-      <CounterPosterModal />
-      <WindowsExePackageModal />
-    </div>
-  );
-};
-
 createRoot(container).render(
   <React.StrictMode>
     <ThemeProvider>
-      <StudioProvider initialView="windows_agent">
-        <DesktopEntry />
-      </StudioProvider>
+      <I18nProvider>
+        <StudioProvider initialView="windows_agent">
+          <DesktopApp />
+        </StudioProvider>
+      </I18nProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

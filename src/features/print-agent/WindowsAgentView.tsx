@@ -37,7 +37,17 @@ import {
   Monitor,
 } from 'lucide-react';
 
-export const WindowsAgentView: React.FC = () => {
+/** Inner pages of the print-agent console, now rendered as tab bodies. */
+export type AgentPage = 'console' | 'printers' | 'services' | 'counters' | 'server';
+
+interface WindowsAgentViewProps {
+  /** Which page to open with. Remount the component to switch pages. */
+  initialPage?: AgentPage;
+  /** Lets an inline link ask the shell for a different page. */
+  onPageChange?: (page: AgentPage) => void;
+}
+
+export const WindowsAgentView: React.FC<WindowsAgentViewProps> = ({ initialPage = 'console', onPageChange }) => {
   const {
     shopProfile,
     printers,
@@ -71,9 +81,13 @@ export const WindowsAgentView: React.FC = () => {
     createCustomerJob,
   } = useStudio();
 
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [isMaximized, setIsMaximized] = useState(false);
-  const [activeWindowTab, setActiveWindowTab] = useState<'console' | 'printers' | 'services' | 'counters' | 'server'>('console');
+  // The desktop shell owns top-level navigation; these pages are rendered as
+  // tab bodies so the existing agent logic stays reachable from the new shell.
+  const [activeWindowTab, setActiveWindowTab] = useState<AgentPage>(initialPage);
+  const changePage = (page: AgentPage) => {
+    changePage(page);
+    onPageChange?.(page);
+  };
 
   // Scanner loading state
   const [isScanning, setIsScanning] = useState(false);
@@ -257,153 +271,7 @@ export const WindowsAgentView: React.FC = () => {
   ];
 
   return (
-    <div className={`fluent-ui mx-auto p-2 sm:p-4 transition-all duration-200 ${isMaximized ? 'max-w-full' : 'max-w-5xl'}`}>
-      {/* Real Windows 11/10 Application Frame */}
-      <div
-        className={`bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl shadow-black/95 overflow-hidden transition-all duration-200 ${
-          isMinimized ? 'opacity-40 scale-95 pointer-events-none' : 'opacity-100 scale-100'
-        }`}
-      >
-        {/* Native Windows Window Titlebar */}
-        <div className="flex items-center justify-between px-3 py-2 bg-slate-950 border-b border-slate-800 select-none">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-emerald-600 flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
-              BP
-            </div>
-            <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-              <span>ALIF SHOHOJ PRINT 2026</span>
-              <span className="text-slate-500">|</span>
-              <span className="text-emerald-400 font-mono">[{shopProfile.code}]</span>
-              <span className="text-slate-500">|</span>
-              <span className="text-slate-400 text-[11px] font-normal">লোকাল প্রিন্ট সার্ভার এজেন্ট</span>
-            </span>
-          </div>
-
-          <div className="flex items-center">
-            <button
-              onClick={() => setIsMinimized(true)}
-              className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition-colors"
-              title="Minimize to System Tray"
-            >
-              <Minus className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setIsMaximized(!isMaximized)}
-              className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition-colors"
-              title={isMaximized ? 'Restore Down' : 'Maximize'}
-            >
-              <Square className="w-3 h-3" />
-            </button>
-            <button
-              onClick={() => setIsMinimized(true)}
-              className="p-1.5 hover:bg-rose-600 text-slate-400 hover:text-white rounded transition-colors"
-              title="Close to Tray"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Native Windows Menu Bar */}
-        <div className="flex items-center gap-4 overflow-x-auto whitespace-nowrap border-b border-slate-800 bg-slate-900/90 px-3 py-1 text-xs text-slate-300 select-none">
-          <div className="relative shrink-0 cursor-pointer group hover:text-white py-0.5">
-            <span>ফাইল (File)</span>
-          </div>
-          <div
-            onClick={handleScanPrinters}
-            className="flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap py-0.5 hover:text-emerald-400"
-          >
-            <span>প্রিন্টার স্ক্যান (Scan)</span>
-          </div>
-          <div
-            onClick={() => setActiveWindowTab('services')}
-            className="shrink-0 cursor-pointer whitespace-nowrap py-0.5 hover:text-emerald-400"
-          >
-            <span>সার্ভিস ম্যানেজার (Services)</span>
-          </div>
-          <div
-            onClick={() => setActiveWindowTab('counters')}
-            className="flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap py-0.5 hover:text-emerald-400"
-          >
-            <span>ল্যান কাউন্টার (Counters)</span>
-          </div>
-          <div
-            onClick={() => setActiveWindowTab('server')}
-            className="shrink-0 cursor-pointer whitespace-nowrap py-0.5 hover:text-emerald-400"
-          >
-            <span>লোকাল সার্ভার (Server)</span>
-          </div>
-          <div
-            onClick={() => setIsExePackageModalOpen(true)}
-            className="shrink-0 cursor-pointer whitespace-nowrap py-0.5 hover:text-emerald-400"
-          >
-            <span>সাহায্য ও ড্রাইভার (Help)</span>
-          </div>
-        </div>
-
-        {/* Windows App View Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap border-b border-slate-800 bg-slate-950/70 px-4 pt-3 text-xs">
-          <button
-            onClick={() => setActiveWindowTab('console')}
-            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 font-semibold transition-colors ${
-              activeWindowTab === 'console'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <HardDrive className="w-3.5 h-3.5" />
-            <span>কনসোল ড্যাশবোর্ড</span>
-          </button>
-
-          <button
-            onClick={() => setActiveWindowTab('printers')}
-            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 font-semibold transition-colors ${
-              activeWindowTab === 'printers'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>সকল প্রিন্টার ({printers.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveWindowTab('services')}
-            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 font-semibold transition-colors ${
-              activeWindowTab === 'services'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>সার্ভিস চালুবন্ধ নিয়ন্ত্রণ</span>
-          </button>
-
-          <button
-            onClick={() => setActiveWindowTab('counters')}
-            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 font-semibold transition-colors ${
-              activeWindowTab === 'counters'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Wifi className="w-3.5 h-3.5" />
-            <span>ল্যান কাউন্টার ও শেয়ারিং ({counters.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveWindowTab('server')}
-            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 font-semibold transition-colors ${
-              activeWindowTab === 'server'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Server className="w-3.5 h-3.5" />
-            <span>লোকাল সার্ভার স্ট্যাটাস</span>
-          </button>
-        </div>
-
+    <div className="fluent-ui h-full overflow-y-auto">
         {/* TAB 1: Console / Main Agent Status */}
         {activeWindowTab === 'console' && (
           <div className="p-5 space-y-6">
@@ -448,7 +316,7 @@ export const WindowsAgentView: React.FC = () => {
                   <span>কানেক্টেড প্রিন্টার সমূহ (Connected Printers)</span>
                 </h3>
                 <button
-                  onClick={() => setActiveWindowTab('printers')}
+                  onClick={() => changePage('printers')}
                   className="text-xs text-emerald-400 hover:underline flex items-center gap-1"
                 >
                   <span>সকল প্রিন্টার ও কনফিগারেশন দেখুন</span>
@@ -566,7 +434,7 @@ export const WindowsAgentView: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setActiveWindowTab('printers')}
+                onClick={() => changePage('printers')}
                 className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition-colors"
               >
                 <Sliders className="w-4 h-4 text-emerald-400" />
@@ -574,7 +442,7 @@ export const WindowsAgentView: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setActiveWindowTab('services')}
+                onClick={() => changePage('services')}
                 className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition-colors"
               >
                 <Settings className="w-4 h-4 text-emerald-400" />
@@ -1365,48 +1233,6 @@ export const WindowsAgentView: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Simulated Windows Taskbar with System Tray */}
-      <div className="mt-3 p-2.5 bg-slate-950/90 border border-slate-800 rounded-xl flex items-center justify-between text-xs text-slate-400 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-slate-300 font-semibold">
-            <div className="w-3.5 h-3.5 rounded bg-emerald-600 flex items-center justify-center text-[8px] font-bold text-white">
-              BP
-            </div>
-            <span>Windows 11 Background Daemon Active</span>
-          </div>
-          {isMinimized && (
-            <button
-              onClick={() => setIsMinimized(false)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 text-xs font-semibold"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>উইন্ডো রিস্টোর করুন</span>
-            </button>
-          )}
-        </div>
-
-        {/* Tray Icon with Red Badge */}
-        <div className="flex items-center gap-3">
-          <div
-            onClick={() => setIsMinimized(false)}
-            className="relative cursor-pointer p-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 transition-colors"
-            title="ALIF SHOHOJ PRINT Agent in Tray"
-          >
-            <Printer className="w-4 h-4 text-emerald-400" />
-            {pendingJobsCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow tabular-nums">
-                {pendingJobsCount}
-              </span>
-            )}
-          </div>
-          <span className="font-mono text-xs text-slate-400">
-            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        </div>
-      </div>
-
       {/* Add Printer Modal Dialog */}
       {isAddPrinterOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">

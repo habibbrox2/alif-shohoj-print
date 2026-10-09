@@ -19,7 +19,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const stored = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
       if (stored) return stored;
     }
-    return 'system';
+    // The Windows shell design references are light; dark stays available from
+    // the settings toggle and from an explicit system preference.
+    return 'light';
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');

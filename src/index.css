@@ -27,6 +27,12 @@
   --color-accent-light: #d8f3d8;
   --color-accent-text: #ffffff;
 
+  /* Teal primary + surface palette taken from the Windows shell design refs */
+  --color-brand: #0f766e;
+  --color-brand-hover: #0d655e;
+  --color-brand-soft: #e6f4f1;
+  --color-on-brand: #ffffff;
+
   /* Status colors */
   --color-success: #107c10;
   --color-success-bg: #d8f3d8;
@@ -56,7 +62,9 @@
   --transition-slow: 300ms cubic-bezier(0, 0, 0.2, 1);
 
   /* Fonts */
-  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', 'Hind Siliguri', 'Plus Jakarta Sans', sans-serif;
+  /* Nirmala UI ships with Windows; Noto Sans Bengali / Hind Siliguri cover
+     Bengali glyphs on machines where Nirmala UI is unavailable. */
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', 'Nirmala UI', 'Noto Sans Bengali', 'Hind Siliguri', 'Plus Jakarta Sans', sans-serif;
   --font-mono: 'JetBrains Mono', 'Consolas', 'Monospace';
 }
 
@@ -86,6 +94,11 @@
     --color-accent-hover: #6ee797;
     --color-accent-light: #0e2a0e;
     --color-accent-text: #1b1b1b;
+
+  --color-brand: #14b8a6;
+  --color-brand-hover: #2dd4bf;
+  --color-brand-soft: #10302c;
+  --color-on-brand: #04211e;
 
     --color-success: #4ade80;
     --color-success-bg: #0e2a0e;
@@ -124,6 +137,12 @@
   --color-accent-light: #d8f3d8;
   --color-accent-text: #ffffff;
 
+  /* Teal primary + surface palette taken from the Windows shell design refs */
+  --color-brand: #0f766e;
+  --color-brand-hover: #0d655e;
+  --color-brand-soft: #e6f4f1;
+  --color-on-brand: #ffffff;
+
   --color-success: #107c10;
   --color-success-bg: #d8f3d8;
   --color-warning: #bf8c00;
@@ -159,6 +178,11 @@
   --color-accent-hover: #6ee797;
   --color-accent-light: #0e2a0e;
   --color-accent-text: #1b1b1b;
+
+  --color-brand: #14b8a6;
+  --color-brand-hover: #2dd4bf;
+  --color-brand-soft: #10302c;
+  --color-on-brand: #04211e;
 
   --color-success: #4ade80;
   --color-success-bg: #0e2a0e;
