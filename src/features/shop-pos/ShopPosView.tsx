@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useStudio } from '../../shared/context/StudioContext';
 import { PrintJob } from '../../shared/types';
+import { jobDisplayName } from '../../shared/services/jobDisplay';
 import type { DesktopConnectionInfo } from '../../shared/desktop-api';
 import {
   DollarSign,
@@ -263,7 +264,7 @@ export const ShopPosView: React.FC = () => {
                     <td className="py-3 px-4">
                       <div className="font-semibold text-white">{job.serviceLabelBn}</div>
                       <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-                        <span>{job.fileName}</span>
+                        <span>{jobDisplayName(job, 'এনআইডি ছবি')}</span>
                         <span>·</span>
                         <span>{job.fileSize}</span>
                       </div>
