@@ -15,13 +15,18 @@ const https = require('https');
 
 // Shop Pairing Config
 const CONFIG = {
-  SERVER_URL: process.env.ALIF_SHOHOJ_PRINT_SERVER || 'wss://print.example.com/ws/agent',
-  SHOP_CODE: process.env.SHOP_CODE || 'RCD-8K29',
-  DEVICE_TOKEN: process.env.DEVICE_TOKEN || 'demo-device-token',
+  SERVER_URL: process.env.ALIF_SHOHOJ_PRINT_SERVER || '',
+  SHOP_CODE: process.env.SHOP_CODE || '',
+  DEVICE_TOKEN: process.env.DEVICE_TOKEN || '',
   CACHE_DIR: path.join(__dirname, 'local_queue_cache'),
   AUTO_PRINT: true,
   HEARTBEAT_INTERVAL_MS: 15000,
 };
+
+if (!CONFIG.SERVER_URL || !CONFIG.SHOP_CODE || !CONFIG.DEVICE_TOKEN) {
+  console.error('Set ALIF_SHOHOJ_PRINT_SERVER, SHOP_CODE, and DEVICE_TOKEN before starting this sample agent.');
+  process.exit(1);
+}
 
 if (!fs.existsSync(CONFIG.CACHE_DIR)) {
   fs.mkdirSync(CONFIG.CACHE_DIR, { recursive: true });
