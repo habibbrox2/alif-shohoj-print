@@ -19,11 +19,12 @@ import { BRAND } from '../../../shared/config/brand';
 import {
   formatJobTime,
   jobDisplayName,
+  jobStatusLabelKey,
   jobStatusTone,
   startOfMonth,
   startOfToday
 } from '../../../shared/services/jobDisplay';
-import type { PrintJob, PrinterDevice } from '../../../shared/types';
+import type { PrinterDevice } from '../../../shared/types';
 import type { DesktopPage } from '../navigation';
 
 const RECENT_JOB_LIMIT = 5;
@@ -37,18 +38,9 @@ const STATUS_TONE_CLASS: Record<ReturnType<typeof jobStatusTone>, string> = {
   neutral: 'bg-text-tertiary'
 };
 
-const JOB_STATUS_KEY: Record<PrintJob['status'], Parameters<ReturnType<typeof useI18n>['t']>[0]> = {
-  completed: 'job.status.printed',
-  failed: 'job.status.failed',
-  printing: 'job.status.printing',
-  rejected: 'job.status.rejected',
-  queued: 'job.status.pending',
-  approved: 'job.status.pending',
-  routing: 'job.status.pending'
-};
-
 interface StatusPageProps {
   onNavigate: (page: DesktopPage) => void;
+  onOpenPrinterSettings: () => void;
 }
 
 /**
@@ -57,7 +49,7 @@ interface StatusPageProps {
  * right, action buttons at the bottom. All numbers come from the live studio
  * state and the desktop print queue — nothing here is mocked.
  */
-export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate }) => {
+export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate, onOpenPrinterSettings }) => {
   const { t } = useI18n();
   const {
     shopProfile,
@@ -205,7 +197,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate }) => {
                     }}
                     onOpenSettings={() => {
                       setOpenPrinterMenuId(null);
-                      onNavigate('printers');
+                      onOpenPrinterSettings();
                     }}
                   />
                 ))
@@ -301,7 +293,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate }) => {
                         <td className="px-3.5 py-2 text-xs text-text-secondary">
                           <span className="inline-flex items-center gap-1.5">
                             <span className={`h-2 w-2 rounded-full ${STATUS_TONE_CLASS[jobStatusTone(job.status)]}`} />
-                            {t(JOB_STATUS_KEY[job.status])}
+                            {t(jobStatusLabelKey(job.status))}
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-3.5 py-2 text-xs tabular-nums text-text-secondary">
@@ -326,7 +318,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate }) => {
             </button>
             <button
               type="button"
-              onClick={() => onNavigate('printers')}
+              onClick={onOpenPrinterSettings}
               className="inline-flex items-center gap-2 rounded-lg border border-border-primary bg-surface px-4 py-2 text-xs font-semibold text-text-primary transition-colors hover:bg-surface-hover"
             >
               <Printer className="h-3.5 w-3.5" />

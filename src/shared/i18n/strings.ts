@@ -145,6 +145,32 @@ export const STRINGS = {
   },
   'order.rejectReason.other': { en: 'Other reason', bn: 'অন্যান্য কারণ' },
 
+  'printers.settings.title': { en: 'Printer Settings', bn: 'প্রিন্টার সেটিংস' },
+  'printers.settings.heading': { en: 'Detected Printers', bn: 'পাওয়া যাওয়া প্রিন্টার' },
+  'printers.settings.subtitle': {
+    en: 'Select the printers you want to use and configure defaults.',
+    bn: 'যে প্রিন্টারগুলো ব্যবহার করবেন সেগুলো নির্বাচন করে ডিফল্ট ঠিক করুন।'
+  },
+  'printers.settings.capabilities': { en: 'Capabilities:', bn: 'সক্ষমতা:' },
+  'printers.settings.defaultFor': { en: 'Default for:', bn: 'ডিফল্ট যেসব সার্ভিসে:' },
+  'printers.settings.status': { en: 'Status:', bn: 'অবস্থা:' },
+  'printers.settings.ready': { en: 'Ready', bn: 'প্রস্তুত' },
+  'printers.settings.offline': { en: 'Offline / Not responding', bn: 'অফলাইন / সাড়া দিচ্ছে না' },
+  'printers.settings.offlineHint': {
+    en: 'This printer is offline, so it cannot be enabled yet.',
+    bn: 'প্রিন্টারটি অফলাইন, তাই এখন চালু করা যাবে না।'
+  },
+  'printers.settings.refresh': { en: 'Refresh Printers', bn: 'প্রিন্টার রিফ্রেশ করুন' },
+  'printers.settings.save': { en: 'Save Changes', bn: 'পরিবর্তন সংরক্ষণ' },
+  'printers.settings.saved': {
+    en: 'Saved — the selected printers are applied to new-order routing.',
+    bn: 'সংরক্ষিত — নির্বাচিত প্রিন্টারগুলো নতুন অর্ডারের রাউটিঙে প্রয়োগ হয়েছে।'
+  },
+  'printers.settings.partialSave': {
+    en: '{count} service default(s) could not be updated.',
+    bn: '{count}টি সার্ভিস ডিফল্ট আপডেট করা যায়নি।'
+  },
+
   'upcoming.title': { en: 'Coming in the next step', bn: 'পরবর্তী ধাপে আসছে' },
   'upcoming.dashboard': {
     en: 'The order inbox (card layout, reject reason, edit drawer) lands in step 4.',

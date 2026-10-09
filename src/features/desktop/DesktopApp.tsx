@@ -20,6 +20,7 @@ import { CounterPosterModal } from '../shop-pos/CounterPosterModal';
 import { ShopPosView } from '../shop-pos/ShopPosView';
 import { WindowsAgentView, type AgentPage } from '../print-agent/WindowsAgentView';
 import { WindowsExePackageModal } from '../print-agent/WindowsExePackageModal';
+import { DetectedPrintersModal } from '../printers/components/DetectedPrintersModal';
 import { ProductMark } from './components/ProductMark';
 import { DashboardPage } from './pages/DashboardPage';
 import { StatusPage } from './pages/StatusPage';
@@ -61,6 +62,7 @@ export const DesktopApp: React.FC = () => {
   const [agentPage, setAgentPage] = useState<AgentPage>('printers');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
+  const [isPrinterSettingsOpen, setIsPrinterSettingsOpen] = useState(false);
 
   if (!installationConfig) {
     return (
@@ -210,9 +212,26 @@ export const DesktopApp: React.FC = () => {
       </div>
 
       <main className="min-h-0 flex-1 overflow-hidden">
-        {page === 'status' && <StatusPage onNavigate={setPage} />}
+        {page === 'status' && (
+          <StatusPage onNavigate={setPage} onOpenPrinterSettings={() => setIsPrinterSettingsOpen(true)} />
+        )}
         {page === 'printers' && (
-          <WindowsAgentView key={agentPage} initialPage={agentPage} onPageChange={setAgentPage} />
+          <div className="flex h-full flex-col">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-secondary bg-surface px-4 py-2">
+              <h2 className="text-xs font-bold text-text-primary">{t('status.printerSettings')}</h2>
+              <button
+                type="button"
+                onClick={() => setIsPrinterSettingsOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-primary bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary transition-colors hover:bg-surface-hover"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                {t('printers.settings.heading')}
+              </button>
+            </div>
+            <div className="min-h-0 flex-1">
+              <WindowsAgentView key={agentPage} initialPage={agentPage} onPageChange={setAgentPage} />
+            </div>
+          </div>
         )}
         {page === 'pos' && (
           <div className="h-full overflow-y-auto">
@@ -226,6 +245,10 @@ export const DesktopApp: React.FC = () => {
       </main>
 
       <WindowsToast />
+      <DetectedPrintersModal
+        isOpen={isPrinterSettingsOpen}
+        onClose={() => setIsPrinterSettingsOpen(false)}
+      />
       <OrderCardModal />
       <CounterPosterModal />
       <WindowsExePackageModal />
