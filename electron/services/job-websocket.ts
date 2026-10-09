@@ -17,7 +17,7 @@ export interface JobWebSocketOptions {
   onIncomingJob: (queueJob: DesktopQueueJob) => void;
 }
 
-const isPrintJob = (value: unknown): value is PrintJob => {
+export const isPrintJob = (value: unknown): value is PrintJob => {
   if (!value || typeof value !== 'object') return false;
   const job = value as Partial<PrintJob>;
   return typeof job.id === 'string' && job.id.length > 0 && job.id.length <= 128 &&
@@ -38,13 +38,13 @@ const safeTokenEquals = (candidate: string, expected: string): boolean => {
 };
 
 export const startJobWebSocket = (options: JobWebSocketOptions): WebSocketServer => {
-  if (!options.token) throw new Error('BROXPRINT_WS_TOKEN must be set before the WebSocket service starts.');
+  if (!options.token) throw new Error('ALIF_SHOHOJ_PRINT_WS_TOKEN must be set before the WebSocket service starts.');
   const isLoopback = options.host === '127.0.0.1' || options.host === 'localhost' || options.host === '::1';
   if (!isLoopback && !options.tls) {
     throw new Error('TLS certificate and key are required when the WebSocket server is exposed beyond localhost.');
   }
   if (Boolean(options.tls?.certPath) !== Boolean(options.tls?.keyPath)) {
-    throw new Error('Set both BROXPRINT_WS_TLS_CERT and BROXPRINT_WS_TLS_KEY to enable WSS.');
+    throw new Error('Set both ALIF_SHOHOJ_PRINT_WS_TLS_CERT and ALIF_SHOHOJ_PRINT_WS_TLS_KEY to enable WSS.');
   }
   const tlsServer = options.tls
     ? createServer({
@@ -60,6 +60,9 @@ export const startJobWebSocket = (options: JobWebSocketOptions): WebSocketServer
   if (tlsServer) {
     tlsServer.on('error', error => server.emit('error', error));
     tlsServer.listen(options.port, options.host);
+    // wss.close() never closes an externally managed server — shut the HTTPS
+    // listener down too so before-quit releases the TLS port cleanly.
+    server.on('close', () => tlsServer.close());
   }
 
   server.on('connection', socket => {

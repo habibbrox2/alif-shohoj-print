@@ -16,7 +16,7 @@ const receiveJson = async (socket: WebSocket): Promise<{ type: string; id?: stri
 };
 
 test('requires TLS before exposing the service to a LAN interface', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'broxprint-websocket-tls-'));
+  const directory = mkdtempSync(join(tmpdir(), 'alif-shohoj-print-websocket-tls-'));
   const store = new JobStore(join(directory, 'queue.sqlite'));
   try {
     assert.throws(() => startJobWebSocket({
@@ -33,7 +33,7 @@ test('requires TLS before exposing the service to a LAN interface', () => {
 });
 
 test('requires authentication and acknowledges only persisted jobs', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'broxprint-websocket-'));
+  const directory = mkdtempSync(join(tmpdir(), 'alif-shohoj-print-websocket-'));
   const store = new JobStore(join(directory, 'queue.sqlite'));
   let incomingCount = 0;
   const server = startJobWebSocket({

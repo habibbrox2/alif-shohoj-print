@@ -8,9 +8,9 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
     "sourceMap": true
   },
   "include": ["electron/**/*.ts", "src/shared/types.ts", "src/shared/desktop-api.ts"],
-  "exclude": ["node_modules", "dist", "dist-electron"]
+  "exclude": ["node_modules", "dist", "dist-electron", "electron/services/__tests__"]
 }

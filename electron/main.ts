@@ -1,27 +1,41 @@
 import { app, BrowserWindow, crashReporter, Menu, nativeImage, Notification, Tray, ipcMain } from 'electron';
 import { randomBytes } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { networkInterfaces } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppLogger } from './services/app-logger.js';
 import { createPrintService } from './services/print-service.js';
 import { JobStore } from './services/job-store.js';
-import { startJobWebSocket } from './services/job-websocket.js';
+import { isPrintJob, startJobWebSocket } from './services/job-websocket.js';
+import { createSoundService, getSoundService } from './services/sound-service.js';
+import { LocalGateway } from './services/local-gateway.js';
+import { createJobId, nextTokenNumber } from '../src/shared/services/jobIdentity.js';
+import type { CustomerAppConfig, DesktopQueueJob } from '../src/shared/desktop-api.js';
 import type { PrintJob } from '../src/shared/types.js';
-import type { DesktopQueueJob } from '../src/shared/desktop-api.js';
 
 const appDirectory = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const pdfToPrinter = require('pdf-to-printer') as typeof import('pdf-to-printer');
 const developmentUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:3000';
 app.setName('ALIF SHOHOJ PRINT');
-app.setPath('userData', join(app.getPath('appData'), 'BroxPrint Studio'));
-const websocketHost = process.env.BROXPRINT_WS_HOST || '127.0.0.1';
-const websocketPort = Number(process.env.BROXPRINT_WS_PORT || 43821);
-const websocketTlsCert = process.env.BROXPRINT_WS_TLS_CERT;
-const websocketTlsKey = process.env.BROXPRINT_WS_TLS_KEY;
+const appDataDirectory = app.getPath('appData');
+const userDataDirectory = join(appDataDirectory, 'ALIF SHOHOJ PRINT');
+const legacyUserDataDirectory = join(appDataDirectory, 'BroxPrint Studio');
+if (existsSync(legacyUserDataDirectory)) {
+  if (existsSync(userDataDirectory)) {
+    cpSync(legacyUserDataDirectory, userDataDirectory, { recursive: true, force: false, errorOnExist: false });
+  } else {
+    renameSync(legacyUserDataDirectory, userDataDirectory);
+  }
+}
+app.setPath('userData', userDataDirectory);
+const websocketHost = process.env.ALIF_SHOHOJ_PRINT_WS_HOST || '127.0.0.1';
+const websocketPort = Number(process.env.ALIF_SHOHOJ_PRINT_WS_PORT || 43821);
+const gatewayPort = Number(process.env.ALIF_SHOHOJ_PRINT_GATEWAY_PORT || 43822);
+const websocketTlsCert = process.env.ALIF_SHOHOJ_PRINT_WS_TLS_CERT;
+const websocketTlsKey = process.env.ALIF_SHOHOJ_PRINT_WS_TLS_KEY;
 const hasWebSocketTls = Boolean(websocketTlsCert && websocketTlsKey);
 const isValidPort = Number.isInteger(websocketPort) && websocketPort > 0 && websocketPort <= 65535;
 const crashDirectory = join(app.getPath('userData'), 'crashes');
@@ -32,7 +46,9 @@ let tray: Tray | null = null;
 let logger: AppLogger | null = null;
 let jobStore: JobStore | null = null;
 let jobWebSocket: ReturnType<typeof startJobWebSocket> | null = null;
+let localGateway: LocalGateway | null = null;
 let desktopPrintService: ReturnType<typeof createPrintService> | null = null;
+let soundService: ReturnType<typeof createSoundService> | null = null;
 let isQuitting = false;
 const activePrints = new Set<string>();
 
@@ -53,7 +69,7 @@ const notify = (title: string, body: string): void => {
 };
 
 const getToken = (userDataPath: string): string => {
-  if (process.env.BROXPRINT_WS_TOKEN) return process.env.BROXPRINT_WS_TOKEN;
+  if (process.env.ALIF_SHOHOJ_PRINT_WS_TOKEN) return process.env.ALIF_SHOHOJ_PRINT_WS_TOKEN;
   const tokenPath = join(userDataPath, 'websocket.token');
   if (existsSync(tokenPath)) return readFileSync(tokenPath, 'utf8').trim();
   const token = randomBytes(32).toString('hex');
@@ -63,6 +79,14 @@ const getToken = (userDataPath: string): string => {
 
 const getConnectionHost = (): string => {
   if (websocketHost !== '0.0.0.0' && websocketHost !== '::') return websocketHost;
+  for (const interfaces of Object.values(networkInterfaces())) {
+    const address = interfaces?.find(item => item.family === 'IPv4' && !item.internal);
+    if (address) return address.address;
+  }
+  return '127.0.0.1';
+};
+
+const getLanIpv4Address = (): string => {
   for (const interfaces of Object.values(networkInterfaces())) {
     const address = interfaces?.find(item => item.family === 'IPv4' && !item.internal);
     if (address) return address.address;
@@ -114,6 +138,30 @@ const createWindow = async (): Promise<void> => {
     logger?.error('Renderer process exited unexpectedly.', undefined, { reason: details.reason, exitCode: details.exitCode });
   });
 
+  // Security hardening: the sandboxed renderer must never be steered to a remote
+  // URL, and it cannot open new windows (popups are denied outright).
+  const distRoot = join(app.getAppPath(), 'dist');
+  const isAllowedNavigation = (url: string): boolean => {
+    try {
+      if (!app.isPackaged) return new URL(url).origin === new URL(developmentUrl).origin;
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'file:') return false;
+      const filePath = fileURLToPath(parsed);
+      return filePath === distRoot || filePath.startsWith(distRoot + sep);
+    } catch {
+      return false;
+    }
+  };
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    logger?.info('Blocked a new-window request from the renderer.', { url });
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (isAllowedNavigation(url)) return;
+    event.preventDefault();
+    logger?.info('Blocked renderer navigation away from the app shell.', { url });
+  });
+
   if (app.isPackaged) {
     await mainWindow.loadFile(join(app.getAppPath(), 'dist', 'index.html'));
   } else {
@@ -136,15 +184,64 @@ const registerIpcHandlers = (token: string): void => {
     token,
     secure: hasWebSocketTls,
   }));
+  ipcMain.handle('desktop:customer-pwa:url', () => {
+    if (app.isPackaged && !hasWebSocketTls) return null;
+    const protocol = app.isPackaged ? 'https' : 'http';
+    const port = app.isPackaged ? gatewayPort : 3000;
+    return `${protocol}://${getLanIpv4Address()}:${port}/?view=customer_pwa`;
+  });
+  ipcMain.handle('desktop:customer-pwa:publish-config', (_event, config: CustomerAppConfig) => {
+    if (!config || !Array.isArray(config.counters) || !Array.isArray(config.services)) {
+      throw new Error('Invalid customer app configuration.');
+    }
+    localGateway?.publishCustomerConfig(config);
+  });
+  ipcMain.handle('desktop:counters:get-statuses', (_event, counterIds: unknown) => {
+    if (!Array.isArray(counterIds) || counterIds.some(id => typeof id !== 'string')) return [];
+    return localGateway?.getCounterStatuses(counterIds as string[]) ?? [];
+  });
+  ipcMain.handle('desktop:counter:heartbeat:send', async (_event, masterUrl: unknown, counterId: unknown) => {
+    if (typeof masterUrl !== 'string' || typeof counterId !== 'string' || !/^CTR-[A-Z0-9-]{1,32}$/i.test(counterId)) {
+      throw new Error('A valid master URL and counter ID are required.');
+    }
+    let endpoint: URL;
+    try {
+      endpoint = new URL('/api/counter-heartbeat', masterUrl);
+    } catch {
+      throw new Error('The master PC URL is invalid.');
+    }
+    const configuredUrl = new URL(masterUrl);
+    if (configuredUrl.username || configuredUrl.password || configuredUrl.search || configuredUrl.hash) {
+      throw new Error('The master PC URL must not contain credentials or query parameters.');
+    }
+    if (endpoint.protocol !== 'https:' && !( !app.isPackaged && endpoint.protocol === 'http:')) {
+      throw new Error('Counter heartbeat requires HTTPS on installed Windows PCs.');
+    }
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ counterId }),
+      signal: AbortSignal.timeout(5000),
+    });
+    return response.ok;
+  });
   ipcMain.handle('desktop:printers:list', async () => {
     return (await pdfToPrinter.getPrinters()).map(printer => printer.name);
   });
   ipcMain.handle('desktop:queue:list', () => jobStore?.list() ?? []);
-  ipcMain.handle('desktop:queue:save-job', (_event, job: unknown) => {
-    if (!job || typeof job !== 'object' || !('id' in job) || typeof job.id !== 'string') {
-      throw new Error('Invalid print job.');
+  ipcMain.handle('desktop:queue:remove-job', (_event, jobId: unknown) => {
+    if (typeof jobId !== 'string' || !jobId) throw new Error('A valid print job ID is required.');
+    if (!jobStore) throw new Error('The desktop print queue is not ready.');
+    if (activePrints.has(jobId)) {
+      throw new Error(`Print job ${jobId} is currently printing and cannot be removed.`);
     }
-    const saved = jobStore?.enqueue(job as PrintJob);
+    jobStore.remove(jobId);
+  });
+  ipcMain.handle('desktop:queue:save-job', (_event, job: unknown) => {
+    // Same full-shape validation as the WebSocket path so a compromised renderer
+    // cannot enqueue a job the WS endpoint would have rejected.
+    if (!isPrintJob(job)) throw new Error('Invalid print job payload.');
+    const saved = jobStore?.enqueue(job);
     if (!saved) throw new Error('The desktop print queue is not ready.');
     broadcastQueueJob(saved);
   });
@@ -178,17 +275,104 @@ const registerIpcHandlers = (token: string): void => {
       activePrints.delete(jobId);
     }
   });
+  
+  // Sound Service IPC Handlers
+  ipcMain.handle('desktop:sound:play', (_event, soundId: string) => {
+    const validSounds = ['S01', 'S02', 'S03', 'S04', 'S05', 'S06'];
+    if (!validSounds.includes(soundId)) throw new Error('Invalid sound ID');
+    return soundService?.play(soundId as any) ?? false;
+  });
+  ipcMain.handle('desktop:sound:set-volume', (_event, volume: number) => {
+    soundService?.setVolume(volume);    return true;
+  });
+  ipcMain.handle('desktop:sound:set-alert-enabled', (_event, enabled: boolean) => {
+    soundService?.setSoundAlertEnabled(enabled);    return true;
+  });
+  ipcMain.handle('desktop:sound:set-toast-enabled', (_event, enabled: boolean) => {
+    soundService?.setToastSoundEnabled(enabled);    return true;
+  });
+  ipcMain.handle('desktop:sound:set-dnd', (_event, enabled: boolean) => {
+    soundService?.setDndMode(enabled);    return true;
+  });
+  ipcMain.handle('desktop:sound:get-config', () => ({
+    volume: 70,
+    soundAlertEnabled: true,
+    toastSoundEnabled: true,
+    isDndMode: false,
+  }));
 };
 
 const startDesktopServices = (): void => {
-  if (!isValidPort) throw new Error('BROXPRINT_WS_PORT must be an integer from 1 to 65535.');
+  if (!isValidPort) throw new Error('ALIF_SHOHOJ_PRINT_WS_PORT must be an integer from 1 to 65535.');
+  if (!Number.isInteger(gatewayPort) || gatewayPort < 1 || gatewayPort > 65535) {
+    throw new Error('ALIF_SHOHOJ_PRINT_GATEWAY_PORT must be an integer from 1 to 65535.');
+  }
   if (Boolean(websocketTlsCert) !== Boolean(websocketTlsKey)) {
-    throw new Error('Set both BROXPRINT_WS_TLS_CERT and BROXPRINT_WS_TLS_KEY to enable WSS.');
+    throw new Error('Set both ALIF_SHOHOJ_PRINT_WS_TLS_CERT and ALIF_SHOHOJ_PRINT_WS_TLS_KEY to enable WSS.');
   }
   const userDataPath = app.getPath('userData');
   logger = new AppLogger(userDataPath);
   jobStore = new JobStore(join(userDataPath, 'print-queue.sqlite'));
   desktopPrintService = createPrintService(userDataPath);
+
+  localGateway = new LocalGateway({
+    port: gatewayPort,
+    webRoot: join(app.getAppPath(), 'dist'),
+    ...(hasWebSocketTls && websocketTlsCert && websocketTlsKey
+      ? { tls: { certPath: websocketTlsCert, keyPath: websocketTlsKey } }
+      : {}),
+    onCustomerOrder: incomingJob => {
+      const currentJobs = jobStore?.list() ?? [];
+      const nextToken = nextTokenNumber(currentJobs.map(queueJob => queueJob.job.tokenCode), 0);
+      const now = Date.now();
+      const targetCounter = localGateway?.getCounterStatuses([incomingJob.counterId || ''])[0];
+      const isCounterOffline = !targetCounter?.online;
+      const acceptedJob: PrintJob = {
+        ...incomingJob,
+        id: createJobId(),
+        tokenCode: String(nextToken),
+        createdAt: now,
+        status: 'queued',
+        auditLogs: [
+          ...(Array.isArray(incomingJob.auditLogs)
+            ? incomingJob.auditLogs.filter(entry => entry.action !== 'service_auto_approved')
+            : []),
+          {
+            id: `log_${now}_master_receive`,
+            timestamp: now,
+            actor: 'system',
+            action: 'master_received_customer_order',
+            details: `Master PC received the customer order for ${incomingJob.counterName || incomingJob.counterId}.`,
+          },
+          ...(isCounterOffline ? [{
+            id: `log_${now}_counter_offline`,
+            timestamp: now,
+            actor: 'system' as const,
+            action: 'counter_offline_master_review',
+            details: `${incomingJob.counterName || incomingJob.counterId} did not send a recent heartbeat; the order is waiting for master review.`,
+          }] : []),
+        ],
+      };
+      const queueJob = jobStore?.enqueue(acceptedJob);
+      if (!queueJob) throw new Error('The master print queue is not ready.');
+      broadcastQueueJob(queueJob);
+      mainWindow?.webContents.send('desktop:job:incoming', acceptedJob);
+      notify(`New order for ${acceptedJob.counterName || acceptedJob.counterId}${isCounterOffline ? ' (offline)' : ''}`, `${acceptedJob.serviceLabelBn} · ${acceptedJob.copies} copies`);
+      logger?.info('Customer PWA order persisted on the master PC.', { jobId: acceptedJob.id, counterId: acceptedJob.counterId });
+      return acceptedJob;
+    },
+    onCounterHeartbeat: (counterId, online) => {
+      mainWindow?.webContents.send('desktop:counter:heartbeat', { counterId, online, lastSeenAt: online ? Date.now() : null });
+    },
+    onError: error => logger?.error('Customer PWA gateway error.', error),
+  });
+  localGateway.listen();
+  localGateway.onListening(() => logger?.info('Customer PWA gateway is listening.', { port: gatewayPort, tls: hasWebSocketTls }));
+  
+  // Initialize SoundService
+  soundService = createSoundService(logger, {
+    volume: 70,    soundAlertEnabled: true,    toastSoundEnabled: true,    isDndMode: false,    resourcesPath: join(process.resourcesPath || app.getAppPath(), 'resources'),  });  soundService.initialize();
+  
   const token = getToken(userDataPath);
   jobWebSocket = startJobWebSocket({
     host: websocketHost,
@@ -200,9 +384,10 @@ const startDesktopServices = (): void => {
     store: jobStore,
     onIncomingJob: queueJob => {
       broadcastQueueJob(queueJob);
-      mainWindow?.webContents.send('desktop:job:incoming', queueJob.job);
-      notify(`New print job: #${queueJob.job.tokenCode}`, `${queueJob.job.serviceLabelBn} · ${queueJob.job.copies} copies`);
+      mainWindow?.webContents.send('desktop:job:incoming', queueJob.job);      notify(`New print job: #${queueJob.job.tokenCode}`, `${queueJob.job.serviceLabelBn} · ${queueJob.job.copies} copies`);
       logger?.info('WebSocket job persisted.', { jobId: queueJob.job.id });
+      
+      // Play new order sound (S01)      soundService?.playNewOrder();
     },
   });
   jobWebSocket.on('listening', () => {
@@ -211,6 +396,15 @@ const startDesktopServices = (): void => {
   jobWebSocket.on('error', error => logger?.error('WebSocket service error.', error));
   registerIpcHandlers(token);
   logger.info('Desktop services initialized.', { platform: process.platform, version: app.getVersion() });
+  
+  // Periodic checks for printer status and pending jobs
+  setInterval(() => {
+    if (!jobStore || !soundService) return;
+    const jobs = jobStore.list();
+    const pendingJobs = jobs.filter(job => job.job.status === 'queued' || job.job.status === 'approved');
+    const hasOldPending = pendingJobs.some(job => Date.now() - job.job.createdAt > 2 * 60 * 1000);
+    if (hasOldPending) soundService.playPendingReminder();
+  }, 60_000);
 };
 
 const hasSingleInstance = app.requestSingleInstanceLock();
@@ -221,12 +415,14 @@ if (!hasSingleInstance) {
   app.on('before-quit', () => {
     isQuitting = true;
     jobWebSocket?.close();
+    localGateway?.close();
     jobStore?.close();
+    soundService?.destroy();
     tray?.destroy();
   });
 
   app.whenReady().then(async () => {
-    app.setAppUserModelId('com.broxprint.studio');
+    app.setAppUserModelId('com.alifshohoj.print');
     crashReporter.start({
       uploadToServer: false,
       submitURL: '',

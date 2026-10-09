@@ -1,4 +1,4 @@
-appId: com.broxprint.studio
+appId: com.alifshohoj.print
 productName: ALIF SHOHOJ PRINT
 directories:
   output: artifacts/releases
@@ -8,7 +8,7 @@ files:
   - package.json
   - '!**/*.map'
 asar: true
-npmRebuild: false
+npmRebuild: true
 asarUnpack:
   - node_modules/better-sqlite3/**/*
   - node_modules/pdf-to-printer/dist/SumatraPDF-3.4.6-32.exe
@@ -17,6 +17,7 @@ win:
     - target: nsis
       arch:
         - x64
+        - ia32
   artifactName: ALIF-SHOHOJ-PRINT-${version}-Setup-${arch}.${ext}
   signAndEditExecutable: true
 nsis:

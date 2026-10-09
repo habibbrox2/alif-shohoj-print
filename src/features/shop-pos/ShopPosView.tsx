@@ -21,6 +21,19 @@ import {
   Zap,
 } from 'lucide-react';
 
+/**
+ * Labels + guidance shown in the auto-approve controls. Owner-created custom
+ * services are not in this map and fall back to their own titles, so they can
+ * be toggled here too (audit §4 — the list used to hard-code 5 built-ins).
+ */
+const AUTO_APPROVE_HINTS: Record<string, { label: string; rec: string }> = {
+  doc_a4: { label: 'A4 সাধারণ ডকুমেন্ট ও চালান', rec: 'সুপারিশকৃত: অটো-অ্যাপ্রুভ চালু রাখলে দোকানদারের সময় বাঁচে' },
+  nid_card: { label: 'এনআইডি স্মার্ট কার্ড কপি', rec: 'সুপারিশকৃত: ম্যানুয়াল রিভিউ রাখা নিরাপদ' },
+  passport_photo: { label: 'পাসপোর্ট ছবি (৪ বা ৮ কপি শিট)', rec: 'সুপারিশকৃত: ম্যানুয়াল ক্রপ ও ফ্রেম রিভিউ রাখা উত্তম' },
+  photo_4r: { label: '৪-আর ল্যাব ফটো প্রিন্ট', rec: 'হাই-গ্লসি ফটো পেপার কোয়ালিটি চেক' },
+  stamp_photo: { label: 'স্ট্যাম্প সাইজ ছবি', rec: 'অফিসিয়াল স্ট্যাম্প সাইজ' },
+};
+
 export const ShopPosView: React.FC = () => {
   const {
     shopProfile,
@@ -50,7 +63,7 @@ export const ShopPosView: React.FC = () => {
   const [desktopSettingsError, setDesktopSettingsError] = useState<string | null>(null);
 
   useEffect(() => {
-    const desktop = window.broxprintDesktop;
+    const desktop = window.alifShohojPrintDesktop;
     if (!desktop) return;
 
     let isMounted = true;
@@ -182,7 +195,7 @@ export const ShopPosView: React.FC = () => {
               className={`px-3 py-1 rounded-lg transition-colors shrink-0 font-medium ${
                 selectedCounterFilter === 'all'
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-750'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
               সকল কাউন্টার ({jobs.length})
@@ -196,10 +209,15 @@ export const ShopPosView: React.FC = () => {
                   className={`px-3 py-1 rounded-lg transition-colors shrink-0 font-medium flex items-center gap-1.5 ${
                     selectedCounterFilter === counter.id
                       ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-750'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
                   <span>{counter.code}: {counter.name.split('-')[1]?.trim() || counter.name}</span>
+                  {!counter.isMasterHost && (
+                    <span className={`text-[10px] ${counter.isOnline ? 'text-emerald-300' : 'text-rose-300'}`}>
+                      {counter.isOnline ? 'Online' : 'Offline'}
+                    </span>
+                  )}
                   <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-900/80 font-mono">
                     {count}
                   </span>
@@ -263,7 +281,7 @@ export const ShopPosView: React.FC = () => {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1.5 font-medium text-slate-200">
                         <Printer className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>{job.targetPrinterName.split(' ')[0]} {job.targetPrinterName.split(' ')[1]}</span>
+                        <span>{job.targetPrinterName}</span>
                       </div>
                       <div className="text-[10px] text-slate-500 truncate max-w-[140px]">
                         {job.routingReason}
@@ -293,6 +311,8 @@ export const ShopPosView: React.FC = () => {
                             ? 'bg-amber-950 text-amber-300 border border-amber-800 animate-pulse'
                             : job.status === 'rejected'
                             ? 'bg-rose-950 text-rose-300 border border-rose-800'
+                            : job.status === 'failed'
+                            ? 'bg-rose-950 text-rose-200 border border-rose-700'
                             : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
                         }`}
                       >
@@ -302,6 +322,8 @@ export const ShopPosView: React.FC = () => {
                           ? 'প্রিন্ট হচ্ছে'
                           : job.status === 'rejected'
                           ? 'বাতিল'
+                          : job.status === 'failed'
+                          ? 'ব্যর্থ'
                           : 'অপেক্ষমাণ'}
                       </span>
                     </td>
@@ -317,12 +339,12 @@ export const ShopPosView: React.FC = () => {
                           <Eye className="w-3.5 h-3.5" />
                         </button>
 
-                        {job.status === 'queued' && (
+                        {(job.status === 'queued' || job.status === 'failed') && (
                           <button
                             onClick={() => approveJob(job.id)}
                             className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-sm transition-colors"
                           >
-                            Approve
+                            {job.status === 'failed' ? 'Retry' : 'Approve'}
                           </button>
                         )}
                       </div>
@@ -488,7 +510,7 @@ export const ShopPosView: React.FC = () => {
                   Windows login-এ অ্যাপটি tray-তে চালু হবে। প্রিন্ট কিউ ও WebSocket সংযোগ Electron desktop app-এ ব্যবহৃত হয়।
                 </p>
               </div>
-              {window.broxprintDesktop ? (
+              {window.alifShohojPrintDesktop ? (
                 <>
                   <label className="flex items-center justify-between gap-3 text-slate-200">
                     <span>Windows-এর সাথে চালু</span>
@@ -499,7 +521,7 @@ export const ShopPosView: React.FC = () => {
                         const enabled = event.target.checked;
                         setDesktopSettingsError(null);
                         try {
-                          const saved = await window.broxprintDesktop?.setAutoLaunch(enabled);
+                          const saved = await window.alifShohojPrintDesktop?.setAutoLaunch(enabled);
                           if (typeof saved === 'boolean') setAutoLaunchEnabled(saved);
                         } catch (error) {
                           setDesktopSettingsError(error instanceof Error ? error.message : String(error));
@@ -547,36 +569,12 @@ export const ShopPosView: React.FC = () => {
               </div>
 
               <div className="space-y-2 pt-1">
-                {[
-                  {
-                    id: 'doc_a4' as const,
-                    label: 'A4 সাধারণ ডকুমেন্ট ও চালান',
-                    rec: 'সুপারিশকৃত: অটো-অ্যাপ্রুভ চালু রাখলে দোকানদারের সময় বাঁচে',
-                  },
-                  {
-                    id: 'nid_card' as const,
-                    label: 'এনআইডি স্মার্ট কার্ড কপি',
-                    rec: 'সুপারিশকৃত: ম্যানুয়াল রিভিউ রাখা নিরাপদ',
-                  },
-                  {
-                    id: 'passport_photo' as const,
-                    label: 'পাসপোর্ট ছবি (৪ বা ৮ কপি শিট)',
-                    rec: 'সুপারিশকৃত: ম্যানুয়াল ক্রপ ও ফ্রেম রিভিউ রাখা উত্তম',
-                  },
-                  {
-                    id: 'photo_4r' as const,
-                    label: '৪-আর ল্যাব ফটো প্রিন্ট',
-                    rec: 'হাই-গ্লসি ফটো পেপার কোয়ালিটি চেক',
-                  },
-                  {
-                    id: 'stamp_photo' as const,
-                    label: 'স্ট্যাম্প সাইজ ছবি',
-                    rec: 'অফিসিয়াল স্ট্যাম্প সাইজ',
-                  },
-                ].map(srv => {
-                  const studio = services.find(s => s.id === srv.id);
-                  const isEnabled = studio ? studio.enabled : true;
-                  const isAutoApprove = studio ? studio.autoApprove : false;
+                {services.map(srv => {
+                  const hints = AUTO_APPROVE_HINTS[srv.id];
+                  const label = hints?.label ?? srv.titleBn;
+                  const rec = hints?.rec ?? 'কাস্টম সার্ভিস — নিজের পছন্দমতো অটো-অ্যাপ্রুভ নিয়ন্ত্রণ করুন';
+                  const isEnabled = srv.enabled;
+                  const isAutoApprove = srv.autoApprove;
                   return (
                     <div
                       key={srv.id}
@@ -584,7 +582,7 @@ export const ShopPosView: React.FC = () => {
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-200 font-bold text-xs">{srv.label}</span>
+                          <span className="text-slate-200 font-bold text-xs">{label}</span>
                           <span
                             className={`text-[10px] font-semibold px-2 py-0.2 rounded ${
                               isEnabled
@@ -595,7 +593,7 @@ export const ShopPosView: React.FC = () => {
                             {isEnabled ? 'চালু' : 'বন্ধ'}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">{srv.rec}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{rec}</p>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
@@ -651,6 +649,9 @@ export const ShopPosView: React.FC = () => {
                 className="w-5 h-5 accent-emerald-500 mt-1 cursor-pointer"
               />
             </div>
+
+            {/* Voice Guide Settings (Group 6) */}
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">              <div>                <h4 className="font-semibold text-white">গ্রাহক ভয়েস গাইড (Voice Guide) সেটিংস</h4>                <p className="text-slate-400 mt-0.5">                  মোবাইল PWA-এ গ্রাহকদের জন্য ধাপে ধাপে বাংলা/ইংরেজি ভয়েস নির্দেশনা নিয়ন্ত্রণ করুন।                </p>              </div>              <label className="flex items-center justify-between gap-3 text-slate-200">                <span>ভয়েস গাইড চালু / বন্ধ</span>                <input                  type="checkbox"                  checked={shopProfile.voiceGuide.enabled}                  onChange={e => updateShopProfile({ voiceGuide: { ...shopProfile.voiceGuide, enabled: e.target.checked } })}                  className="w-5 h-5 accent-emerald-500 cursor-pointer"                />              </label>              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">                <div>                  <label className="block text-slate-400 mb-1">ডিফল্ট ভাষা (Default Language)</label>                  <select                    value={shopProfile.voiceGuide.defaultLang}                    onChange={e => updateShopProfile({ voiceGuide: { ...shopProfile.voiceGuide, defaultLang: e.target.value as 'bn' | 'en' } })}                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white"                  >                    <option value="bn">বাংলা (Bangla)</option>                    <option value="en">English</option>                  </select>                </div>                <div>                  <label className="block text-slate-400 mb-1">ডিফল্ট গতি (Default Speed)</label>                  <select                    value={shopProfile.voiceGuide.defaultSpeed}                    onChange={e => updateShopProfile({ voiceGuide: { ...shopProfile.voiceGuide, defaultSpeed: Number(e.target.value) as 0.8 | 1.0 | 1.25 } })}                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white"                  >                    <option value={0.8}>০.৮x (ধীরে)</option>                    <option value={1.0}>১.০x (সাধারণ)</option>                    <option value={1.25}>১.২৫x (দ্রুত)</option>                  </select>                </div>              </div>              <p className="text-[11px] text-slate-500">                নোট: বন্ধ থাকলে গ্রাহকের মোবাইল PWA-তে ভয়েস গাইড বাটন দেখাবে না।              </p>            </div>
 
             {/* Payment merchant numbers */}
             <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">

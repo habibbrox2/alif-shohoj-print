@@ -253,7 +253,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({
   const handleDownload = () => {
     if (!canvasRef.current) return;
     const link = document.createElement('a');
-    link.download = `broxprint_edited_${Date.now()}.jpg`;
+    link.download = `alif_shohoj_print_${Date.now()}.jpg`;
     link.href = canvasRef.current.toDataURL('image/jpeg', 0.95);
     link.click();
   };

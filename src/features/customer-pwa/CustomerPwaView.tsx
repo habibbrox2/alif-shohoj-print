@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStudio } from '../../shared/context/StudioContext';
 import { ServiceType, PaperSize, ColorMode, PaymentMethod, PaymentStatus, VoiceStep } from '../../shared/types';
-import { globalVoice, playTapTone } from '../../shared/services/voiceGuide';
+import { voiceGuide, VoiceGuideEvent } from '../../shared/services/voiceGuideService';
+import { playTapTone } from '../../shared/services/voiceGuide';
+import { priceForService } from '../../shared/services/pricing';
 import confetti from 'canvas-confetti';
 import {
   Volume2,
@@ -82,7 +84,7 @@ export const CustomerPwaView: React.FC = () => {
   // Voice guide state
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [voiceSpeaking, setVoiceSpeaking] = useState(false);
-  const [voiceSpeed, setVoiceSpeed] = useState(1.0);
+  const [voiceSpeed, setVoiceSpeed] = useState<0.8 | 1.0 | 1.25>(1.0);
   const [voiceLang, setVoiceLang] = useState<'bn' | 'en'>('bn');
 
   // Customer workflow steps: 1: Service, 2: Upload, 3: Crop, 4: Options & Bill, 5: Token Slip
@@ -91,6 +93,16 @@ export const CustomerPwaView: React.FC = () => {
   // Order configuration
   const [selectedService, setSelectedService] = useState<ServiceType>('passport_photo');
   const [fileUrl, setFileUrl] = useState<string>(PRESET_SAMPLES[1].url);
+  // Browser-mode uploads are stored as blob: object URLs — release them when
+  // replaced or on unmount so repeat uploads don't leak memory (audit §4).
+  const objectUrlRef = useRef<string | null>(null);
+  const releaseObjectUrl = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+  };
+  useEffect(() => releaseObjectUrl, []);
   const [fileName, setFileName] = useState<string>('sample_passport.jpg');
   const [fileSize, setFileSize] = useState<string>('1.8 MB');
   const [fileError, setFileError] = useState<string | null>(null);
@@ -120,23 +132,41 @@ export const CustomerPwaView: React.FC = () => {
 
   // Synchronize Voice Assistant state
   useEffect(() => {
-    globalVoice.setOnStateChange(speaking => {
-      setVoiceSpeaking(speaking);
+    // Initialize voice guide service
+    voiceGuide.initialize();
+    
+    const unsubscribe = voiceGuide.subscribe(state => {
+      setVoiceSpeaking(state.isPlaying);
+      setVoiceSpeed(state.speed);
+      setVoiceLang(state.currentLang);
     });
-  }, []);
+    
+    // Sync with shop settings
+    setVoiceEnabled(shopProfile.voiceGuide.enabled);
+    if (shopProfile.voiceGuide.enabled) {
+      voiceGuide.setEnabled(true);
+      voiceGuide.setLang(shopProfile.voiceGuide.defaultLang);
+      voiceGuide.setSpeed(shopProfile.voiceGuide.defaultSpeed);
+    }
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [shopProfile.voiceGuide.enabled, shopProfile.voiceGuide.defaultLang, shopProfile.voiceGuide.defaultSpeed]);
 
-  const triggerStepVoice = (step: VoiceStep, extra?: { tokenCode?: string; price?: number }) => {
+  const triggerVoice = (event: VoiceGuideEvent, dynamicData?: { tokenCode?: string; price?: number; orderNumber?: string; serviceName?: string; pickupCode?: string }) => {
     if (voiceEnabled) {
-      globalVoice.speakStep(step, extra);
+      voiceGuide.trigger(event, dynamicData);
     }
   };
 
   const handleEnableVoiceGuide = () => {
     playTapTone();
+    voiceGuide.setEnabled(true);
     setVoiceEnabled(true);
-    globalVoice.speakStep('welcome');
+    triggerVoice('home');
     setTimeout(() => {
-      triggerStepVoice('service');
+      triggerVoice('service_select');
     }, 3500);
   };
 
@@ -153,6 +183,7 @@ export const CustomerPwaView: React.FC = () => {
         preferences.paperType === 'matte' ? 'matte' : 'normal'
       );
     }
+    releaseObjectUrl();
     if (service === 'passport_photo') {
       setAspectRatio('35:45');
       setGridCount(4);
@@ -172,7 +203,7 @@ export const CustomerPwaView: React.FC = () => {
     }
 
     setCurrentStep(2);
-    triggerStepVoice('upload');
+    triggerVoice('upload_start');
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,11 +221,14 @@ export const CustomerPwaView: React.FC = () => {
         setFileName(file.name);
         setFileSize(`${(file.size / (1024 * 1024)).toFixed(1)} MB`);
         setCurrentStep(3);
-        triggerStepVoice('crop');
+        triggerVoice('crop_rotate');
       };
 
-      if (!window.broxprintDesktop) {
-        finishUpload(URL.createObjectURL(file));
+      if (!window.alifShohojPrintDesktop) {
+        const objectUrl = URL.createObjectURL(file);
+        releaseObjectUrl();
+        objectUrlRef.current = objectUrl;
+        finishUpload(objectUrl);
         return;
       }
 
@@ -215,26 +249,16 @@ export const CustomerPwaView: React.FC = () => {
   const handleSelectPresetSample = (sample: typeof PRESET_SAMPLES[0]) => {
     playTapTone();
     setFileError(null);
+    releaseObjectUrl();
     setFileUrl(sample.url);
     setFileName(`${sample.id}.jpg`);
     setFileSize('1.5 MB');
     setCurrentStep(3);
-    triggerStepVoice('crop');
+    triggerVoice('crop_rotate');
   };
 
-  const calculatePrice = (): number => {
-    let unit = 35;
-    if (selectedService === 'passport_photo') {
-      unit = gridCount === 8 ? pricing.passport8in1 : pricing.passport4in1;
-    } else if (selectedService === 'nid_card') {
-      unit = pricing.nidSmartCard;
-    } else if (selectedService === 'photo_4r') {
-      unit = pricing.photo4R;
-    } else if (selectedService === 'doc_a4') {
-      unit = colorMode === 'color' ? pricing.docA4Color : pricing.docA4BW;
-    }
-    return unit * copies;
-  };
+  const calculatePrice = (): number =>
+    priceForService(selectedService, pricing, { copies, gridCount, colorMode });
 
   const handleSubmitOrder = () => {
     if (isSubmittingOrder) return;
@@ -256,8 +280,11 @@ export const CustomerPwaView: React.FC = () => {
         ? '4R ল্যাব ফটো প্রিন্ট'
         : 'A4 ডকুমেন্ট প্রিন্ট';
 
-    const createJob = (printableFileUrl: string) => {
-      const createdJob = createCustomerJob({
+    const createJob = async (printableFileUrl: string) => {
+      setIsSubmittingOrder(true);
+      setFileError(null);
+      try {
+        let createdJob = createCustomerJob({
         tokenCode: '',
         customerPhone,
         counterId: selectedCounter.id,
@@ -283,31 +310,45 @@ export const CustomerPwaView: React.FC = () => {
           aspectRatio,
         },
         gridCount,
-      });
-
-      setCompletedJob({
-        tokenCode: createdJob.tokenCode,
-        price: finalPrice,
-        jobId: createdJob.id,
-      });
-
-      setCurrentStep(5);
-
-      // Audio announcement of token code (PII safe: no phone/name spoken!)
-      triggerStepVoice('token', { tokenCode: createdJob.tokenCode, price: finalPrice });
-
-      // Festive confetti
-      try {
-        confetti({
-          particleCount: 60,
-          spread: 70,
-          origin: { y: 0.6 },
         });
-      } catch {}
+
+        const isRemoteCustomerPortal = !window.alifShohojPrintDesktop &&
+          new URLSearchParams(window.location.search).get('view') === 'customer_pwa';
+        if (isRemoteCustomerPortal) {
+          const response = await fetch('/api/customer-orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(createdJob),
+          });
+          const result = await response.json() as { job?: typeof createdJob; error?: string };
+          if (!response.ok || !result.job) throw new Error(result.error || 'অর্ডারটি মূল পিসিতে পাঠানো যায়নি।');
+          createdJob = result.job;
+        }
+
+        setCompletedJob({
+          tokenCode: createdJob.tokenCode,
+          price: finalPrice,
+          jobId: createdJob.id,
+        });
+
+        setCurrentStep(5);
+
+        // Audio announcement of token code (PII safe: no phone/name spoken!)
+        triggerVoice('approved', { tokenCode: createdJob.tokenCode, price: finalPrice });
+
+        // Festive confetti
+        try {
+          confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+        } catch {}
+      } catch (error) {
+        setFileError(error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsSubmittingOrder(false);
+      }
     };
 
-    if (!window.broxprintDesktop || fileUrl.startsWith('data:')) {
-      createJob(fileUrl);
+    if (!window.alifShohojPrintDesktop || fileUrl.startsWith('data:')) {
+      void createJob(fileUrl);
       return;
     }
 
@@ -330,7 +371,7 @@ export const CustomerPwaView: React.FC = () => {
       })
       .then(printableFileUrl => {
         setFileUrl(printableFileUrl);
-        createJob(printableFileUrl);
+        return createJob(printableFileUrl);
       })
       .catch(error => setFileError(error instanceof Error ? error.message : String(error)))
       .finally(() => setIsSubmittingOrder(false));
@@ -448,37 +489,21 @@ export const CustomerPwaView: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              {/* Replay button */}
+            <div className="flex items-center gap-1.5">{/* Replay button */}
               <button
                 onClick={() => {
                   playTapTone();
-                  const stepMap: Record<number, VoiceStep> = {
-                    1: 'service',
-                    2: 'upload',
-                    3: 'crop',
-                    4: 'preview',
-                    5: 'token',
-                  };
-                  triggerStepVoice(stepMap[currentStep] || 'welcome', {
-                    tokenCode: completedJob?.tokenCode,
-                    price: completedJob?.price,
-                  });
-                }}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] flex items-center gap-1"
-                title="আবার শুনুন"
+                  voiceGuide.replay();                }}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] flex items-center gap-1"                title="আবার শুনুন"
               >
                 <RotateCcw className="w-3 h-3 text-emerald-400" />
                 <span>🔁 আবার</span>
-              </button>
-
-              {/* Speed toggle */}
+              </button>{/* Speed toggle */}
               <button
                 onClick={() => {
                   playTapTone();
-                  const next = voiceSpeed === 1.0 ? 1.2 : voiceSpeed === 1.2 ? 0.8 : 1.0;
+                  const next = voiceSpeed === 1.0 ? 1.25 : voiceSpeed === 1.25 ? 0.8 : 1.0;                  voiceGuide.setSpeed(next);
                   setVoiceSpeed(next);
-                  globalVoice.setSpeed(next);
                 }}
                 className="px-2 py-1 rounded bg-slate-800 text-[10px] font-mono text-slate-300 hover:text-white"
                 title="গতির পরিবর্তন"
@@ -491,8 +516,7 @@ export const CustomerPwaView: React.FC = () => {
                 onClick={() => {
                   playTapTone();
                   const next = voiceLang === 'bn' ? 'en' : 'bn';
-                  setVoiceLang(next);
-                  globalVoice.setLanguage(next);
+                  voiceGuide.setLang(next);                  setVoiceLang(next);
                 }}
                 className="px-2 py-1 rounded bg-slate-800 text-[10px] font-medium text-emerald-400 hover:bg-slate-700"
               >
@@ -502,12 +526,9 @@ export const CustomerPwaView: React.FC = () => {
               {/* Mute button */}
               <button
                 onClick={() => {
-                  playTapTone();
-                  globalVoice.toggleMute();
-                  setVoiceEnabled(false);
+                  playTapTone();                  voiceGuide.stop();                  voiceGuide.setEnabled(false);                  setVoiceEnabled(false);
                 }}
-                className="p-1 rounded text-slate-500 hover:text-slate-300"
-                title="থামান"
+                className="p-1 rounded text-slate-500 hover:text-slate-300"                title="থামান"
               >
                 <VolumeX className="w-3.5 h-3.5" />
               </button>
@@ -604,11 +625,11 @@ export const CustomerPwaView: React.FC = () => {
                   <h3 className="text-sm font-bold text-white">মোবাইল থেকে ফাইল দিন</h3>
                 </div>
                 <button
-                  onClick={() => setCurrentStep(1)}
+                  onClick={() => {
+                    playTapTone();                    setCurrentStep(1);                    triggerVoice('service_select');                  }}
                   className="text-xs text-slate-400 hover:text-white"
                 >
-                  ← পরিবর্তন
-                </button>
+                  ← পরিবর্তনn                </button>
               </div>
 
               {/* Native File Dropzone / Camera Picker */}
@@ -664,17 +685,17 @@ export const CustomerPwaView: React.FC = () => {
                   <h3 className="text-sm font-bold text-white">{isPdfFile ? 'ডকুমেন্ট প্রিভিউ' : 'ছবির ফ্রেম ও রেশিও ঠিক করুন'}</h3>
                 </div>
                 <button
-                  onClick={() => setCurrentStep(2)}
+                  onClick={() => {
+                    playTapTone();                    setCurrentStep(2);                    triggerVoice('upload_start');                  }}
                   className="text-xs text-slate-400 hover:text-white"
                 >
-                  ← ব্যাক
-                </button>
+                  ← ব্যাকn                </button>
               </div>
 
               {/* Crop Box Preview with Guidelines */}
               <div className="relative rounded-2xl bg-black border border-slate-700 overflow-hidden flex items-center justify-center h-56 select-none">
                 {isPdfFile ? (
-                  <iframe title={fileName} src={fileUrl} className="w-full h-full" />
+                  <iframe title={fileName} src={fileUrl} sandbox="" className="w-full h-full" />
                 ) : (
                   <img
                     src={fileUrl}
@@ -757,13 +778,9 @@ export const CustomerPwaView: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              )}
-
-              <button
+              )}<button
                 onClick={() => {
-                  playTapTone();
-                  setCurrentStep(4);
-                  triggerStepVoice('copies');
+                  playTapTone();                  setCurrentStep(4);                  triggerVoice('copies_select');                  setTimeout(() => triggerVoice('preview'), 1000);
                 }}
                 className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition-colors flex items-center justify-center gap-1.5"
               >
@@ -784,11 +801,8 @@ export const CustomerPwaView: React.FC = () => {
                   <h3 className="text-sm font-bold text-white">কপি ও বিল যাচাই করুন</h3>
                 </div>
                 <button
-                  onClick={() => setCurrentStep(3)}
-                  className="text-xs text-slate-400 hover:text-white"
-                >
-                  ← ব্যাক
-                </button>
+                  onClick={() => {
+                    playTapTone();                    setCurrentStep(3);                    triggerVoice('crop_rotate');                  }}                  className="text-xs text-slate-400 hover:text-white"                >                ← ব্যাকn              </button>
               </div>
 
               {/* Copies & Color settings */}
@@ -853,7 +867,8 @@ export const CustomerPwaView: React.FC = () => {
                 <span className="font-semibold text-slate-300 block">বিল পরিশোধের মাধ্যম:</span>
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => setPaymentMethod('counter_cash')}
+                    onClick={() => {
+                      playTapTone();                      setPaymentMethod('counter_cash');                      triggerVoice('payment');                    }}
                     className={`p-3 rounded-xl border text-left transition-colors ${
                       paymentMethod === 'counter_cash'
                         ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300'
@@ -865,7 +880,8 @@ export const CustomerPwaView: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => setPaymentMethod('bkash')}
+                    onClick={() => {
+                      playTapTone();                      setPaymentMethod('bkash');                      triggerVoice('payment');                    }}
                     className={`p-3 rounded-xl border text-left transition-colors ${
                       paymentMethod === 'bkash'
                         ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300'
@@ -968,10 +984,7 @@ export const CustomerPwaView: React.FC = () => {
 
               <button
                 onClick={() => {
-                  playTapTone();
-                  setCurrentStep(1);
-                  setCompletedJob(null);
-                }}
+                  playTapTone();                  setCurrentStep(1);                  setCompletedJob(null);                  triggerVoice('goodbye');                  setTimeout(() => triggerVoice('home'), 2000);                }}
                 className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
               >
                 নতুন আরেকটি প্রিন্ট করুন

@@ -41,7 +41,7 @@ const createJob = (fileUrl: string): PrintJob => ({
 });
 
 test('validates PDF data, invokes silent printing, and removes staged files', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'broxprint-print-'));
+  const directory = mkdtempSync(join(tmpdir(), 'alif-shohoj-print-print-'));
   const fileUrl = await createPdfDataUrl();
   let stagedPdfPath = '';
   const service = new PrintService({
@@ -71,7 +71,7 @@ test('validates PDF data, invokes silent printing, and removes staged files', as
 });
 
 test('rejects URL and unsupported file input without calling the spooler', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'broxprint-print-invalid-'));
+  const directory = mkdtempSync(join(tmpdir(), 'alif-shohoj-print-print-invalid-'));
   let called = false;
   const service = new PrintService({
     userDataPath: directory,
@@ -87,7 +87,7 @@ test('rejects URL and unsupported file input without calling the spooler', async
 });
 
 test('lays out four passport copies on a 4R sheet', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'broxprint-passport-grid-'));
+  const directory = mkdtempSync(join(tmpdir(), 'alif-shohoj-print-passport-grid-'));
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/4tQAAAAASUVORK5CYII=',
     'base64'

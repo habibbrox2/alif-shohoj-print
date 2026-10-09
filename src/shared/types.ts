@@ -8,7 +8,7 @@ export type PrintQuality = 'draft' | 'normal' | 'high' | 'ultra_fine';
 
 export type ColorMode = 'color' | 'bw';
 
-export type JobStatus = 'queued' | 'approved' | 'routing' | 'printing' | 'completed' | 'rejected';
+export type JobStatus = 'queued' | 'approved' | 'routing' | 'printing' | 'completed' | 'rejected' | 'failed';
 
 export type PaymentMethod = 'counter_cash' | 'bkash' | 'nagad';
 
@@ -32,7 +32,7 @@ export interface OrderAuditLog {
 export interface PrinterDevice {
   id: string;
   name: string;
-  brand: 'HP' | 'Epson' | 'Canon' | 'Brother';
+  brand: 'HP' | 'Epson' | 'Canon' | 'Brother' | 'Pantum' | 'Samsung' | 'Ricoh' | 'Konica Minolta' | 'Lexmark' | 'Xerox' | 'Kyocera' | 'Other';
   model: string;
   type: 'laser_bw' | 'photo_inkjet' | 'color_inkjet';
   status: 'online' | 'offline' | 'busy' | 'low_paper';
@@ -129,6 +129,8 @@ export interface ShopCounter {
   operator: string; // e.g. "মো: শাকিল"
   ipAddress: string; // e.g. "192.168.1.110"
   status: 'active' | 'busy' | 'offline';
+  isOnline?: boolean;
+  lastSeenAt?: number | null;
   isMasterHost: boolean; // True if this PC is the Main Server hosting the hardware
   assignedServices: ServiceType[];
   defaultPrinterId: string;
@@ -141,6 +143,7 @@ export type InstallationMode = 'master' | 'counter';
 export interface InstallationConfig {
   mode: InstallationMode;
   counterId: string;
+  masterUrl?: string;
 }
 
 export interface SharedScannerDevice {
@@ -153,6 +156,12 @@ export interface SharedScannerDevice {
   maxDpi: number;
   scanModes: ('color' | 'grayscale' | 'bw')[];
   lastScannedAt?: number;
+}
+
+export interface VoiceGuidePreferences {
+  enabled: boolean;
+  defaultLang: 'bn' | 'en';
+  defaultSpeed: 0.8 | 1.0 | 1.25;
 }
 
 export interface ShopProfile {
@@ -169,6 +178,8 @@ export interface ShopProfile {
   soundAlertEnabled: boolean;
   isDndMode: boolean; // Do Not Disturb / Shop closed pause
   dndMessage?: string;
+  // Voice Guide Settings (Group 6)
+  voiceGuide: VoiceGuidePreferences;
   // Local Server Configuration
   localServer: {
     status: 'running' | 'stopped' | 'restarting';

@@ -97,7 +97,7 @@ export const playTapTone = () => {
 
 export const BANGLA_VOICE_SCRIPTS: Record<VoiceStep, { bn: string; en: string }> = {
   welcome: {
-    bn: 'স্বাগতম ব্রক্সপ্রিন্ট ডিজিটাল স্টুডিওতে। সহজে ও দ্রুত প্রিন্ট করতে ধাপগুলো অনুসরণ করুন।',
+    bn: 'স্বাগতম আলিফ সহজ প্রিন্ট ডিজিটাল স্টুডিওতে। সহজে ও দ্রুত প্রিন্ট করতে ধাপগুলো অনুসরণ করুন।',
     en: 'Welcome to ALIF SHOHOJ PRINT. Follow the easy steps to print directly from your phone.',
   },
   service: {
@@ -196,10 +196,11 @@ export class VoiceAssistant {
     this.speakText(text);
   }
 
-  public speakShopAlert(tokenCode: string, serviceLabelBn: string) {
+  public speakShopAlert(tokenCode: string, serviceLabelBn: string, counterNumber?: string) {
     if (this.isMuted) return;
     playIncomingOrderChime();
-    const text = `নতুন অর্ডার এসেছে! টোকেন ${tokenCode}, ${serviceLabelBn}`;
+    const counterMessage = counterNumber ? `কাউন্টার নম্বর ${counterNumber}-এ প্রিন্ট আসছে।` : 'নতুন অর্ডার এসেছে!';
+    const text = `${counterMessage} টোকেন ${tokenCode}, ${serviceLabelBn}`;
     setTimeout(() => {
       this.speakText(text, 'bn');
     }, 600);

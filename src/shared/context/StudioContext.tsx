@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   PrinterDevice,
   PrintJob,
@@ -16,7 +16,25 @@ import {
 import { INITIAL_PRINTERS, matchPrinterForJob } from '../../features/printers/printerRouting';
 import { globalVoice, playIncomingOrderChime, playPrintCompleteChime } from '../services/voiceGuide';
 import { INITIAL_STUDIO_SERVICES } from '../services/studioServices';
-import type { DesktopQueueJob } from '../desktop-api';
+import { createJobId, nextTokenNumber } from '../services/jobIdentity';
+import {
+  approveJobTransition,
+  collectNewlyCompleted,
+  rejectJobTransition,
+  tickJobRetention,
+} from '../services/jobLifecycle';
+import { PRICING_KEY_BY_SERVICE } from '../services/pricing';
+import {
+  COUNTERS_STORAGE_KEY,
+  PRICING_STORAGE_KEY,
+  PRINTERS_STORAGE_KEY,
+  SHOP_PROFILE_STORAGE_KEY,
+  loadPersisted,
+  readMigratedStorageValue,
+  savePersisted,
+  validators,
+} from '../services/persistedState';
+import type { CustomerAppConfig, DesktopQueueJob } from '../desktop-api';
 
 interface StudioContextType {
   // Current view
@@ -120,6 +138,11 @@ const INITIAL_SHOP_PROFILE: ShopProfile = {
   soundAlertEnabled: true,
   isDndMode: false,
   dndMessage: 'দোকান সাময়িকভাবে বিরতিতে আছে। কিছুক্ষণ পর পুনরায় চেষ্টা করুন।',
+  voiceGuide: {
+    enabled: true,
+    defaultLang: 'bn',
+    defaultSpeed: 1.0,
+  },
   localServer: {
     status: 'running',
     port: 3000,
@@ -153,8 +176,8 @@ export const INITIAL_COUNTERS: ShopCounter[] = [
     isMasterHost: true,
     assignedServices: ['passport_photo', 'stamp_photo', 'nid_card', 'photo_4r', 'doc_a4'],
     defaultPrinterId: 'printer_epson_l805',
-    todayOrdersCount: 68,
-    todayEarningsBDT: 2450,
+    todayOrdersCount: 0,
+    todayEarningsBDT: 0,
   },
   {
     id: 'CTR-02',
@@ -166,8 +189,8 @@ export const INITIAL_COUNTERS: ShopCounter[] = [
     isMasterHost: false,
     assignedServices: ['doc_a4', 'nid_card'],
     defaultPrinterId: 'printer_hp_laserjet',
-    todayOrdersCount: 39,
-    todayEarningsBDT: 1120,
+    todayOrdersCount: 0,
+    todayEarningsBDT: 0,
   },
   {
     id: 'CTR-03',
@@ -179,8 +202,8 @@ export const INITIAL_COUNTERS: ShopCounter[] = [
     isMasterHost: false,
     assignedServices: ['passport_photo', 'stamp_photo', 'photo_4r'],
     defaultPrinterId: 'printer_epson_l805',
-    todayOrdersCount: 20,
-    todayEarningsBDT: 680,
+    todayOrdersCount: 0,
+    todayEarningsBDT: 0,
   },
 ];
 
@@ -352,12 +375,12 @@ const INITIAL_JOBS: PrintJob[] = [
   },
 ];
 
-const INSTALLATION_STORAGE_KEY = 'broxprint-installation';
-const SERVICES_STORAGE_KEY = 'broxprint-studio-services';
+const INSTALLATION_STORAGE_KEY = 'alif-shohoj-print-installation';
+const SERVICES_STORAGE_KEY = 'alif-shohoj-print-studio-services';
 
 const loadInstallationConfig = (): InstallationConfig | null => {
   try {
-    const saved = window.localStorage.getItem(INSTALLATION_STORAGE_KEY);
+    const saved = readMigratedStorageValue(INSTALLATION_STORAGE_KEY, 'broxprint-installation');
     if (!saved) return null;
 
     const parsed: unknown = JSON.parse(saved);
@@ -400,7 +423,7 @@ const isStudioService = (value: unknown): value is StudioService => {
 
 const loadStudioServices = (): StudioService[] => {
   try {
-    const saved = window.localStorage.getItem(SERVICES_STORAGE_KEY);
+    const saved = readMigratedStorageValue(SERVICES_STORAGE_KEY, 'broxprint-studio-services');
     if (!saved) return INITIAL_STUDIO_SERVICES;
     const parsed: unknown = JSON.parse(saved);
     if (Array.isArray(parsed) && parsed.every(isStudioService)) return parsed;
@@ -413,20 +436,40 @@ const loadStudioServices = (): StudioService[] => {
 };
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeView, setActiveView] = useState<'windows_agent' | 'customer_pwa' | 'shop_pos'>('shop_pos');
+  const [activeView, setActiveView] = useState<'windows_agent' | 'customer_pwa' | 'shop_pos'>(() => {
+    const requestedView = new URLSearchParams(window.location.search).get('view');
+    return requestedView === 'customer_pwa' ? 'customer_pwa' : 'shop_pos';
+  });
   const [installationConfig, setInstallationConfig] = useState<InstallationConfig | null>(loadInstallationConfig);
   const isMaster = installationConfig?.mode !== 'counter';
   const [services, setServices] = useState<StudioService[]>(loadStudioServices);
   const [servicePersistenceError, setServicePersistenceError] = useState<string | null>(null);
   const [desktopQueueError, setDesktopQueueError] = useState<string | null>(null);
-  const [shopProfile, setShopProfile] = useState<ShopProfile>(INITIAL_SHOP_PROFILE);
-  const [printers, setPrinters] = useState<PrinterDevice[]>(INITIAL_PRINTERS);
-  const [jobs, setJobs] = useState<PrintJob[]>(INITIAL_JOBS);
-  const [pricing, setPricing] = useState<ServicePricing>(INITIAL_PRICING);
+  const [shopProfile, setShopProfile] = useState<ShopProfile>(() =>
+    loadPersisted(SHOP_PROFILE_STORAGE_KEY, validators.shopProfile, INITIAL_SHOP_PROFILE)
+  );
+  const [printers, setPrinters] = useState<PrinterDevice[]>(() =>
+    loadPersisted(PRINTERS_STORAGE_KEY, validators.printers, INITIAL_PRINTERS)
+  );
+  const [jobs, setJobs] = useState<PrintJob[]>(() => (import.meta.env.DEV ? INITIAL_JOBS : []));
+  // Monotonic pickup-code sequence: seeded from loaded jobs so codes are never reused.
+  const tokenSequenceRef = useRef<number>(0);
+  // Always-fresh snapshot of jobs for callbacks that fire on timers (BUG-005).
+  const jobsRef = useRef<PrintJob[]>(jobs);
+  useEffect(() => {
+    jobsRef.current = jobs;
+  }, [jobs]);
+  const [pricing, setPricing] = useState<ServicePricing>(() =>
+    loadPersisted(PRICING_STORAGE_KEY, validators.pricing, INITIAL_PRICING)
+  );
   const [voiceGuideEnabled, setVoiceGuideEnabled] = useState<boolean>(false);
-  const [counters, setCounters] = useState<ShopCounter[]>(INITIAL_COUNTERS);
+  const [counters, setCounters] = useState<ShopCounter[]>(() =>
+    loadPersisted(COUNTERS_STORAGE_KEY, validators.counters, INITIAL_COUNTERS)
+  );
   const [activeCounterId, setActiveCounterId] = useState<string>(() =>
-    installationConfig?.mode === 'counter' ? installationConfig.counterId : 'CTR-01'
+    installationConfig?.mode === 'counter'
+      ? installationConfig.counterId
+      : counters.find(counter => counter.code === new URLSearchParams(window.location.search).get('counter'))?.id || 'CTR-01'
   );
 
   // Active Toast Notification for Windows
@@ -449,35 +492,46 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
   const [isExePackageModalOpen, setIsExePackageModalOpen] = useState(false);
 
-  // Metrics
-  const todayPrintedCount = 127 + jobs.filter(j => j.status === 'completed').length - 1;
-  const todayEarningsBDT = 4250 + jobs.filter(j => j.status === 'completed').reduce((acc, curr) => acc + curr.priceBDT, 0);
-  const pendingJobsCount = jobs.filter(j => j.status === 'queued' || j.status === 'approved' || j.status === 'routing' || j.status === 'printing').length;
+  // Metrics (computed only from real job data — no hard-coded offsets)
+  const todayPrintedCount = jobs.filter(j => j.status === 'completed').length;
+  const todayEarningsBDT = jobs.filter(j => j.status === 'completed').reduce((acc, curr) => acc + curr.priceBDT, 0);
+  const pendingJobsCount = jobs.filter(j => j.status === 'queued' || j.status === 'approved' || j.status === 'routing' || j.status === 'printing' || j.status === 'failed').length;
 
-  // Ephemeral retention countdown ticker
+  // Ephemeral retention countdown ticker — only ticks jobs that are actually
+  // eligible for deletion (completed/rejected). Pending jobs keep their value so
+  // the UI never shows a "00:00 auto-delete" countdown on an order that waits for
+  // approval (BUG-006), and a no-op guard avoids a full re-render per second when
+  // nothing eligible is on screen.
   useEffect(() => {
     const timer = setInterval(() => {
-      setJobs(prevJobs =>
-        prevJobs
-          .map(job => {
-            const nextTime = job.autoDeleteCountdownSeconds - 1;
-            return {
-              ...job,
-              autoDeleteCountdownSeconds: nextTime > 0 ? nextTime : 0,
-            };
-          })
-          .filter(job => {
-            // If countdown hits 0 and status is completed or rejected, auto-delete from memory
-            if (job.autoDeleteCountdownSeconds <= 1 && (job.status === 'completed' || job.status === 'rejected')) {
-              return false;
-            }
-            return true;
-          })
-      );
+      setJobs(tickJobRetention);
     }, 1000);
 
     return () => clearInterval(timer);
   }, []);
+
+  // BUG-007: count a counter's daily orders/earnings exactly once, when a job
+  // finishes — not when it is created. Jobs restored from the desktop queue that
+  // completed before this session started are skipped so persisted stats are never
+  // double-counted across restarts.
+  const countedCompletionIdsRef = useRef<Set<string>>(new Set());
+  const sessionStartedAtRef = useRef<number>(Date.now());
+  useEffect(() => {
+    const newlyCompleted = collectNewlyCompleted(jobs, countedCompletionIdsRef.current, sessionStartedAtRef.current);
+    if (newlyCompleted.length === 0) return;
+    newlyCompleted.forEach(job => countedCompletionIdsRef.current.add(job.id));
+    setCounters(prev =>
+      prev.map(c => {
+        const forThisCounter = newlyCompleted.filter(job => job.counterId === c.id);
+        if (forThisCounter.length === 0) return c;
+        return {
+          ...c,
+          todayOrdersCount: c.todayOrdersCount + forThisCounter.length,
+          todayEarningsBDT: c.todayEarningsBDT + forThisCounter.reduce((sum, job) => sum + job.priceBDT, 0),
+        };
+      })
+    );
+  }, [jobs]);
 
   useEffect(() => {
     try {
@@ -489,8 +543,108 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [services]);
 
+  // Persist renderer state across reloads (audit improvement #5). The desktop
+  // queue itself is rehydrated from SQLite; these are the settings/stats that
+  // used to snap back to demo values on every launch.
   useEffect(() => {
-    const desktop = window.broxprintDesktop;
+    savePersisted(COUNTERS_STORAGE_KEY, counters);
+    savePersisted(PRINTERS_STORAGE_KEY, printers);
+    savePersisted(PRICING_STORAGE_KEY, pricing);
+    savePersisted(SHOP_PROFILE_STORAGE_KEY, shopProfile);
+  }, [counters, printers, pricing, shopProfile]);
+
+  useEffect(() => {
+    const desktop = window.alifShohojPrintDesktop;
+    if (desktop && isMaster) {
+      void desktop.publishCustomerConfig({
+        shopProfile: {
+          id: shopProfile.id,
+          name: shopProfile.name,
+          nameBn: shopProfile.nameBn,
+          code: shopProfile.code,
+          phone: shopProfile.phone,
+          address: shopProfile.address,
+          bkashNumber: shopProfile.bkashNumber,
+          nagadNumber: shopProfile.nagadNumber,
+          voiceGuide: shopProfile.voiceGuide,
+        },
+        counters,
+        printers,
+        pricing,
+        services,
+      }).catch(error => console.error('Could not publish the customer PWA settings to the LAN gateway.', error));
+    }
+  }, [isMaster, shopProfile, counters, pricing, services]);
+
+  useEffect(() => {
+    if (window.alifShohojPrintDesktop || window.location.protocol === 'file:') return;
+    void fetch('/api/customer-config')
+      .then(async response => {
+        if (!response.ok) return null;
+        return await response.json() as CustomerAppConfig;
+      })
+      .then(config => {
+        if (!config) return;
+        setShopProfile(current => ({ ...current, ...config.shopProfile }));
+        setCounters(config.counters);
+        setPrinters(config.printers);
+        setPricing(config.pricing);
+        setServices(config.services);
+      })
+      .catch(error => console.warn('Customer app configuration is not available from the master PC.', error));
+  }, []);
+
+  useEffect(() => {
+    const desktop = window.alifShohojPrintDesktop;
+    if (!desktop || !isMaster) return;
+    const counterIds = counters.filter(counter => !counter.isMasterHost).map(counter => counter.id);
+    let cancelled = false;
+    const refreshStatuses = () => {
+      void desktop.getCounterStatuses(counterIds).then(statuses => {
+        if (cancelled) return;
+        const statusById = new Map(statuses.map(status => [status.counterId, status]));
+        setCounters(current => {
+          let changed = false;
+          const updated = current.map(counter => {
+            const heartbeat = statusById.get(counter.id);
+            if (!heartbeat || (counter.isOnline === heartbeat.online && counter.lastSeenAt === heartbeat.lastSeenAt)) return counter;
+            changed = true;
+            return { ...counter, isOnline: heartbeat.online, lastSeenAt: heartbeat.lastSeenAt };
+          });
+          return changed ? updated : current;
+        });
+      }).catch(error => console.warn('Could not refresh counter heartbeat status.', error));
+    };
+    refreshStatuses();
+    const timer = setInterval(refreshStatuses, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [isMaster, counters.map(counter => counter.id).join(',')]);
+
+  useEffect(() => {
+    if (installationConfig?.mode !== 'counter' || !installationConfig.masterUrl || activeView === 'customer_pwa') return;
+    const desktop = window.alifShohojPrintDesktop;
+    const sendHeartbeat = () => {
+      if (desktop) {
+        void desktop.sendCounterHeartbeat(installationConfig.masterUrl!, installationConfig.counterId)
+          .catch(error => console.warn('Could not send a counter heartbeat to the master PC.', error));
+        return;
+      }
+      void fetch('/api/counter-heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ counterId: installationConfig.counterId }),
+      }).catch(error => console.warn('Could not send a counter heartbeat to the master PC.', error));
+    };
+    sendHeartbeat();
+    const timer = setInterval(sendHeartbeat, 10_000);
+    return () => clearInterval(timer);
+  }, [installationConfig?.mode, installationConfig?.counterId, installationConfig?.masterUrl, activeView]);
+
+  useEffect(() => {
+    const desktop = window.alifShohojPrintDesktop;
     if (!desktop) return;
 
     const applyQueueJob = (queueJob: DesktopQueueJob) => {
@@ -499,9 +653,13 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ...queueJob.job,
         status: queueJob.status === 'printing' || queueJob.status === 'completed'
           ? queueJob.status
-          : queueJob.job.status === 'approved'
-            ? 'approved' as const
-            : 'queued' as const,
+          : queueJob.status === 'failed'
+            ? 'failed' as const
+            : queueJob.job.status === 'rejected'
+              ? 'rejected' as const
+              : queueJob.job.status === 'approved'
+                ? 'approved' as const
+                : 'queued' as const,
         ...(queueJob.error ? { printError: queueJob.error } : { printError: undefined }),
         ...(queueJob.status === 'completed' ? { completedAt: queueJob.updatedAt } : {}),
       };
@@ -519,7 +677,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const unsubscribeIncoming = desktop.onIncomingJob(job => {
       setJobs(prev => prev.some(existing => existing.id === job.id) ? prev : [job, ...prev]);
-      if (shopProfile.soundAlertEnabled) globalVoice.speakShopAlert(job.tokenCode, job.serviceLabelBn);
+      const counterNumber = job.counterId?.match(/\d+/)?.[0];
+      if (shopProfile.soundAlertEnabled) globalVoice.speakShopAlert(job.tokenCode, job.serviceLabelBn, counterNumber);
       else playIncomingOrderChime();
       setActiveToast({
         job,
@@ -574,18 +733,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
     setServices(prev =>
       prev.map(service => {
-        const readPrice = (key: keyof ServicePricing): number => {
-          const value = updates[key];
-          return typeof value === 'number' && Number.isFinite(value) ? value : service.basePriceBDT;
-        };
-        const basePriceBDT =
-          service.id === 'passport_photo' ? readPrice('passport4in1') :
-          service.id === 'stamp_photo' ? readPrice('stampPhoto') :
-          service.id === 'nid_card' ? readPrice('nidSmartCard') :
-          service.id === 'photo_4r' ? readPrice('photo4R') :
-          service.id === 'doc_a4' ? readPrice('docA4BW') :
-          service.basePriceBDT;
-        return basePriceBDT === service.basePriceBDT ? service : { ...service, basePriceBDT };
+        const pricingKey = PRICING_KEY_BY_SERVICE[service.id];
+        if (!pricingKey) return service;
+        const value = updates[pricingKey];
+        if (typeof value !== 'number' || !Number.isFinite(value)) return service;
+        return value === service.basePriceBDT ? service : { ...service, basePriceBDT: value };
       })
     );
   };
@@ -699,13 +851,15 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const createCustomerJob = (
     newJobData: Omit<PrintJob, 'id' | 'createdAt' | 'status' | 'auditLogs' | 'autoDeleteCountdownSeconds' | 'targetPrinterId' | 'targetPrinterName' | 'routingReason'>
   ): PrintJob => {
+    const isRemoteCustomerPwa = !window.alifShohojPrintDesktop && activeView === 'customer_pwa';
     const studioService = services.find(service => service.id === newJobData.serviceType);
     if (!studioService || !studioService.enabled) {
       throw new Error('This studio service is unavailable.');
     }
-    const jobNum = 127 + jobs.length;
-    const tokenCode = String(jobNum);
-    const id = `JOB-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(jobNum).padStart(5, '0')}`;
+    const nextToken = nextTokenNumber(jobs.map(job => job.tokenCode), tokenSequenceRef.current);
+    tokenSequenceRef.current = nextToken;
+    const tokenCode = String(nextToken);
+    const id = createJobId();
 
     // Auto Route using Printer Capability Matcher
     const routing = matchPrinterForJob(newJobData.serviceType, newJobData.paperSize, newJobData.colorMode, printers);
@@ -720,14 +874,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ? `মালিকের অ্যাসাইনকৃত ডিফল্ট প্রিন্টার (${customPrinter.name})`
       : routing.reason;
 
-    // Service-level Auto-Approve check (allows simple documents or configured services to bypass manual approval)
-    const isAutoApprovable = studioService.autoApprove;
-
-    const initialStatus: JobStatus = isAutoApprovable ? 'approved' : 'queued';
-
     // Counter determination
     const targetCounterId = newJobData.counterId || activeCounterId;
     const targetCounter = counters.find(c => c.id === targetCounterId) || counters[0];
+    const isTargetCounterOffline = !targetCounter.isMasterHost && targetCounter.isOnline !== true;
+
+    // Offline counters always require the master operator to review the order.
+    const isAutoApprovable = studioService.autoApprove && !isTargetCounterOffline;
+    const initialStatus: JobStatus = isAutoApprovable ? 'approved' : 'queued';
 
     const newJob: PrintJob = {
       ...newJobData,
@@ -773,46 +927,52 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               },
             ]
           : []),
+        ...(isTargetCounterOffline
+          ? [{
+              id: `log_${Date.now()}_counter_offline`,
+              timestamp: Date.now(),
+              actor: 'system' as const,
+              action: 'counter_offline_master_review',
+              details: `${targetCounter.name} is offline; the order was held for master review.`,
+            }]
+          : []),
       ],
     };
 
-    setJobs(prev => [newJob, ...prev]);
+    if (!isRemoteCustomerPwa) setJobs(prev => [newJob, ...prev]);
 
-    // Update Counter stats
-    setCounters(prev =>
-      prev.map(c =>
-        c.id === targetCounter.id
-          ? {
-              ...c,
-              todayOrdersCount: c.todayOrdersCount + 1,
-              todayEarningsBDT: c.todayEarningsBDT + newJobData.priceBDT,
-            }
-          : c
-      )
-    );
+    // Counter stats are no longer incremented here — they are counted once when a
+    // job actually completes (see the completion-counting effect above), so a
+    // rejected or failed order never inflates the counter's daily numbers (BUG-007).
 
     // Update printer queue counter
-    setPrinters(prev =>
-      prev.map(p => (p.id === routingTargetId ? { ...p, queueCount: p.queueCount + 1 } : p))
-    );
+    if (!isRemoteCustomerPwa) {
+      setPrinters(prev =>
+        prev.map(p => (p.id === routingTargetId ? { ...p, queueCount: p.queueCount + 1 } : p))
+      );
+    }
 
     // Audio Chime & Bengali Voice Alert
-    if (shopProfile.soundAlertEnabled) {
-      globalVoice.speakShopAlert(tokenCode, newJobData.serviceLabelBn);
-    } else {
-      playIncomingOrderChime();
+    if (!isRemoteCustomerPwa) {
+      if (shopProfile.soundAlertEnabled) {
+        globalVoice.speakShopAlert(tokenCode, newJobData.serviceLabelBn, targetCounter.id.match(/\d+/)?.[0]);
+      } else {
+        playIncomingOrderChime();
+      }
     }
 
     // Show Windows Toast Banner
-    setActiveToast({
-      job: newJob,
-      title: `নতুন অর্ডার #${tokenCode}`,
-      message: `${newJob.serviceLabelBn}, ${newJob.paperSize} × ${newJob.copies} কপি`,
-    });
+    if (!isRemoteCustomerPwa) {
+      setActiveToast({
+        job: newJob,
+        title: `নতুন অর্ডার #${tokenCode}`,
+        message: `${newJob.serviceLabelBn}, ${newJob.paperSize} × ${newJob.copies} কপি`,
+      });
+    }
 
     // If auto-approved, trigger print simulation
-    if (window.broxprintDesktop) {
-      const desktop = window.broxprintDesktop;
+    if (window.alifShohojPrintDesktop) {
+      const desktop = window.alifShohojPrintDesktop;
       void desktop.listPrinters().then(async windowsPrinters => {
         const printerName = windowsPrinters.includes(newJob.targetPrinterName)
           ? newJob.targetPrinterName
@@ -831,7 +991,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.error('Could not persist or print the new desktop job.', error);
         setJobs(prev => prev.map(job => job.id === newJob.id ? { ...job, printError: message } : job));
       });
-    } else if (isAutoApprovable) {
+    } else if (isAutoApprovable && !isRemoteCustomerPwa) {
       setTimeout(() => executePrint(newJob.id), 1500);
     }
 
@@ -889,10 +1049,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         })
       );
 
-      // Decrement printer queue count & paper count
+      // Decrement printer queue count & paper count (read the job from jobsRef so
+      // edits made during the 3.5 s window are not lost to a stale closure)
       setPrinters(prev =>
         prev.map(p => {
-          const matchingJob = jobs.find(j => j.id === jobId);
+          const matchingJob = jobsRef.current.find(j => j.id === jobId);
           if (matchingJob && p.id === matchingJob.targetPrinterId) {
             return {
               ...p,
@@ -908,43 +1069,24 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const approveJob = (jobId: string) => {
     const jobToPrint = jobs.find(job => job.id === jobId);
-    setJobs(prev =>
-      prev.map(j => {
-        if (j.id === jobId) {
-          return {
-            ...j,
-            status: 'approved',
-            auditLogs: [
-              ...j.auditLogs,
-              {
-                id: `log_${Date.now()}_approve`,
-                timestamp: Date.now(),
-                actor: 'shopkeeper',
-                action: 'order_approved',
-                details: 'Manual approval by shopkeeper',
-              },
-            ],
-          };
-        }
-        return j;
-      })
-    );
+    const approvedAt = Date.now();
+    setJobs(prev => prev.map(j => (j.id === jobId ? approveJobTransition(j, approvedAt) : j)));
 
     // Dismiss toast if this job was active
     if (activeToast?.job.id === jobId) {
       dismissToast();
     }
 
-    if (window.broxprintDesktop && jobToPrint) {
+    if (window.alifShohojPrintDesktop && jobToPrint) {
       const approvedJob = { ...jobToPrint, status: 'approved' as const };
-      void window.broxprintDesktop.listPrinters()
+      void window.alifShohojPrintDesktop.listPrinters()
         .then(windowsPrinters => {
           if (!windowsPrinters.includes(approvedJob.targetPrinterName)) {
             throw new Error('অর্ডারের প্রিন্টারটি Windows-এ পাওয়া যায়নি। অর্ডার এডিট করে একটি Windows প্রিন্টার নির্বাচন করুন।');
           }
-          return window.broxprintDesktop?.saveJob(approvedJob);
+          return window.alifShohojPrintDesktop?.saveJob(approvedJob);
         })
-        .then(() => window.broxprintDesktop?.printJob(jobId))
+        .then(() => window.alifShohojPrintDesktop?.printJob(jobId))
         .catch(error => {
           const message = error instanceof Error ? error.message : String(error);
           console.error('Could not print the approved desktop job.', error);
@@ -957,33 +1099,25 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const rejectJob = (jobId: string, reason: RejectReason, note?: string) => {
-    setJobs(prev =>
-      prev.map(j => {
-        if (j.id === jobId) {
-          return {
-            ...j,
-            status: 'rejected',
-            rejectReason: reason,
-            rejectNote: note,
-            autoDeleteCountdownSeconds: 120, // Shortened retention on reject
-            auditLogs: [
-              ...j.auditLogs,
-              {
-                id: `log_${Date.now()}_reject`,
-                timestamp: Date.now(),
-                actor: 'shopkeeper',
-                action: 'order_rejected',
-                details: `Rejected due to ${reason}. ${note || ''}`,
-              },
-            ],
-          };
-        }
-        return j;
-      })
-    );
+    const jobToReject = jobs.find(job => job.id === jobId);
+    const rejectedAt = Date.now();
+    setJobs(prev => prev.map(j => (j.id === jobId ? rejectJobTransition(j, reason, note, rejectedAt) : j)));
 
     if (activeToast?.job.id === jobId) {
       dismissToast();
+    }
+
+    // Persist the rejection by removing the row from the desktop SQLite queue so a
+    // reload cannot resurrect the job as "queued" (BUG-004). Jobs that are already
+    // printing or completed are left for the desktop print pipeline to finish.
+    if (
+      window.alifShohojPrintDesktop &&
+      jobToReject &&
+      (jobToReject.status === 'queued' || jobToReject.status === 'approved' || jobToReject.status === 'routing')
+    ) {
+      void window.alifShohojPrintDesktop.removeJob(jobId).catch(error => {
+        console.error('Could not remove the rejected job from the desktop print queue.', error);
+      });
     }
   };
 
@@ -1013,12 +1147,10 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ? { ...prev, ...updates, auditLogs: [...prev.auditLogs, auditLog] }
         : prev
     );
-    if (window.broxprintDesktop) {
-      const currentJob = jobs.find(job => job.id === jobId);
-      if (currentJob) {
-        void window.broxprintDesktop.saveJob({ ...currentJob, ...updates, auditLogs: [...currentJob.auditLogs, auditLog] })
-          .catch(error => console.error('Could not update the persisted desktop print job.', error));
-      }
+    const currentJob = jobs.find(job => job.id === jobId);
+    if (window.alifShohojPrintDesktop && currentJob && currentJob.status !== 'rejected') {
+      void window.alifShohojPrintDesktop.saveJob({ ...currentJob, ...updates, auditLogs: [...currentJob.auditLogs, auditLog] })
+        .catch(error => console.error('Could not update the persisted desktop print job.', error));
     }
   };
 
@@ -1056,7 +1188,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!printer) return;
 
     const testJob: PrintJob = {
-      id: `JOB-TEST-${Date.now().toString().slice(-4)}`,
+      id: `JOB-TEST-${Date.now().toString(36)}`,
       tokenCode: 'TST',
       customerPhone: '01700-000000',
       customerName: 'Diagnostic Test Pattern',
@@ -1114,39 +1246,66 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setPrinters(prev => prev.filter(p => p.id !== printerId));
   };
 
+  // Real Windows spooler scan (audit improvement #4): diff the names returned by
+  // Electron's desktop.listPrinters() against the printer registry instead of
+  // inventing a fake device after a timeout.
   const scanLocalPrinters = async (): Promise<number> => {
-    // Simulated Windows CIM/WMI Get-Printer scan
-    return new Promise(resolve => {
-      setTimeout(() => {
-        // Discovers any unadded Windows spoolers (e.g. Brother or Pantum or Konica Minolta)
-        const discovered: PrinterDevice = {
-          id: `printer_brother_dcp_${Date.now().toString().slice(-4)}`,
-          name: 'Brother DCP-T720DW InkTank',
-          brand: 'Brother',
-          model: 'DCP-T720DW Wireless Duplex',
-          type: 'color_inkjet',
+    const desktop = window.alifShohojPrintDesktop;
+    if (!desktop) {
+      throw new Error('উইন্ডোজ ডেস্কটপ এজেন্ট সংযুক্ত নয় — স্পুলার স্ক্যান শুধু ডেস্কটপ অ্যাপে উপলব্ধ।');
+    }
+
+    const windowsPrinters = await desktop.listPrinters();
+    const knownNames = printers.map(p => p.name);
+    const isAlreadyRegistered = (name: string) =>
+      knownNames.some(known => known === name || known.includes(name) || name.includes(known));
+    // Virtual destinations (PDF writers, fax, OneNote…) would clutter a print
+    // shop's physical printer list, so they are not auto-registered.
+    const isVirtualDestination = (name: string) =>
+      /print to pdf|save as pdf|xps|onenote|fax|google (cloud )?print|adobe pdf|microsoft writer/i.test(name);
+
+    const detectedBrand = (name: string): PrinterDevice['brand'] => {
+      const match = (['Epson', 'HP', 'Canon', 'Brother', 'Pantum', 'Samsung', 'Ricoh', 'Konica Minolta', 'Lexmark', 'Xerox', 'Kyocera'] as const)
+        .find(brand => name.toLowerCase().startsWith(brand.toLowerCase()));
+      return match ?? 'Other';
+    };
+
+    const additions = windowsPrinters
+      .filter(name => !isAlreadyRegistered(name) && !isVirtualDestination(name))
+      .map((name, index): PrinterDevice => {
+        const brand = detectedBrand(name);
+        const isLaser = /laser|mono|deskjet.*mfp/i.test(name);
+        const model = (brand !== 'Other' && name.toLowerCase().startsWith(brand.toLowerCase())
+          ? name.slice(brand.length)
+          : name).trim() || name;
+        return {
+          id: `printer_spooler_${Date.now().toString(36)}_${index}`,
+          name,
+          brand,
+          model,
+          type: isLaser ? 'laser_bw' : 'color_inkjet',
           status: 'online',
-          supportedPaperSizes: ['A4 (8.27x11.69 in)', '4R (4x6 in)', 'Legal'],
-          colorCapability: 'color',
+          supportedPaperSizes: isLaser
+            ? ['A4 (8.27x11.69 in)', 'Legal']
+            : ['A4 (8.27x11.69 in)', '4R (4x6 in)', 'Legal'],
+          colorCapability: isLaser ? 'bw_only' : 'color',
           queueCount: 0,
-          inkLevels: {
-            black: 95,
-            cyan: 90,
-            magenta: 85,
-            yellow: 88,
-          },
-          paperCount: 150,
-          description: 'Auto-detected local Windows USB/Wi-Fi Spooler',
+          inkLevels: isLaser
+            ? { black: 100 }
+            : { black: 100, cyan: 100, magenta: 100, yellow: 100 },
+          paperCount: 200,
+          description: 'স্ক্যানে শনাক্তকৃত Windows spooler ডিভাইস',
         };
+      });
 
-        setPrinters(prev => {
-          if (prev.some(p => p.name.includes('Brother'))) return prev;
-          return [...prev, discovered];
-        });
-
-        resolve(1);
-      }, 1200);
-    });
+    if (additions.length > 0) {
+      setPrinters(prev => {
+        const prevNames = new Set(prev.map(p => p.name));
+        const fresh = additions.filter(device => !prevNames.has(device.name));
+        return fresh.length > 0 ? [...prev, ...fresh] : prev;
+      });
+    }
+    return additions.length;
   };
 
   const restartLocalServer = () => {
@@ -1188,6 +1347,39 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCounters(prev => prev.filter(c => c.id !== id || c.isMasterHost));
   };
 
+  // Renders a local mock "scanned document" as a JPEG data URL. The desktop
+  // queue/print pipeline only accepts data: URLs (and works offline), so the LAN
+  // scan flow must not hand it a remote https:// image (SEC: IPC validation parity).
+  const renderMockScanSample = (): string => {
+    if (typeof document === 'undefined') return '';
+    const canvas = document.createElement('canvas');
+    canvas.width = 1240; // A4 @ 150 dpi
+    canvas.height = 1754;
+    const context = canvas.getContext('2d');
+    if (!context) return '';
+    context.fillStyle = '#e7e2d6';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#ffffff';
+    context.fillRect(80, 80, canvas.width - 160, canvas.height - 160);
+    context.fillStyle = '#111827';
+    context.font = 'bold 56px sans-serif';
+    context.fillText('SCANNED DOCUMENT', 150, 230);
+    context.fillStyle = '#94a3b8';
+    context.fillRect(150, 270, 760, 8);
+    context.fillStyle = '#cbd5e1';
+    for (let line = 0; line < 24; line += 1) {
+      const width = line % 5 === 4 ? 430 : 920 + (line % 3) * 40;
+      context.fillRect(150, 340 + line * 54, width, 14);
+    }
+    context.strokeStyle = '#dc2626';
+    context.lineWidth = 6;
+    context.strokeRect(870, 1400, 240, 240);
+    context.fillStyle = '#dc2626';
+    context.font = 'bold 42px sans-serif';
+    context.fillText('SCAN', 915, 1545);
+    return canvas.toDataURL('image/jpeg', 0.85);
+  };
+
   const triggerNetworkScan = async (scannerId: string, counterId: string): Promise<{ sampleUrl: string; dpi: number }> => {
     setSharedScanners(prev =>
       prev.map(s => (s.id === scannerId ? { ...s, status: 'scanning' } : s))
@@ -1199,11 +1391,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           prev.map(s => (s.id === scannerId ? { ...s, status: 'ready', lastScannedAt: Date.now() } : s))
         );
 
-        const sampleUrl = scannerId.includes('v39')
-          ? 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=1200&auto=format&fit=crop&q=90'
-          : 'https://images.unsplash.com/photo-1568667256549-094345857637?w=1200&auto=format&fit=crop&q=90';
-
-        resolve({ sampleUrl, dpi: 600 });
+        resolve({ sampleUrl: renderMockScanSample(), dpi: 600 });
       }, 2200);
     });
   };

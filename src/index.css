@@ -1,27 +1,289 @@
 @import "tailwindcss";
 
-@layer base {
-  body {
-    font-family: 'Hind Siliguri', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+@theme {
+  /* Windows 11 Semantic Color Tokens */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f3f3f3;
+  --color-bg-tertiary: #e8e8e8;
+  --color-bg-hover: #e5e5e5;
+  --color-bg-active: #d4d4d4;
+  
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-surface-hover: #f3f3f3;
+  
+  --color-text-primary: #1b1b1b;
+  --color-text-secondary: #616161;
+  --color-text-tertiary: #8a8a8a;
+  --color-text-inverse: #ffffff;
+  
+  --color-border-primary: #d4d4d4;
+  --color-border-secondary: #e8e8e8;
+  --color-border-focus: #0078d4;
+  
+  /* Green accent (ALIF SHOHOJ PRINT brand) */
+  --color-accent: #107c10;
+  --color-accent-hover: #0e6e0e;
+  --color-accent-light: #d8f3d8;
+  --color-accent-text: #ffffff;
+  
+  /* Status colors */
+  --color-success: #107c10;
+  --color-success-bg: #d8f3d8;
+  --color-warning: #bf8c00;
+  --color-warning-bg: #fff3c4;
+  --color-error: #d13438;
+  --color-error-bg: #fde7e9;
+  --color-info: #0078d4;
+  --color-info-bg: #deecf9;
+  
+  /* Shadows (Windows 11 Mica/Acrylic feel) */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.02);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.04), 0 2px 4px rgba(0,0,0,0.02);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.05), 0 4px 6px rgba(0,0,0,0.02);
+  --shadow-xl: 0 20px 25px rgba(0,0,0,0.06), 0 10px 10px rgba(0,0,0,0.02);
+  
+  /* Rounded corners (Windows 11 style) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+  
+  /* Transitions */
+  --transition-fast: 100ms cubic-bezier(0, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0, 0, 0.2, 1);
+  
+  /* Fonts */
+  --font-sans: 'Hind Siliguri', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', 'Monospace';
+}
+
+/* Dark theme overrides */
+@media (prefers-color-scheme: dark) {
+  :root:not(.theme-light) {
+    --color-bg-primary: #1b1b1b;
+    --color-bg-secondary: #242424;
+    --color-bg-tertiary: #2d2d2d;
+    --color-bg-hover: #333333;
+    --color-bg-active: #3d3d3d;
+    
+    --color-surface: #1f1f1f;
+    --color-surface-elevated: #242424;
+    --color-surface-hover: #2d2d2d;
+    
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #b3b3b3;
+    --color-text-tertiary: #8a8a8a;
+    --color-text-inverse: #1b1b1b;
+    
+    --color-border-primary: #3d3d3d;
+    --color-border-secondary: #2d2d2d;
+    --color-border-focus: #60c0ff;
+    
+    --color-accent: #4ade80;
+    --color-accent-hover: #6ee797;
+    --color-accent-light: #0e2a0e;
+    --color-accent-text: #1b1b1b;
+    
+    --color-success: #4ade80;
+    --color-success-bg: #0e2a0e;
+    --color-warning: #ffd666;
+    --color-warning-bg: #3d2e00;
+    --color-error: #ff6b6b;
+    --color-error-bg: #3d0e0e;
+    --color-info: #60c0ff;
+    --color-info-bg: #0e2a3d;
   }
 }
 
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
+/* Explicit light theme class */
+.theme-light {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f3f3f3;
+  --color-bg-tertiary: #e8e8e8;
+  --color-bg-hover: #e5e5e5;
+  --color-bg-active: #d4d4d4;
+  
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-surface-hover: #f3f3f3;
+  
+  --color-text-primary: #1b1b1b;
+  --color-text-secondary: #616161;
+  --color-text-tertiary: #8a8a8a;
+  --color-text-inverse: #ffffff;
+  
+  --color-border-primary: #d4d4d4;
+  --color-border-secondary: #e8e8e8;
+  --color-border-focus: #0078d4;
+  
+  --color-accent: #107c10;
+  --color-accent-hover: #0e6e0e;
+  --color-accent-light: #d8f3d8;
+  --color-accent-text: #ffffff;
+  
+  --color-success: #107c10;
+  --color-success-bg: #d8f3d8;
+  --color-warning: #bf8c00;
+  --color-warning-bg: #fff3c4;
+  --color-error: #d13438;
+  --color-error-bg: #fde7e9;
+  --color-info: #0078d4;
+  --color-info-bg: #deecf9;
 }
 
-/* Custom scrollbars for high-density Windows/Agent consoles */
+/* Explicit dark theme class */
+.theme-dark {
+  --color-bg-primary: #1b1b1b;
+  --color-bg-secondary: #242424;
+  --color-bg-tertiary: #2d2d2d;
+  --color-bg-hover: #333333;
+  --color-bg-active: #3d3d3d;
+  
+  --color-surface: #1f1f1f;
+  --color-surface-elevated: #242424;
+  --color-surface-hover: #2d2d2d;
+  
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b3b3b3;
+  --color-text-tertiary: #8a8a8a;
+  --color-text-inverse: #1b1b1b;
+  
+  --color-border-primary: #3d3d3d;
+  --color-border-secondary: #2d2d2d;
+  --color-border-focus: #60c0ff;
+  
+  --color-accent: #4ade80;
+  --color-accent-hover: #6ee797;
+  --color-accent-light: #0e2a0e;
+  --color-accent-text: #1b1b1b;
+  
+  --color-success: #4ade80;
+  --color-success-bg: #0e2a0e;
+  --color-warning: #ffd666;
+  --color-warning-bg: #3d2e00;
+  --color-error: #ff6b6b;
+  --color-error-bg: #3d0e0e;
+  --color-info: #60c0ff;
+  --color-info-bg: #0e2a3d;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    margin: 0;    padding: 0;
+    min-height: 100vh;
+    transition: background-color var(--transition-normal), color var(--transition-normal);
+  }
+  
+  /* Selection colors */
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--color-accent-text);
+  }
+}
+
+/* Tabular numbers utility */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+/* Windows 11 Enter Animations */
+.animate-in {
+  animation-duration: 200ms;
+  animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: ap-fade-in;
+}
+
+.slide-in-from-bottom-5 {
+  animation-name: ap-slide-in-from-bottom;
+}
+
+.zoom-in-95 {
+  animation-name: ap-zoom-in-95;
+}
+
+@keyframes ap-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ap-slide-in-from-bottom {
+  from { opacity: 0; transform: translateY(1.25rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ap-zoom-in-95 {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in { animation: none; }
+}
+
+/* Windows 11 style scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.4);
+  background: var(--color-border-primary);
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.6);
+  background: var(--color-text-tertiary);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* Windows 11 Mica/Acrylic backdrop utility */
+.backdrop-mica {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+@media (prefers-color-scheme: dark) {
+  .backdrop-mica:not(.theme-light .backdrop-mica) {
+    background: rgba(31, 31, 31, 0.8);
+  }
+}
+
+.theme-light .backdrop-mica {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.theme-dark .backdrop-mica {
+  background: rgba(31, 31, 31, 0.8);
 }

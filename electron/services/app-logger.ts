@@ -18,12 +18,16 @@ export class AppLogger {
     this.write('info', message, details);
   }
 
+  warn(message: string, details?: Record<string, unknown>): void {
+    this.write('warn', message, details);
+  }
+
   error(message: string, error?: unknown, details?: Record<string, unknown>): void {
     const errorText = error instanceof Error ? `${error.name}: ${error.message}` : error ? String(error) : undefined;
     this.write('error', message, { ...details, ...(errorText ? { error: errorText } : {}) });
   }
 
-  private write(level: 'info' | 'error', message: string, details?: Record<string, unknown>): void {
+  private write(level: 'info' | 'warn' | 'error', message: string, details?: Record<string, unknown>): void {
     const line = `${JSON.stringify({ timestamp: new Date().toISOString(), level, message, ...details })}\n`;
     this.rotateIfNeeded(Buffer.byteLength(line));
     writeFileSync(this.logFile, line, { encoding: 'utf8', flag: 'a' });

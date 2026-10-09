@@ -17,6 +17,8 @@ export const CounterPosterModal: React.FC = () => {
 
   // Active tab: specific counter ID or 'all'
   const [activeTab, setActiveTab] = useState<string>('CTR-01');
+  const [qrUrls, setQrUrls] = useState<Record<string, string>>({});
+  const [qrError, setQrError] = useState<string | null>(null);
   const singleCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // References for all counters grid
@@ -32,15 +34,29 @@ export const CounterPosterModal: React.FC = () => {
   useEffect(() => {
     if (isPosterModalOpen && activeTab !== 'all' && singleCanvasRef.current) {
       const currentCounter = counters.find(c => c.id === activeTab) || counters[0];
-      const qrTargetUrl = `${window.location.origin}/?shop=${shopProfile.code}&counter=${currentCounter.code}`;
-      QRCode.toCanvas(singleCanvasRef.current, qrTargetUrl, {
-        width: 200,
-        margin: 1,
-        color: {
-          dark: '#0f172a',
-          light: '#ffffff',
-        },
-      });
+      const canvas = singleCanvasRef.current;
+      void (async () => {
+        try {
+          const baseUrl = window.alifShohojPrintDesktop
+            ? await window.alifShohojPrintDesktop.getCustomerPwaUrl()
+            : window.location.origin;
+          if (!baseUrl) throw new Error('Customer QR চালাতে LAN TLS certificate configure করুন।');
+          const target = new URL(baseUrl);
+          target.searchParams.set('shop', shopProfile.code);
+          target.searchParams.set('counter', currentCounter.code);
+          target.searchParams.set('view', 'customer_pwa');
+          const qrTargetUrl = target.toString();
+          await QRCode.toCanvas(canvas, qrTargetUrl, {
+            width: 200,
+            margin: 1,
+            color: { dark: '#0f172a', light: '#ffffff' },
+          });
+          setQrUrls(prev => ({ ...prev, [currentCounter.id]: qrTargetUrl }));
+          setQrError(null);
+        } catch (error) {
+          setQrError(error instanceof Error ? error.message : String(error));
+        }
+      })();
     }
   }, [isPosterModalOpen, activeTab, shopProfile.code, counters]);
 
@@ -50,15 +66,28 @@ export const CounterPosterModal: React.FC = () => {
       counters.forEach(counter => {
         const canvas = allCanvasesRef.current[counter.id];
         if (canvas) {
-          const qrTargetUrl = `${window.location.origin}/?shop=${shopProfile.code}&counter=${counter.code}`;
-          QRCode.toCanvas(canvas, qrTargetUrl, {
-            width: 130,
-            margin: 1,
-            color: {
-              dark: '#0f172a',
-              light: '#ffffff',
-            },
-          });
+          void (async () => {
+            try {
+              const baseUrl = window.alifShohojPrintDesktop
+                ? await window.alifShohojPrintDesktop.getCustomerPwaUrl()
+                : window.location.origin;
+              if (!baseUrl) throw new Error('Customer QR চালাতে LAN TLS certificate configure করুন।');
+              const target = new URL(baseUrl);
+              target.searchParams.set('shop', shopProfile.code);
+              target.searchParams.set('counter', counter.code);
+              target.searchParams.set('view', 'customer_pwa');
+              const qrTargetUrl = target.toString();
+              await QRCode.toCanvas(canvas, qrTargetUrl, {
+                width: 130,
+                margin: 1,
+                color: { dark: '#0f172a', light: '#ffffff' },
+              });
+              setQrUrls(prev => ({ ...prev, [counter.id]: qrTargetUrl }));
+              setQrError(null);
+            } catch (error) {
+              setQrError(error instanceof Error ? error.message : String(error));
+            }
+          })();
         }
       });
     }
@@ -101,7 +130,7 @@ export const CounterPosterModal: React.FC = () => {
         </div>
 
         {/* Counter Tab Selector */}
-        <div className="bg-slate-850 px-5 py-2.5 border-b border-slate-700/80 flex items-center gap-2 overflow-x-auto">
+        <div className="bg-slate-800 px-5 py-2.5 border-b border-slate-700/80 flex items-center gap-2 overflow-x-auto">
           <span className="text-[11px] font-semibold text-slate-400 shrink-0">কাউন্টার নির্বাচন:</span>
           {counters.map(counter => (
             <button
@@ -110,7 +139,7 @@ export const CounterPosterModal: React.FC = () => {
               className={`px-3 py-1 text-xs rounded-lg font-medium transition-all shrink-0 flex items-center gap-1.5 ${
                 activeTab === counter.id
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-750'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
               {counter.isMasterHost ? <Monitor className="w-3 h-3 text-amber-300" /> : <Laptop className="w-3 h-3" />}
@@ -122,7 +151,7 @@ export const CounterPosterModal: React.FC = () => {
             className={`px-3 py-1 text-xs rounded-lg font-medium transition-all shrink-0 flex items-center gap-1.5 ${
               activeTab === 'all'
                 ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-750'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
             <Layers className="w-3 h-3" />
@@ -163,7 +192,7 @@ export const CounterPosterModal: React.FC = () => {
                   {currentCounter.code} স্ক্যান করে সরাসরি ফাইল পাঠান
                 </div>
                 <div className="text-[10px] text-emerald-700 font-mono mt-0.5">
-                  {window.location.origin}/?shop={shopProfile.code}&counter={currentCounter.code}
+                  {qrUrls[currentCounter.id] || qrError || 'QR server loading…'}
                 </div>
               </div>
 

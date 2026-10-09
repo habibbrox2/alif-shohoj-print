@@ -50,6 +50,8 @@ export class JobStore {
       VALUES (@id, @payload, 'queued', 0, @now, @now, NULL)
       ON CONFLICT(id) DO UPDATE SET
         payload_json = excluded.payload_json,
+        status = 'queued',
+        error = NULL,
         updated_at = excluded.updated_at
       WHERE print_queue.status IN ('queued', 'failed')
     `).run({ id: job.id, payload: JSON.stringify(job), now });
@@ -61,6 +63,11 @@ export class JobStore {
   get(id: string): DesktopQueueJob | null {
     const row = this.db.prepare('SELECT * FROM print_queue WHERE id = ?').get(id) as QueueRow | undefined;
     return row ? this.toQueueJob(row) : null;
+  }
+
+  remove(id: string): void {
+    this.db.prepare('DELETE FROM print_queue WHERE id = ?').run(id);
+    this.db.pragma('wal_checkpoint(TRUNCATE)');
   }
 
   list(): DesktopQueueJob[] {

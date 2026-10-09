@@ -6,7 +6,7 @@ import test from 'node:test';
 import { AppLogger } from '../app-logger.js';
 
 test('rotates log files at the configured size threshold', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'broxprint-logs-'));
+  const directory = mkdtempSync(join(tmpdir(), 'alif-shohoj-print-logs-'));
   const logger = new AppLogger(directory);
   const line = 'x'.repeat(1024);
 

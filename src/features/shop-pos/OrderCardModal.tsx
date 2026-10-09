@@ -18,6 +18,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { StudioEditorCanvas } from '../studio-editor/StudioEditorCanvas';
+import { priceForService } from '../../shared/services/pricing';
 
 export const OrderCardModal: React.FC = () => {
   const {
@@ -49,7 +50,7 @@ export const OrderCardModal: React.FC = () => {
   const [printerLoadError, setPrinterLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    const desktop = window.broxprintDesktop;
+    const desktop = window.alifShohojPrintDesktop;
     if (!desktop) return;
     let active = true;
     void desktop.listPrinters()
@@ -86,14 +87,12 @@ export const OrderCardModal: React.FC = () => {
     setActiveOrderCardJob(null);
   };
 
-  const calculateRecalculatedPrice = () => {
-    let base = 35;
-    if (job.serviceType === 'passport_photo') base = editGridCount === 8 ? pricing.passport8in1 : pricing.passport4in1;
-    else if (job.serviceType === 'nid_card') base = pricing.nidSmartCard;
-    else if (job.serviceType === 'photo_4r') base = pricing.photo4R;
-    else if (job.serviceType === 'doc_a4') base = editColorMode === 'color' ? pricing.docA4Color : pricing.docA4BW;
-    return base * editCopies;
-  };
+  const calculateRecalculatedPrice = () =>
+    priceForService(job.serviceType, pricing, {
+      copies: editCopies,
+      gridCount: editGridCount,
+      colorMode: editColorMode,
+    });
 
   const handleSaveEdit = () => {
     const windowsPrinterName = editPrinterId.startsWith('windows:')
@@ -333,7 +332,7 @@ export const OrderCardModal: React.FC = () => {
                     setEditPaperSize(job.paperSize);
                     setEditColorMode(job.colorMode);
                     setEditPrinterId(
-                      window.broxprintDesktop && windowsPrinters.includes(job.targetPrinterName)
+                      window.alifShohojPrintDesktop && windowsPrinters.includes(job.targetPrinterName)
                         ? `windows:${job.targetPrinterName}`
                         : job.targetPrinterId
                     );
@@ -377,7 +376,7 @@ export const OrderCardModal: React.FC = () => {
                 {!hasFile ? (
                   <p className="text-sm text-slate-400">প্রিন্টের পর গোপনীয়তার জন্য ফাইল মুছে ফেলা হয়েছে।</p>
                 ) : isPdf ? (
-                  <iframe title={job.fileName} src={job.fileUrl} className="w-full h-[65vh] rounded" />
+                  <iframe title={job.fileName} src={job.fileUrl} sandbox="" className="w-full h-[65vh] rounded" />
                 ) : (
                   <img
                     src={job.fileUrl}
@@ -461,7 +460,7 @@ export const OrderCardModal: React.FC = () => {
                     <option value="bw">সাদা-কালো (Black & White)</option>
                   </select>
                   {printerLoadError && <p role="alert" className="text-[11px] text-rose-300 mt-1">{printerLoadError}</p>}
-                  {window.broxprintDesktop && windowsPrinters.length === 0 && !printerLoadError && (
+                  {window.alifShohojPrintDesktop && windowsPrinters.length === 0 && !printerLoadError && (
                     <p className="text-[11px] text-amber-300 mt-1">এই Windows PC-তে কোনো প্রিন্টার পাওয়া যায়নি।</p>
                   )}
                 </div>

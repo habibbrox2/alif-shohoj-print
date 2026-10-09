@@ -1,6 +1,6 @@
 export const WINDOWS_AGENT_SOURCE = `/**
  * ALIF SHOHOJ PRINT — Windows Desktop Agent Daemon
- * Copyright (c) 2026 BroxPrint Technologies
+ * Copyright (c) 2026 ALIF SHOHOJ PRINT
  * 
  * Standalone background agent for Windows 10/11
  * Automatically polls local Windows spoolers, manages print queues,
@@ -15,7 +15,7 @@ const https = require('https');
 
 // Shop Pairing Config
 const CONFIG = {
-  SERVER_URL: process.env.BROXPRINT_SERVER || 'wss://print.example.com/ws/agent',
+  SERVER_URL: process.env.ALIF_SHOHOJ_PRINT_SERVER || 'wss://print.example.com/ws/agent',
   SHOP_CODE: process.env.SHOP_CODE || 'RCD-8K29',
   DEVICE_TOKEN: process.env.DEVICE_TOKEN || 'demo-device-token',
   CACHE_DIR: path.join(__dirname, 'local_queue_cache'),
@@ -71,7 +71,7 @@ function executeWindowsPrint(job) {
   return new Promise((resolve) => {
     // In production, download file to local cache first
     const tempFile = path.join(CONFIG.CACHE_DIR, \`print_\${job.id}.tmp\`);
-    fs.writeFileSync(tempFile, '--- BROXPRINT SPOOL STREAM ---');
+    fs.writeFileSync(tempFile, '--- ALIF SHOHOJ PRINT SPOOL STREAM ---');
 
     const printCmd = \`powershell -Command "Start-Sleep -Seconds 2; Write-Host 'Printed successfully'"\`;
     exec(printCmd, (err) => {
@@ -171,7 +171,7 @@ pause
 `;
 
 export const AGENT_PACKAGE_JSON = `{
-  "name": "alif-shohoj-print-windows-agent",
+  "name": "alif-shohoj-print",
   "version": "1.4.0",
   "description": "Background Windows Print Spooler Agent for ALIF SHOHOJ PRINT",
   "main": "AlifShohojPrintAgent.js",

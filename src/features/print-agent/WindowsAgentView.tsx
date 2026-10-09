@@ -100,7 +100,7 @@ export const WindowsAgentView: React.FC = () => {
   const [newCounterPrinterId, setNewCounterPrinterId] = useState('printer_hp_laserjet');
 
   const pendingJobs = jobs.filter(
-    j => j.status === 'queued' || j.status === 'approved' || j.status === 'routing' || j.status === 'printing'
+    j => j.status === 'queued' || j.status === 'approved' || j.status === 'routing' || j.status === 'printing' || j.status === 'failed'
   );
 
   const handleScanPrinters = async () => {
@@ -108,7 +108,13 @@ export const WindowsAgentView: React.FC = () => {
     setScanMessage(null);
     try {
       const addedCount = await scanLocalPrinters();
-      setScanMessage(`সফল! উইন্ডোজ স্পুলার স্ক্যান সম্পন্ন। ১টি নতুন ডিভাইস তালিকাভুক্ত হয়েছে।`);
+      setScanMessage(
+        addedCount > 0
+          ? `সফল! উইন্ডোজ স্পুলার স্ক্যান সম্পন্ন। ${addedCount}টি নতুন ডিভাইস তালিকাভুক্ত হয়েছে।`
+          : 'স্ক্যান সম্পন্ন — নতুন ডিভাইস পাওয়া যায়নি, সব স্পুলারই ইতিমধ্যে তালিকাভুক্ত।'
+      );
+    } catch (error) {
+      setScanMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setIsScanning(false);
       setTimeout(() => setScanMessage(null), 3500);
@@ -141,7 +147,11 @@ export const WindowsAgentView: React.FC = () => {
     e.preventDefault();
     if (!newCounterName) return;
 
-    const nextIndex = counters.length + 1;
+    // Never derive the ID from counters.length (deletions cause duplicates) —
+    // scan for the first unused CTR-NN slot instead.
+    const usedIds = new Set(counters.map(counter => counter.id));
+    let nextIndex = 1;
+    while (usedIds.has(`CTR-${String(nextIndex).padStart(2, '0')}`)) nextIndex += 1;
     addCounter({
       id: `CTR-${String(nextIndex).padStart(2, '0')}`,
       code: `CTR-${nextIndex}`,
@@ -785,7 +795,7 @@ export const WindowsAgentView: React.FC = () => {
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-40 ${
                             isAutoApprove
                               ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50'
-                              : 'bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700'
                           }`}
                         >
                           <Zap className={`w-3.5 h-3.5 ${isAutoApprove ? 'text-amber-400' : 'text-slate-500'}`} />
@@ -947,7 +957,7 @@ export const WindowsAgentView: React.FC = () => {
               </div>
 
               {/* Active Counter Terminal Switcher */}
-              <div className="pt-2 border-t border-slate-850 flex flex-wrap items-center gap-2 text-xs">
+              <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center gap-2 text-xs">
                 <span className="text-slate-400 font-medium text-[11px]">বর্তমানে অপারেট করছেন:</span>
                 {counters.map(c => (
                   <button
@@ -956,7 +966,7 @@ export const WindowsAgentView: React.FC = () => {
                     className={`px-3 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
                       activeCounterId === c.id
                         ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
-                        : 'bg-slate-900 text-slate-300 hover:bg-slate-850 border border-slate-800'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
                     }`}
                   >
                     {c.isMasterHost ? <Monitor className="w-3 h-3 text-amber-300" /> : <Laptop className="w-3 h-3 text-slate-400" />}
@@ -1011,7 +1021,7 @@ export const WindowsAgentView: React.FC = () => {
                         </div>
 
                         {/* Network & Hardware Link Badges */}
-                        <div className="space-y-1 text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-850">
+                        <div className="space-y-1 text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
                           <div className="flex items-center justify-between">
                             <span className="font-mono text-slate-400">LAN IP: {counter.ipAddress}</span>
                             <span className="text-emerald-400 font-mono text-[10px] flex items-center gap-1">
@@ -1040,7 +1050,7 @@ export const WindowsAgentView: React.FC = () => {
                           {counter.assignedServices.map(srv => (
                             <span
                               key={srv}
-                              className="text-[9px] px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-700 font-mono"
+                              className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono"
                             >
                               {srv === 'doc_a4' ? 'A4 ডক' : srv === 'nid_card' ? 'এনআইডি' : srv === 'passport_photo' ? 'পাসপোর্ট' : srv}
                             </span>
@@ -1065,7 +1075,7 @@ export const WindowsAgentView: React.FC = () => {
                           {!isCurrent && (
                             <button
                               onClick={() => setActiveCounterId(counter.id)}
-                              className="text-[11px] text-slate-300 hover:text-white py-1 px-2 rounded bg-slate-800 hover:bg-slate-750 transition-colors"
+                              className="text-[11px] text-slate-300 hover:text-white py-1 px-2 rounded bg-slate-800 hover:bg-slate-700 transition-colors"
                             >
                               সক্রিয় করুন
                             </button>

@@ -1,6 +1,0 @@
-{
-  "name": "ALIF SHOHOJ PRINT — Windows QR Print Server & Digital Studio OS",
-  "description": "Smart QR Print Server and Windows Desktop Agent for digital studios and print shops in Bangladesh with auto-routing, Bangla voice guidance, and mobile PWA upload.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

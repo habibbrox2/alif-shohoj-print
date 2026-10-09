@@ -12,7 +12,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "types": ["vite/client", "node"],
+    "types": ["vite/client", "node", "jest"],
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
   },

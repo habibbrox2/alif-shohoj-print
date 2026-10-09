@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "application": "ALIF SHOHOJ PRINT",
+  "auditedAt": "2026-10-09",
+  "scope": "First-party image, icon, PWA metadata, audio references, and generated print graphics. Excludes dependency internals and generated build output.",
+  "summary": {
+    "standaloneImageFilesInPublic": 0,
+    "inlineVectorAssets": 2,
+    "referencedMissingPwaAudioFiles": 27,
+    "referencedMissingDesktopSoundFiles": 6,
+    "missingRootWebManifest": true,
+    "missingWindowsIconConfiguration": true
+  },
+  "assets": [
+    {
+      "id": "browser-favicon",
+      "category": "favicon",
+      "location": "index.html",
+      "kind": "inline-svg-data-url",
+      "status": "present-embedded",
+      "usage": ["browser-tab"],
+      "description": "32x32 emerald square with a white printer-like glyph; no reusable SVG/ICO file."
+    },
+    {
+      "id": "pwa-web-manifest",
+      "category": "pwa-metadata",
+      "location": "public/manifest.json",
+      "kind": "web-manifest",
+      "status": "missing",
+      "usage": ["service-worker-precache", "pwa-install-metadata"],
+      "referencedBy": ["public/sw.js"],
+      "impact": "The service worker precache cache.addAll() includes this absent URL and can fail installation."
+    },
+    {
+      "id": "apple-touch-icon",
+      "category": "icon",
+      "location": "index.html",
+      "kind": "raster-or-vector-icon",
+      "status": "missing",
+      "usage": ["ios-home-screen"]
+    },
+    {
+      "id": "open-graph-image",
+      "category": "social-preview",
+      "location": "index.html",
+      "kind": "image",
+      "status": "missing",
+      "usage": ["social-link-preview"],
+      "note": "Open Graph title and description exist, but no og:image metadata or image file was found."
+    },
+    {
+      "id": "service-worker",
+      "category": "pwa-runtime",
+      "location": "public/sw.js",
+      "kind": "javascript",
+      "status": "present",
+      "usage": ["offline-cache", "audio-cache"],
+      "issues": ["Install precache lists missing /manifest.json."]
+    },
+    {
+      "id": "voice-guide-manifest",
+      "category": "audio-manifest",
+      "location": "public/audio/manifest.json",
+      "kind": "json",
+      "status": "present",
+      "usage": ["customer-pwa-voice-guide"],
+      "references": {
+        "pattern": "public/audio/bn/C{01..27}.mp3",
+        "count": 27,
+        "presentCount": 0,
+        "missingCount": 27
+      }
+    },
+    {
+      "id": "desktop-alert-sounds",
+      "category": "audio",
+      "location": "electron/services/sound-service.ts",
+      "kind": "mp3",
+      "status": "referenced-files-missing",
+      "usage": ["electron-alerts"],
+      "references": {
+        "pattern": "resources/sounds/S0{1..6}.mp3",
+        "count": 6,
+        "presentCount": 0,
+        "missingCount": 6
+      },
+      "packaging": "electron-builder.yml does not declare resources/sounds as extraResources."
+    },
+    {
+      "id": "electron-tray-icon",
+      "category": "icon",
+      "location": "electron/main.ts:createTray",
+      "kind": "inline-svg-data-url",
+      "status": "present-embedded",
+      "usage": ["windows-system-tray"],
+      "description": "32x32 emerald square with a white printer-like glyph."
+    },
+    {
+      "id": "windows-app-and-installer-icon",
+      "category": "icon",
+      "location": "electron-builder.yml",
+      "kind": "ico",
+      "status": "missing-configuration-and-file",
+      "usage": ["executable", "installer", "shortcuts"],
+      "missingConfiguration": ["win.icon", "nsis.installerIcon", "nsis.uninstallerIcon", "nsis installer wizard bitmap"]
+    },
+    {
+      "id": "brand-logo",
+      "category": "brand-mark",
+      "location": "src/shared/components/NavigationHeader.tsx",
+      "kind": "text",
+      "status": "text-only",
+      "usage": ["application-navigation"],
+      "description": "ALIF SHOHOJ PRINT wordmark is rendered as text; no shared logo image found."
+    },
+    {
+      "id": "service-icons",
+      "category": "service-illustration",
+      "location": "src/shared/services/studioServices.ts",
+      "kind": "emoji",
+      "status": "present-inline-text",
+      "usage": ["customer-pwa", "service-list"],
+      "platformDependentRendering": true
+    },
+    {
+      "id": "interface-icons",
+      "category": "ui-icon-library",
+      "location": "package.json",
+      "kind": "lucide-react-components",
+      "status": "present-dependency",
+      "usage": ["navigation", "printers", "orders", "status", "actions"]
+    },
+    {
+      "id": "counter-qr-codes",
+      "category": "generated-print-graphic",
+      "location": "src/features/shop-pos/CounterPosterModal.tsx",
+      "kind": "canvas-generated-qr",
+      "status": "generated-at-runtime",
+      "usage": ["counter-poster", "printable-counter-sheet"],
+      "generator": "qrcode"
+    },
+    {
+      "id": "order-card-logo",
+      "category": "printable-order-card",
+      "location": "src/features/shop-pos/OrderCardModal.tsx",
+      "kind": "html-css-text-and-lucide-icons",
+      "status": "no-image-asset",
+      "usage": ["printable-order-review"]
+    },
+    {
+      "id": "payment-provider-logos",
+      "category": "payment-branding",
+      "location": "src/features/customer-pwa/CustomerPwaView.tsx",
+      "kind": "text-labels",
+      "status": "no-logo-files",
+      "usage": ["bKash", "Nagad"]
+    },
+    {
+      "id": "empty-state-artwork",
+      "category": "illustration",
+      "location": "src/",
+      "kind": "image",
+      "status": "not-found",
+      "usage": ["empty-and-error-states"]
+    }
+  ],
+  "brand": {
+    "currentName": "ALIF SHOHOJ PRINT",
+    "legacyCompatibilityName": {
+      "value": "BroxPrint Studio",
+      "location": "electron/main.ts",
+      "purpose": "Previous user-data directory migration; not a current visual asset."
+    },
+    "colors": ["#059669", "#107c10", "#4ade80"],
+    "externallyLoadedFonts": ["Hind Siliguri", "Plus Jakarta Sans", "JetBrains Mono"]
+  },
+  "recommendations": [
+    "Add and link a web manifest with real icon sizes; fix the service-worker precache URL.",
+    "Supply or remove the 27 PWA voice clips and six desktop sound references; package desktop media if retained.",
+    "Create a shared brand mark and export favicon, Apple touch, social preview, and Windows ICO variants.",
+    "Configure Electron Builder to use the Windows ICO for executable and installer surfaces."
+  ]
+}

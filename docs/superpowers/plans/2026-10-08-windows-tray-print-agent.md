@@ -68,7 +68,7 @@
 - Test: Electron bridge unit tests and development launch
 
 **Interfaces:**
-- `window.broxprintDesktop` exposes only:
+- `window.alifShohojPrintDesktop` exposes only:
   - `isDesktop: boolean`
   - `getAutoLaunch(): Promise<boolean>`
   - `setAutoLaunch(enabled: boolean): Promise<boolean>`
