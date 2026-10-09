@@ -259,16 +259,16 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-700/80 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[88vh]">
+    <div className="fluent-ui flex max-h-[88vh] flex-col overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900 shadow-xl">
       {/* Canvas Top Bar */}
-      <div className="px-5 py-3.5 bg-slate-800 border-b border-slate-700/80 flex items-center justify-between">
+      <div className="flex flex-col gap-3 border-b border-slate-700/80 bg-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-white shadow-md">
             <Palette className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-white">স্টুডিও এডিটর ক্যানভাস (Canvas Editor)</h3>
+              <h3 className="text-sm font-bold leading-snug text-white">স্টুডিও এডিটর ক্যানভাস (Canvas Editor)</h3>
               <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-semibold border border-emerald-800">
                 POS & Web Admin
               </span>
@@ -279,7 +279,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 sm:justify-end">
           <button
             onClick={handleReset}
             className="px-2.5 py-1 text-xs rounded-lg text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-1"

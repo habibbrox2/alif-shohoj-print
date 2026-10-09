@@ -129,13 +129,13 @@ export const OrderCardModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className={`relative w-full ${activeTab === 'canvas' ? 'max-w-6xl max-h-[98vh]' : 'max-w-lg max-h-[92vh]'} bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden text-slate-100 flex flex-col`}>
+      <div className={`fluent-ui relative flex w-full flex-col overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900 text-slate-100 shadow-xl ${activeTab === 'canvas' ? 'max-w-6xl max-h-[98vh]' : 'max-w-lg max-h-[92vh]'}`}>
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 bg-slate-800/80 border-b border-slate-700/60">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold font-mono text-emerald-400">#{job.tokenCode}</span>
+        <div className="flex flex-col gap-2 border-b border-slate-700/60 bg-slate-800/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="shrink-0 font-mono text-lg font-bold text-emerald-400">#{job.tokenCode}</span>
             <span className="text-xs text-slate-400">·</span>
-            <span className="text-xs text-slate-300 font-medium">{job.serviceLabelBn}</span>
+            <span className="truncate text-xs font-medium text-slate-300">{job.serviceLabelBn}</span>
           </div>
           {job.printError && (
             <p role="alert" className="text-xs text-rose-300">
@@ -143,11 +143,11 @@ export const OrderCardModal: React.FC = () => {
             </p>
           )}
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex w-full min-w-0 items-center gap-1.5 sm:w-auto">
             {activeTab === 'canvas' ? (
               <button
                 onClick={() => setActiveTab('edit')}
-                className="px-2.5 py-1 text-xs rounded-md text-slate-300 hover:text-white"
+                className="shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-xs text-slate-300 hover:text-white"
               >
                 ← অর্ডার এডিটে ফিরুন
               </button>
@@ -155,7 +155,7 @@ export const OrderCardModal: React.FC = () => {
               <>
                 <button
                   onClick={() => setActiveTab('card')}
-                  className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  className={`min-w-0 flex-1 whitespace-nowrap rounded-md px-2.5 py-1 text-xs text-center transition-colors sm:flex-none ${
                     activeTab === 'card' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -163,7 +163,7 @@ export const OrderCardModal: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('preview')}
-                  className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  className={`min-w-0 flex-1 whitespace-nowrap rounded-md px-2.5 py-1 text-xs text-center transition-colors sm:flex-none ${
                     activeTab === 'preview' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -171,7 +171,7 @@ export const OrderCardModal: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('audit')}
-                  className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  className={`min-w-0 flex-1 whitespace-nowrap rounded-md px-2.5 py-1 text-xs text-center transition-colors sm:flex-none ${
                     activeTab === 'audit' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -182,7 +182,8 @@ export const OrderCardModal: React.FC = () => {
 
             <button
               onClick={() => setActiveOrderCardJob(null)}
-              className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors ml-2"
+              aria-label="Close order dialog"
+              className="ml-auto shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:text-white sm:ml-2"
             >
               <X className="w-5 h-5" />
             </button>

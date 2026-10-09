@@ -89,7 +89,7 @@ export const ShopPosView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="fluent-ui mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
       {/* Top Metric Bar adhering to SaaS guidelines (tabular figures, no fluffy pill enclosures) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
@@ -137,10 +137,10 @@ export const ShopPosView: React.FC = () => {
       </div>
 
       {/* POS Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-800 pb-2">
         <button
           onClick={() => setActiveTab('queue')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
             activeTab === 'queue'
               ? 'bg-slate-800 text-emerald-400 border border-slate-700'
               : 'text-slate-400 hover:text-white'
@@ -151,7 +151,7 @@ export const ShopPosView: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('pricing')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
             activeTab === 'pricing'
               ? 'bg-slate-800 text-emerald-400 border border-slate-700'
               : 'text-slate-400 hover:text-white'
@@ -162,7 +162,7 @@ export const ShopPosView: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('settings')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
             activeTab === 'settings'
               ? 'bg-slate-800 text-emerald-400 border border-slate-700'
               : 'text-slate-400 hover:text-white'
@@ -651,7 +651,51 @@ export const ShopPosView: React.FC = () => {
             </div>
 
             {/* Voice Guide Settings (Group 6) */}
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">              <div>                <h4 className="font-semibold text-white">গ্রাহক ভয়েস গাইড (Voice Guide) সেটিংস</h4>                <p className="text-slate-400 mt-0.5">                  মোবাইল PWA-এ গ্রাহকদের জন্য ধাপে ধাপে বাংলা/ইংরেজি ভয়েস নির্দেশনা নিয়ন্ত্রণ করুন।                </p>              </div>              <label className="flex items-center justify-between gap-3 text-slate-200">                <span>ভয়েস গাইড চালু / বন্ধ</span>                <input                  type="checkbox"                  checked={shopProfile.voiceGuide.enabled}                  onChange={e => updateShopProfile({ voiceGuide: { ...shopProfile.voiceGuide, enabled: e.target.checked } })}                  className="w-5 h-5 accent-emerald-500 cursor-pointer"                />              </label>              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">                <div>                  <label className="block text-slate-400 mb-1">ডিফল্ট ভাষা (Default Language)</label>                  <select                    value={shopProfile.voiceGuide.defaultLang}                    onChange={e => updateShopProfile({ voiceGuide: { ...shopProfile.voiceGuide, defaultLang: e.target.value as 'bn' | 'en' } })}                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white"                  >                    <option value="bn">বাংলা (Bangla)</option>                    <option value="en">English</option>                  </select>                </div>                <div>                  <label className="block text-slate-400 mb-1">ডিফল্ট গতি (Default Speed)</label>                  <select                    value={shopProfile.voiceGuide.defaultSpeed}                    onChange={e => updateShopProfile({ voiceGuide: { ...shopProfile.voiceGuide, defaultSpeed: Number(e.target.value) as 0.8 | 1.0 | 1.25 } })}                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white"                  >                    <option value={0.8}>০.৮x (ধীরে)</option>                    <option value={1.0}>১.০x (সাধারণ)</option>                    <option value={1.25}>১.২৫x (দ্রুত)</option>                  </select>                </div>              </div>              <p className="text-[11px] text-slate-500">                নোট: বন্ধ থাকলে গ্রাহকের মোবাইল PWA-তে ভয়েস গাইড বাটন দেখাবে না।              </p>            </div>
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+              <div>
+                <h4 className="font-semibold text-white">গ্রাহক ভয়েস গাইড (Voice Guide) সেটিংস</h4>
+                <p className="text-slate-400 mt-0.5">
+                  মোবাইল PWA-এ গ্রাহকদের জন্য ধাপে ধাপে বাংলা/ইংরেজি ভয়েস নির্দেশনা নিয়ন্ত্রণ করুন।
+                </p>
+              </div>
+              <label className="flex items-center justify-between gap-3 text-slate-200">
+                <span>ভয়েস গাইড চালু / বন্ধ</span>
+                <input
+                  type="checkbox"
+                  checked={shopProfile.voiceGuide.enabled}
+                  onChange={e => updateShopProfile({ voiceGuide: { ...shopProfile.voiceGuide, enabled: e.target.checked } })}
+                  className="w-5 h-5 accent-emerald-500 cursor-pointer"
+                />
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1">ডিফল্ট ভাষা (Default Language)</label>
+                  <select
+                    value={shopProfile.voiceGuide.defaultLang}
+                    onChange={e => updateShopProfile({ voiceGuide: { ...shopProfile.voiceGuide, defaultLang: e.target.value as 'bn' | 'en' } })}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white"
+                  >
+                    <option value="bn">বাংলা (Bangla)</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">ডিফল্ট গতি (Default Speed)</label>
+                  <select
+                    value={shopProfile.voiceGuide.defaultSpeed}
+                    onChange={e => updateShopProfile({ voiceGuide: { ...shopProfile.voiceGuide, defaultSpeed: Number(e.target.value) as 0.8 | 1.0 | 1.25 } })}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white"
+                  >
+                    <option value={0.8}>০.৮x (ধীরে)</option>
+                    <option value={1.0}>১.০x (সাধারণ)</option>
+                    <option value={1.25}>১.২৫x (দ্রুত)</option>
+                  </select>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                নোট: বন্ধ থাকলে গ্রাহকের মোবাইল PWA-তে ভয়েস গাইড বাটন দেখাবে না।
+              </p>
+            </div>
 
             {/* Payment merchant numbers */}
             <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">

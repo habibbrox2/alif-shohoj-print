@@ -90,12 +90,12 @@ const StudioAppContent: React.FC = () => {
     <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col selection:bg-accent selection:text-accent-text">
       {!installationConfig && activeView !== 'customer_pwa' ? (
         <main className="flex flex-1 items-center justify-center p-6">
-          <section className="w-full max-w-lg rounded-2xl border border-border-primary bg-surface p-6 shadow-xl">
+          <section className="w-full max-w-lg rounded-xl border border-border-primary bg-surface p-6 shadow-md">
             <p className="text-xs font-semibold uppercase tracking-wider text-accent">ALIF SHOHOJ PRINT · প্রথম সেটআপ</p>
             <h1 className="mt-2 text-xl font-bold text-text-primary">এই পিসির ভূমিকা নির্বাচন করুন</h1>
             <p className="mt-2 text-sm text-text-secondary">Shop POS খুলতে প্রথমে এই পিসি মূল পিসি নাকি কাউন্টার তা নির্ধারণ করুন।</p>
             <div className="mt-5 grid gap-3">
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border-primary bg-surface-hover p-4">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border-primary bg-surface-hover p-4 transition-colors hover:border-border-focus">
                 <input
                   type="radio"
                   name="installation-mode"
@@ -108,7 +108,7 @@ const StudioAppContent: React.FC = () => {
                   <span className="mt-1 block text-xs text-text-secondary">সার্ভিস, প্রিন্টার এবং দোকানের সেটিংস পরিচালনা করবে।</span>
                 </span>
               </label>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border-primary bg-surface-hover p-4">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border-primary bg-surface-hover p-4 transition-colors hover:border-border-focus">
                 <input
                   type="radio"
                   name="installation-mode"
@@ -172,7 +172,7 @@ const StudioAppContent: React.FC = () => {
           <NavigationHeader />
 
           {/* Main Viewport */}
-          <main className="flex-1 py-4 sm:py-6">
+          <main className="min-w-0 flex-1 py-3 sm:py-5">
             <Suspense fallback={<ViewFallback />}>
               {activeView === 'windows_agent' && <WindowsAgentView />}
               {activeView === 'customer_pwa' && <CustomerPwaView />}
@@ -219,4 +219,4 @@ export default function App() {
       </StudioProvider>
     </ThemeProvider>
   );
-}
+}

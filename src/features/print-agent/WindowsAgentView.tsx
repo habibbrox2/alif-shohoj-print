@@ -257,7 +257,7 @@ export const WindowsAgentView: React.FC = () => {
   ];
 
   return (
-    <div className={`mx-auto p-2 sm:p-4 transition-all duration-200 ${isMaximized ? 'max-w-full' : 'max-w-5xl'}`}>
+    <div className={`fluent-ui mx-auto p-2 sm:p-4 transition-all duration-200 ${isMaximized ? 'max-w-full' : 'max-w-5xl'}`}>
       {/* Real Windows 11/10 Application Frame */}
       <div
         className={`bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl shadow-black/95 overflow-hidden transition-all duration-200 ${
@@ -305,47 +305,47 @@ export const WindowsAgentView: React.FC = () => {
         </div>
 
         {/* Native Windows Menu Bar */}
-        <div className="px-3 py-1 bg-slate-900/90 border-b border-slate-800 flex items-center gap-4 text-xs text-slate-300 select-none">
-          <div className="relative group cursor-pointer hover:text-white py-0.5">
+        <div className="flex items-center gap-4 overflow-x-auto whitespace-nowrap border-b border-slate-800 bg-slate-900/90 px-3 py-1 text-xs text-slate-300 select-none">
+          <div className="relative shrink-0 cursor-pointer group hover:text-white py-0.5">
             <span>ফাইল (File)</span>
           </div>
           <div
             onClick={handleScanPrinters}
-            className="cursor-pointer hover:text-emerald-400 py-0.5 flex items-center gap-1"
+            className="flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap py-0.5 hover:text-emerald-400"
           >
             <span>প্রিন্টার স্ক্যান (Scan)</span>
           </div>
           <div
             onClick={() => setActiveWindowTab('services')}
-            className="cursor-pointer hover:text-emerald-400 py-0.5"
+            className="shrink-0 cursor-pointer whitespace-nowrap py-0.5 hover:text-emerald-400"
           >
             <span>সার্ভিস ম্যানেজার (Services)</span>
           </div>
           <div
             onClick={() => setActiveWindowTab('counters')}
-            className="cursor-pointer hover:text-emerald-400 py-0.5 flex items-center gap-1"
+            className="flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap py-0.5 hover:text-emerald-400"
           >
             <span>ল্যান কাউন্টার (Counters)</span>
           </div>
           <div
             onClick={() => setActiveWindowTab('server')}
-            className="cursor-pointer hover:text-emerald-400 py-0.5"
+            className="shrink-0 cursor-pointer whitespace-nowrap py-0.5 hover:text-emerald-400"
           >
             <span>লোকাল সার্ভার (Server)</span>
           </div>
           <div
             onClick={() => setIsExePackageModalOpen(true)}
-            className="cursor-pointer hover:text-emerald-400 py-0.5"
+            className="shrink-0 cursor-pointer whitespace-nowrap py-0.5 hover:text-emerald-400"
           >
             <span>সাহায্য ও ড্রাইভার (Help)</span>
           </div>
         </div>
 
         {/* Windows App View Tabs */}
-        <div className="px-4 pt-3 bg-slate-950/70 border-b border-slate-800 flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap border-b border-slate-800 bg-slate-950/70 px-4 pt-3 text-xs">
           <button
             onClick={() => setActiveWindowTab('console')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 font-semibold transition-colors ${
               activeWindowTab === 'console'
                 ? 'border-emerald-500 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -357,7 +357,7 @@ export const WindowsAgentView: React.FC = () => {
 
           <button
             onClick={() => setActiveWindowTab('printers')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 font-semibold transition-colors ${
               activeWindowTab === 'printers'
                 ? 'border-emerald-500 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -369,7 +369,7 @@ export const WindowsAgentView: React.FC = () => {
 
           <button
             onClick={() => setActiveWindowTab('services')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 font-semibold transition-colors ${
               activeWindowTab === 'services'
                 ? 'border-emerald-500 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -381,7 +381,7 @@ export const WindowsAgentView: React.FC = () => {
 
           <button
             onClick={() => setActiveWindowTab('counters')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 font-semibold transition-colors ${
               activeWindowTab === 'counters'
                 ? 'border-emerald-500 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -393,7 +393,7 @@ export const WindowsAgentView: React.FC = () => {
 
           <button
             onClick={() => setActiveWindowTab('server')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 font-semibold transition-colors ${
               activeWindowTab === 'server'
                 ? 'border-emerald-500 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'

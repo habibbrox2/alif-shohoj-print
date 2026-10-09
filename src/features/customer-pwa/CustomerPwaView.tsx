@@ -134,13 +134,13 @@ export const CustomerPwaView: React.FC = () => {
   useEffect(() => {
     // Initialize voice guide service
     voiceGuide.initialize();
-    
+
     const unsubscribe = voiceGuide.subscribe(state => {
       setVoiceSpeaking(state.isPlaying);
       setVoiceSpeed(state.speed);
       setVoiceLang(state.currentLang);
     });
-    
+
     // Sync with shop settings
     setVoiceEnabled(shopProfile.voiceGuide.enabled);
     if (shopProfile.voiceGuide.enabled) {
@@ -148,7 +148,7 @@ export const CustomerPwaView: React.FC = () => {
       voiceGuide.setLang(shopProfile.voiceGuide.defaultLang);
       voiceGuide.setSpeed(shopProfile.voiceGuide.defaultSpeed);
     }
-    
+
     return () => {
       unsubscribe();
     };
@@ -380,7 +380,7 @@ export const CustomerPwaView: React.FC = () => {
   const isPdfFile = fileUrl.startsWith('data:application/pdf') || /\.pdf(?:$|[?#])/i.test(fileName);
 
   return (
-    <div className="max-w-md mx-auto p-4 space-y-4">
+    <div className="fluent-ui mx-auto max-w-md space-y-4 p-4">
       {/* Phone Frame Wrapper */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-100 min-h-[640px]">
         {/* Mobile Header */}
@@ -493,8 +493,10 @@ export const CustomerPwaView: React.FC = () => {
               <button
                 onClick={() => {
                   playTapTone();
-                  voiceGuide.replay();                }}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] flex items-center gap-1"                title="আবার শুনুন"
+                  voiceGuide.replay();
+                }}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] flex items-center gap-1"
+                title="আবার শুনুন"
               >
                 <RotateCcw className="w-3 h-3 text-emerald-400" />
                 <span>🔁 আবার</span>
@@ -502,7 +504,8 @@ export const CustomerPwaView: React.FC = () => {
               <button
                 onClick={() => {
                   playTapTone();
-                  const next = voiceSpeed === 1.0 ? 1.25 : voiceSpeed === 1.25 ? 0.8 : 1.0;                  voiceGuide.setSpeed(next);
+                  const next = voiceSpeed === 1.0 ? 1.25 : voiceSpeed === 1.25 ? 0.8 : 1.0;
+                  voiceGuide.setSpeed(next);
                   setVoiceSpeed(next);
                 }}
                 className="px-2 py-1 rounded bg-slate-800 text-[10px] font-mono text-slate-300 hover:text-white"
@@ -516,7 +519,8 @@ export const CustomerPwaView: React.FC = () => {
                 onClick={() => {
                   playTapTone();
                   const next = voiceLang === 'bn' ? 'en' : 'bn';
-                  voiceGuide.setLang(next);                  setVoiceLang(next);
+                  voiceGuide.setLang(next);
+                  setVoiceLang(next);
                 }}
                 className="px-2 py-1 rounded bg-slate-800 text-[10px] font-medium text-emerald-400 hover:bg-slate-700"
               >
@@ -526,9 +530,13 @@ export const CustomerPwaView: React.FC = () => {
               {/* Mute button */}
               <button
                 onClick={() => {
-                  playTapTone();                  voiceGuide.stop();                  voiceGuide.setEnabled(false);                  setVoiceEnabled(false);
+                  playTapTone();
+                  voiceGuide.stop();
+                  voiceGuide.setEnabled(false);
+                  setVoiceEnabled(false);
                 }}
-                className="p-1 rounded text-slate-500 hover:text-slate-300"                title="থামান"
+                className="p-1 rounded text-slate-500 hover:text-slate-300"
+                title="থামান"
               >
                 <VolumeX className="w-3.5 h-3.5" />
               </button>
@@ -626,10 +634,14 @@ export const CustomerPwaView: React.FC = () => {
                 </div>
                 <button
                   onClick={() => {
-                    playTapTone();                    setCurrentStep(1);                    triggerVoice('service_select');                  }}
+                    playTapTone();
+                    setCurrentStep(1);
+                    triggerVoice('service_select');
+                  }}
                   className="text-xs text-slate-400 hover:text-white"
                 >
-                  ← পরিবর্তনn                </button>
+                  ← পরিবর্তন
+n                </button>
               </div>
 
               {/* Native File Dropzone / Camera Picker */}
@@ -686,10 +698,14 @@ export const CustomerPwaView: React.FC = () => {
                 </div>
                 <button
                   onClick={() => {
-                    playTapTone();                    setCurrentStep(2);                    triggerVoice('upload_start');                  }}
+                    playTapTone();
+                    setCurrentStep(2);
+                    triggerVoice('upload_start');
+                  }}
                   className="text-xs text-slate-400 hover:text-white"
                 >
-                  ← ব্যাকn                </button>
+                  ← ব্যাক
+n                </button>
               </div>
 
               {/* Crop Box Preview with Guidelines */}
@@ -780,7 +796,10 @@ export const CustomerPwaView: React.FC = () => {
                 </div>
               )}<button
                 onClick={() => {
-                  playTapTone();                  setCurrentStep(4);                  triggerVoice('copies_select');                  setTimeout(() => triggerVoice('preview'), 1000);
+                  playTapTone();
+                  setCurrentStep(4);
+                  triggerVoice('copies_select');
+                  setTimeout(() => triggerVoice('preview'), 1000);
                 }}
                 className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition-colors flex items-center justify-center gap-1.5"
               >
@@ -802,7 +821,14 @@ export const CustomerPwaView: React.FC = () => {
                 </div>
                 <button
                   onClick={() => {
-                    playTapTone();                    setCurrentStep(3);                    triggerVoice('crop_rotate');                  }}                  className="text-xs text-slate-400 hover:text-white"                >                ← ব্যাকn              </button>
+                    playTapTone();
+                    setCurrentStep(3);
+                    triggerVoice('crop_rotate');
+                  }}
+                  className="text-xs text-slate-400 hover:text-white"
+                >
+                ← ব্যাক
+n              </button>
               </div>
 
               {/* Copies & Color settings */}
@@ -868,7 +894,10 @@ export const CustomerPwaView: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => {
-                      playTapTone();                      setPaymentMethod('counter_cash');                      triggerVoice('payment');                    }}
+                      playTapTone();
+                      setPaymentMethod('counter_cash');
+                      triggerVoice('payment');
+                    }}
                     className={`p-3 rounded-xl border text-left transition-colors ${
                       paymentMethod === 'counter_cash'
                         ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300'
@@ -881,7 +910,10 @@ export const CustomerPwaView: React.FC = () => {
 
                   <button
                     onClick={() => {
-                      playTapTone();                      setPaymentMethod('bkash');                      triggerVoice('payment');                    }}
+                      playTapTone();
+                      setPaymentMethod('bkash');
+                      triggerVoice('payment');
+                    }}
                     className={`p-3 rounded-xl border text-left transition-colors ${
                       paymentMethod === 'bkash'
                         ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300'
@@ -984,7 +1016,12 @@ export const CustomerPwaView: React.FC = () => {
 
               <button
                 onClick={() => {
-                  playTapTone();                  setCurrentStep(1);                  setCompletedJob(null);                  triggerVoice('goodbye');                  setTimeout(() => triggerVoice('home'), 2000);                }}
+                  playTapTone();
+                  setCurrentStep(1);
+                  setCompletedJob(null);
+                  triggerVoice('goodbye');
+                  setTimeout(() => triggerVoice('home'), 2000);
+                }}
                 className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
               >
                 নতুন আরেকটি প্রিন্ট করুন
