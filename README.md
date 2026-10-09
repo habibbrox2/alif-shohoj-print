@@ -39,7 +39,7 @@ npm run app:dist
 
 This command runs verification and creates a dual-architecture per-user NSIS installer in `artifacts/releases/`. The single installer automatically selects the x64 or 32-bit (ia32) app for the Windows PC. It lets the user choose a destination and adds Start Menu and desktop shortcuts. Uninstalling preserves local settings and queued-job data.
 
-On first launch, choose whether this PC is the master/shopkeeper PC or a counter/operator PC. The app opens on the **Status** tab and switches pages with the tab bar below the Windows title bar. In Shop POS settings, enable **Start with Windows** to start the app hidden in the system tray after login. Open it from the tray menu or double-click the tray icon.
+On first launch, choose whether this PC is the master/shopkeeper PC or a counter/operator PC. The app opens on the **Dashboard** tab — the order inbox, where each incoming order is a card with its printer, price, payment state and preview, plus Reject (a reason is required), Edit and Approve actions. The **Status** tab summarises the connection, shop identity, printer fleet, job counts and recent jobs, and its **Printer Settings** button opens the **Detected Printers** dialog, which is also reachable from the right side of the Printers tab. Pages switch with the tab bar below the Windows title bar. In Shop POS settings, enable **Start with Windows** to start the app hidden in the system tray after login. Open it from the tray menu or double-click the tray icon.
 
 ### Counter QR orders and offline alerts
 
