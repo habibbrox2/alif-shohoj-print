@@ -75,6 +75,75 @@ export const STRINGS = {
   'job.status.rejected': { en: 'Rejected', bn: 'বাতিল' },
 
   'job.nidPhoto': { en: 'NID Photo', bn: 'এনআইডি ছবি' },
+  'job.retry': { en: 'Retry', bn: 'আবার চেষ্টা' },
+
+  'dashboard.title': { en: 'Order Inbox', bn: 'অর্ডার ইনবক্স' },
+  'dashboard.subtitle': {
+    en: 'Review every incoming order, then approve, edit or reject it.',
+    bn: 'গ্রাহকের আসা প্রতিটি অর্ডার দেখে অনুমোদন, সম্পাদনা বা বাতিল করুন।'
+  },
+  'dashboard.counterFilter': { en: 'Counter filter:', bn: 'কাউন্টার ফিল্টার:' },
+  'dashboard.allCounters': { en: 'All counters ({count})', bn: 'সকল কাউন্টার ({count})' },
+  'dashboard.openOrders': { en: '{count} open order(s)', bn: '{count}টি খোলা অর্ডার' },
+  'dashboard.empty': {
+    en: 'No orders are waiting for approval.',
+    bn: 'অনুমোদনের অপেক্ষায় কোনো অর্ডার নেই।'
+  },
+  'dashboard.queueError': {
+    en: 'Could not read the local print queue.',
+    bn: 'লোকাল প্রিন্ট কিউ পড়া যায়নি।'
+  },
+
+  'order.timeAgo.now': { en: 'just now', bn: 'এইমাত্র' },
+  'order.timeAgo.minutes': { en: '{count} min ago', bn: '{count} মিনিট আগে' },
+  'order.timeAgo.hours': { en: '{count} hr ago', bn: '{count} ঘন্টা আগে' },
+  'order.copies': { en: '{count} copy', bn: '{count} কপি' },
+  'order.color': { en: 'Color', bn: 'কালার' },
+  'order.bw': { en: 'B&W', bn: 'সাদা-কালো' },
+  'order.printerAuto': { en: 'Printer: {name} (auto)', bn: 'প্রিন্টার: {name} (অটো)' },
+  'order.paid': { en: 'Paid', bn: 'পেইড' },
+  'order.paidMfs': { en: 'Paid (bKash/Nagad)', bn: 'পেইড (bKash/Nagad)' },
+  'order.counterCash': { en: 'Counter cash', bn: 'কাউন্টার ক্যাশ' },
+  'order.previewOpen': { en: 'Preview (enlarge)', bn: 'প্রিভিউ (বড় করুন)' },
+  'order.previewLoading': { en: 'Loading preview…', bn: 'প্রিভিউ লোড হচ্ছে…' },
+  'order.previewError': { en: 'The preview could not be loaded.', bn: 'প্রিভিউ দেখানো যাচ্ছে না।' },
+  'order.previewRemoved': {
+    en: 'File removed after printing',
+    bn: 'প্রিন্টের পর ফাইল মুছে ফেলা হয়েছে'
+  },
+  'order.previewPdf': { en: 'PDF document', bn: 'পিডিএফ ডকুমেন্ট' },
+  'order.reject': { en: 'Reject', bn: 'বাতিল' },
+  'order.edit': { en: 'Edit', bn: 'সম্পাদনা' },
+  'order.approve': { en: 'Approve', bn: 'অনুমোদন' },
+  'order.cancel': { en: 'Cancel', bn: 'ফিরে যান' },
+  'order.reject.title': { en: 'Reject this order', bn: 'অর্ডার বাতিল করুন' },
+  'order.reject.hint': {
+    en: 'A reason is required — the customer gets it with the notification.',
+    bn: 'কারণ দেওয়া বাধ্যতামূলক — কাস্টমার নোটিফিকেশনে এটি পাবে।'
+  },
+  'order.reject.reasonLabel': { en: 'Reason (required)', bn: 'কারণ (বাধ্যতামূলক)' },
+  'order.reject.noteLabel': {
+    en: 'Message for the customer (optional)',
+    bn: 'কাস্টমারের জন্য বার্তা (ঐচ্ছিক)'
+  },
+  'order.reject.confirm': { en: 'Reject order', bn: 'অর্ডার বাতিল করুন' },
+  'order.rejectReason.blurry_photo': {
+    en: 'Blurry / low-resolution photo',
+    bn: 'ছবি অস্পষ্ট / লো-রেজোলিউশন'
+  },
+  'order.rejectReason.corrupted_file': {
+    en: 'File damaged or cannot be opened',
+    bn: 'ফাইল নষ্ট বা খোলা যাচ্ছে না'
+  },
+  'order.rejectReason.invalid_size': {
+    en: 'Size and ratio do not match',
+    bn: 'সাইজ ও রেশিও মিলছে না'
+  },
+  'order.rejectReason.printer_unavailable': {
+    en: 'Printer out of paper / ink or offline',
+    bn: 'প্রিন্টারে পেপার বা কালি শেষ / অফলাইন'
+  },
+  'order.rejectReason.other': { en: 'Other reason', bn: 'অন্যান্য কারণ' },
 
   'upcoming.title': { en: 'Coming in the next step', bn: 'পরবর্তী ধাপে আসছে' },
   'upcoming.dashboard': {

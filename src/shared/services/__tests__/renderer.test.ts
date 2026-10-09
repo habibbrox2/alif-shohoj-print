@@ -9,6 +9,7 @@ import {
   tickJobRetention,
 } from '../jobLifecycle';
 import { PRICING_KEY_BY_SERVICE, priceForService, unitPriceForService } from '../pricing';
+import { isIdentityDocument, isPdfJob, jobDisplayName, jobStatusLabelKey } from '../jobDisplay';
 import {
   COUNTERS_STORAGE_KEY,
   loadPersisted,
@@ -293,4 +294,39 @@ test('persistedState validators reject structurally broken entries', () => {
   assert.equal(validators.shopProfile({ ...shopProfile, soundAlertEnabled: 'yes' }), false);
   assert.equal(validators.printers(INITIAL_PRINTERS), true);
   assert.equal(validators.printers([{ id: 'x' }]), false);
+});
+
+// ---------------------------------------------------------------- jobDisplay
+
+test('identity documents never expose their upload file name', () => {
+  assert.equal(isIdentityDocument(createJob()), false, 'a plain document keeps its name');
+
+  const nidJob = createJob({ serviceType: 'nid_card', fileName: 'nid_shakil_photo.jpg' });
+  assert.equal(isIdentityDocument(nidJob), true);
+  assert.equal(jobDisplayName(nidJob, 'NID Photo'), nidJob.serviceLabel);
+  assert.notEqual(jobDisplayName(nidJob, 'NID Photo'), nidJob.fileName);
+
+  // A passport photo uploaded under a personal name is still an identity document.
+  const passportJob = createJob({
+    serviceType: 'passport_photo',
+    serviceLabel: 'Passport Photo',
+    fileName: 'rahim-copy.jpg'
+  });
+  assert.equal(jobDisplayName(passportJob, 'NID Photo'), 'Passport Photo');
+});
+
+test('isPdfJob recognises PDF jobs regardless of how they are stored', () => {
+  assert.equal(isPdfJob(createJob()), true, 'base64 PDF data URL');
+  assert.equal(isPdfJob(createJob({ fileUrl: 'blob:local', fileName: 'form.PDF' })), true);
+  assert.equal(isPdfJob(createJob({ fileUrl: 'blob:local', fileName: 'photo.jpg' })), false);
+});
+
+test('jobStatusLabelKey groups every pre-print state under the pending label', () => {
+  assert.equal(jobStatusLabelKey('queued'), 'job.status.pending');
+  assert.equal(jobStatusLabelKey('approved'), 'job.status.pending');
+  assert.equal(jobStatusLabelKey('routing'), 'job.status.pending');
+  assert.equal(jobStatusLabelKey('printing'), 'job.status.printing');
+  assert.equal(jobStatusLabelKey('completed'), 'job.status.printed');
+  assert.equal(jobStatusLabelKey('failed'), 'job.status.failed');
+  assert.equal(jobStatusLabelKey('rejected'), 'job.status.rejected');
 });

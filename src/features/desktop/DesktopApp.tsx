@@ -21,6 +21,7 @@ import { ShopPosView } from '../shop-pos/ShopPosView';
 import { WindowsAgentView, type AgentPage } from '../print-agent/WindowsAgentView';
 import { WindowsExePackageModal } from '../print-agent/WindowsExePackageModal';
 import { ProductMark } from './components/ProductMark';
+import { DashboardPage } from './pages/DashboardPage';
 import { StatusPage } from './pages/StatusPage';
 import { UpcomingPage } from './pages/UpcomingPage';
 import type { DesktopPage } from './navigation';
@@ -54,7 +55,9 @@ const TABS: TabDefinition[] = [
 export const DesktopApp: React.FC = () => {
   const { t } = useI18n();
   const { installationConfig, shopProfile, setIsPosterModalOpen, setIsExePackageModalOpen } = useStudio();
-  const [page, setPage] = useState<DesktopPage>('status');
+  // The order inbox is the working page, so the shell opens on Dashboard and the
+  // status window is one click away (its content is also summarised there).
+  const [page, setPage] = useState<DesktopPage>('dashboard');
   const [agentPage, setAgentPage] = useState<AgentPage>('printers');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
@@ -216,7 +219,7 @@ export const DesktopApp: React.FC = () => {
             <ShopPosView />
           </div>
         )}
-        {page === 'dashboard' && <UpcomingPage step="Step 4" descriptionKey="upcoming.dashboard" />}
+        {page === 'dashboard' && <DashboardPage />}
         {page === 'jobs' && <UpcomingPage step="Step 6" descriptionKey="upcoming.jobs" />}
         {page === 'reports' && <UpcomingPage step="Step 6" descriptionKey="upcoming.reports" />}
         {page === 'settings' && <UpcomingPage step="Step 7" descriptionKey="upcoming.settings" />}

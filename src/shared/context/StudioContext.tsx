@@ -7,6 +7,8 @@ import {
   JobStatus,
   RejectReason,
   OrderAuditLog,
+  OrderCardOpenRequest,
+  OrderCardTab,
   ServiceType,
   ShopCounter,
   SharedScannerDevice,
@@ -59,6 +61,9 @@ interface StudioContextType {
   pendingJobsCount: number;
   activeOrderCardJob: PrintJob | null;
   setActiveOrderCardJob: (job: PrintJob | null) => void;
+  /** Set when the dialog is opened through `openOrderCard`, so it can start on a specific tab. */
+  orderCardRequest: OrderCardOpenRequest | null;
+  openOrderCard: (job: PrintJob, tab?: OrderCardTab) => void;
   desktopQueueError: string | null;
 
   // Actions
@@ -500,6 +505,14 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
 
   // Currently focused order card in modal/drawer
   const [activeOrderCardJob, setActiveOrderCardJob] = useState<PrintJob | null>(null);
+  const [orderCardRequest, setOrderCardRequest] = useState<OrderCardOpenRequest | null>(null);
+  const orderCardSeqRef = useRef(0);
+
+  const openOrderCard = (job: PrintJob, tab: OrderCardTab = 'card') => {
+    orderCardSeqRef.current += 1;
+    setOrderCardRequest({ tab, seq: orderCardSeqRef.current });
+    setActiveOrderCardJob(job);
+  };
 
   // Modals
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
@@ -1429,6 +1442,8 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
         pendingJobsCount,
         activeOrderCardJob,
         setActiveOrderCardJob,
+        orderCardRequest,
+        openOrderCard,
         desktopQueueError,
         createCustomerJob,
         approveJob,

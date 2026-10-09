@@ -21,6 +21,18 @@ export type RejectReason =
   | 'printer_unavailable' // প্রিন্টার অনুপলব্ধ
   | 'other'; // অন্যান্য
 
+/** Tabs of the order dialog, so callers can open it directly on a given step. */
+export type OrderCardTab = 'card' | 'preview' | 'edit' | 'reject' | 'audit' | 'canvas';
+
+/**
+ * A pending "open the order dialog" instruction. `seq` makes every request
+ * distinct so re-opening the same order still applies the requested tab.
+ */
+export interface OrderCardOpenRequest {
+  tab: OrderCardTab;
+  seq: number;
+}
+
 export interface OrderAuditLog {
   id: string;
   timestamp: number;

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useStudio } from '../../shared/context/StudioContext';
-import { PrintJob, RejectReason, PaperSize, ColorMode } from '../../shared/types';
+import { PrintJob, RejectReason, PaperSize, ColorMode, OrderCardTab } from '../../shared/types';
 import {
   X,
   Printer,
@@ -24,6 +24,7 @@ export const OrderCardModal: React.FC = () => {
   const {
     activeOrderCardJob,
     setActiveOrderCardJob,
+    orderCardRequest,
     approveJob,
     rejectJob,
     editJob,
@@ -31,7 +32,17 @@ export const OrderCardModal: React.FC = () => {
     pricing,
   } = useStudio();
 
-  const [activeTab, setActiveTab] = useState<'card' | 'preview' | 'edit' | 'canvas' | 'reject' | 'audit'>('card');
+  const [activeTab, setActiveTab] = useState<OrderCardTab>('card');
+
+  // A caller (for example the dashboard's Reject/Edit buttons) can ask for a
+  // particular tab; the request carries a sequence number so re-opening the same
+  // order applies again while in-dialog tab switches stay untouched.
+  const handledRequestSeqRef = useRef(0);
+  useEffect(() => {
+    if (!orderCardRequest || orderCardRequest.seq === handledRequestSeqRef.current) return;
+    handledRequestSeqRef.current = orderCardRequest.seq;
+    setActiveTab(orderCardRequest.tab);
+  }, [orderCardRequest]);
 
   // Reject state
   const [selectedRejectReason, setSelectedRejectReason] = useState<RejectReason>('blurry_photo');

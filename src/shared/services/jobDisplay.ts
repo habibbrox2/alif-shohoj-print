@@ -1,3 +1,4 @@
+import type { TranslationKey } from '../i18n/strings';
 import type { JobStatus, PrintJob } from '../types';
 
 /**
@@ -10,12 +11,35 @@ const IDENTITY_SERVICE_PATTERN = /nid|smart[_\s-]?card|national[_\s-]?id|passpor
 export const isIdentityDocument = (job: PrintJob): boolean =>
   IDENTITY_SERVICE_PATTERN.test(job.serviceType) || IDENTITY_SERVICE_PATTERN.test(job.fileName);
 
+/** PDF jobs cannot be previewed as an image, so the UI shows a document state. */
+export const isPdfJob = (job: PrintJob): boolean =>
+  job.fileUrl.startsWith('data:application/pdf') || /\.pdf(?:$|[?#])/i.test(job.fileName);
+
 export const jobDisplayName = (job: PrintJob, identityLabel: string): string => {
   if (isIdentityDocument(job)) return job.serviceLabel || identityLabel;
   return job.fileName || job.serviceLabel || identityLabel;
 };
 
 export type JobStatusTone = 'success' | 'error' | 'warning' | 'info' | 'neutral';
+
+/**
+ * Label key for a job status. All pre-print states read as "Pending" to the
+ * operator, who only cares whether the order still needs attention.
+ */
+export const jobStatusLabelKey = (status: JobStatus): TranslationKey => {
+  switch (status) {
+    case 'completed':
+      return 'job.status.printed';
+    case 'failed':
+      return 'job.status.failed';
+    case 'printing':
+      return 'job.status.printing';
+    case 'rejected':
+      return 'job.status.rejected';
+    default:
+      return 'job.status.pending';
+  }
+};
 
 export const jobStatusTone = (status: JobStatus): JobStatusTone => {
   switch (status) {
