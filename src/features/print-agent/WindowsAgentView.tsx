@@ -85,7 +85,7 @@ export const WindowsAgentView: React.FC<WindowsAgentViewProps> = ({ initialPage 
   // tab bodies so the existing agent logic stays reachable from the new shell.
   const [activeWindowTab, setActiveWindowTab] = useState<AgentPage>(initialPage);
   const changePage = (page: AgentPage) => {
-    changePage(page);
+    setActiveWindowTab(page);
     onPageChange?.(page);
   };
 

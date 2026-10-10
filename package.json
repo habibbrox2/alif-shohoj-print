@@ -2,8 +2,8 @@
   "name": "alif-shohoj-print",
   "private": true,
   "version": "0.1.0",
-  "description": "ALIF SHOHOJ PRINT Windows print-shop POS and local print agent.",
-  "author": "ALIF SHOHOJ PRINT",
+  "description": "Alif Shohoj Print Windows print-shop POS and local print agent.",
+  "author": "AAA Tech Solutions",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",

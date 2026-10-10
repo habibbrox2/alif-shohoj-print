@@ -111,12 +111,12 @@ const StudioAppContent: React.FC = () => {
           {/* Quiet Footer */}
           <footer className="py-4 border-t border-border-primary text-center text-xs text-text-tertiary">
             <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-              <span>ALIF SHOHOJ PRINT — Windows QR Print Server & Digital Studio OS</span>
+              <span>Alif Shohoj Print — Windows QR print server & digital studio OS</span>
               <div className="flex items-center gap-3 text-[11px] text-text-tertiary">
-                <span>Bangladesh Digital Studio OS</span>
+                <span>Bangladesh digital studio OS</span>
                 <span>·</span>
                 <span>
-                  {window.alifShohojPrintDesktop ? 'Windows Agent Connected' : 'Web Preview Mode'}
+                  {window.alifShohojPrintDesktop ? 'Windows agent connected' : 'Web preview mode'}
                 </span>
               </div>
             </div>

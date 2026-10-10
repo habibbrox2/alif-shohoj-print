@@ -1,6 +1,6 @@
 <div align="center">
 
-# ALIF SHOHOJ PRINT
+# Alif Shohoj Print
 
 ### Shop point of sale with a Windows desktop print agent
 

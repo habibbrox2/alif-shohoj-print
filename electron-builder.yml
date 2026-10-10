@@ -1,5 +1,5 @@
-appId: com.alifshohoj.print
-productName: ALIF SHOHOJ PRINT
+appId: com.aaatech.alifshohojprint
+productName: Alif Shohoj Print
 directories:
   output: artifacts/releases
 files:
@@ -18,7 +18,7 @@ win:
       arch:
         - x64
         - ia32
-  artifactName: ALIF-SHOHOJ-PRINT-${version}-Setup-${arch}.${ext}
+  artifactName: Alif-Shohoj-Print-${version}-Setup-${arch}.${ext}
   signAndEditExecutable: true
 nsis:
   oneClick: false
@@ -26,6 +26,6 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: ALIF SHOHOJ PRINT
-  uninstallDisplayName: ALIF SHOHOJ PRINT
+  shortcutName: Alif Shohoj Print
+  uninstallDisplayName: Alif Shohoj Print
   deleteAppDataOnUninstall: false

@@ -19,9 +19,9 @@ const appDirectory = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const pdfToPrinter = require('pdf-to-printer') as typeof import('pdf-to-printer');
 const developmentUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:3000';
-app.setName('ALIF SHOHOJ PRINT');
+app.setName('Alif Shohoj Print');
 const appDataDirectory = app.getPath('appData');
-const userDataDirectory = join(appDataDirectory, 'ALIF SHOHOJ PRINT');
+const userDataDirectory = join(appDataDirectory, 'AlifShohojPrint');
 const legacyUserDataDirectory = join(appDataDirectory, 'BroxPrint Studio');
 if (existsSync(legacyUserDataDirectory)) {
   if (existsSync(userDataDirectory)) {
@@ -98,12 +98,12 @@ const createTray = (): void => {
   const iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#059669"/><path d="M8 9h16v3H8zm2 5h12v10H10zm3 2v6h6v-6z" fill="#fff"/></svg>';
   const trayImage = nativeImage.createFromDataURL(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconSvg)}`);
   tray = new Tray(trayImage);
-  tray.setToolTip('ALIF SHOHOJ PRINT');
+  tray.setToolTip('Alif Shohoj Print');
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Open Shop POS', click: showWindow },
+    { label: 'Open Dashboard', click: showWindow },
     { type: 'separator' },
     {
-      label: 'Exit ALIF SHOHOJ PRINT',
+      label: 'Exit Alif Shohoj Print',
       click: () => app.quit(),
     },
   ]));
