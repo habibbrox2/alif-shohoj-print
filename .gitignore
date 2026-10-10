@@ -36,6 +36,9 @@ pnpm-debug.log*
 Thumbs.db
 Desktop.ini
 
+# Editor/IDE local configuration.
+.vscode/
+
 # Local/runtime databases; commit schema and migrations, not local database files.
 *.db
 *.sqlite
