@@ -163,3 +163,28 @@ These rules do not replace the contribution policy of an external repository. Ch
 - Make the smallest coherent change that solves the task. Avoid unrelated formatting, file-wide rewrites, dependency changes, and opportunistic refactoring.
 - Add or update focused tests for behavior changes. Run relevant checks and report their actual results; do not claim unverified correctness.
 - Before finishing, review the diff for redundant comments, unclear names, unnecessary complexity, duplicated logic, and unrelated changes.
+
+
+14. Browser, Development, and Test Screenshots
+- Whenever an agent uses a browser or any other development/testing tool and captures a screenshot, save the screenshot in the project's root tmp/ directory.
+- If the project-level tmp/ directory does not exist, create it before saving screenshots.
+- Keep temporary screenshots and test artifacts out of other project directories unless the task explicitly requires a different location.
+- Do not commit screenshots from temporary testing unless the user explicitly asks for them to be included.
+- Ensure screenshots do not expose credentials, bearer tokens, signing secrets, or real customer data.
+
+
+## 15. Official product name and branding
+
+- The official product name is **Alif Shohoj Print by AAA Tech Solutions**.
+- Use this exact name consistently in all applicable project materials, including agent instructions, user-facing UI, documentation, reports, release notes, installer metadata, and other branding locations.
+- Do not substitute shortened names, alternate spellings, or different brand names where the official product name is required. Preserve existing technical identifiers and filenames when renaming them would cause compatibility issues; flag such cases for review rather than making broad, unrelated changes.
+- Before changing branding, search the repository for relevant name variants and review the impact so the official name is applied consistently without breaking technical integrations.
+
+
+## 16. README.md Maintenance for Major Changes
+- When implementing a major project change, assess whether the change affects the project's documented features, architecture, setup, configuration, commands, workflows, security model, limitations, or user-facing behavior.
+- If the change makes the existing README.md incomplete, inaccurate, or misleading, update README.md in the same task to reflect the verified current behavior.
+- Keep README updates focused on the actual change. Update relevant sections such as overview, features, prerequisites, setup, configuration, development commands, architecture, troubleshooting, and known limitations as applicable.
+- Verify all documented commands, paths, environment variables, and capabilities against the repository; do not document planned or unverified behavior as implemented.
+- For minor changes that do not affect project-level documentation, do not modify README.md unnecessarily.
+- Include README.md in the final change summary whenever it was updated, and report any documentation updates that remain necessary but could not be verified.

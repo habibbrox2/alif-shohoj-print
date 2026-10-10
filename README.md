@@ -165,3 +165,5 @@ counter PCs open on the master PC.
 ## Data and privacy
 
 The queue database, logs, WebSocket token, and crash dumps stay in the local Electron user-data directory. Crash dumps are not uploaded. Protect access to the Windows account and share the WebSocket token only with trusted clients.
+
+

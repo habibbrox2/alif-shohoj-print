@@ -184,6 +184,16 @@ export const STRINGS = {
     en: 'Today and this-month reporting lands in step 6.',
     bn: 'আজ ও এই মাসের রিপোর্ট ধাপ ৬-এ আসছে।'
   },
+  'upcoming.dateRange.thisWeek': { en: 'This Week', bn: 'এই সপ্তাহ' },
+  'upcoming.reports.today.heading': { en: 'Today summary', bn: 'আজের সারসংক্ষেপ' },
+  'upcoming.reports.today.sub': { en: 'Printed, queued and earnings for today.', bn: 'আজকের প্রিন্ট, অপেক্ষাধীন ও ইনকাম।' },
+  'upcoming.reports.today.printed': { en: 'Printed', bn: 'প্রিন্ট হয়েছে' },
+  'upcoming.reports.today.inQueue': { en: 'In queue', bn: 'কিউতে আছে' },
+  'upcoming.reports.today.earnings': { en: 'Earnings', bn: 'আয়' },
+  'upcoming.reports.thisMonth.heading': { en: 'This month summary', bn: 'এই মাসের সারসংক্ষেপ' },
+  'upcoming.reports.thisMonth.sub': { en: 'Printed and earnings for this month.', bn: 'এই মাসের প্রিন্ট ও আয়।' },
+  'upcoming.reports.month.printed': { en: 'Printed', bn: 'প্রিন্ট হয়েছে' },
+  'upcoming.reports.month.earnings': { en: 'Earnings', bn: 'আয়' },
   'upcoming.settings': {
     en: 'The 11-group settings panel lands in step 7.',
     bn: '১১ গ্রুপের সেটিংস প্যানেল ধাপ ৭-এ আসছে।'

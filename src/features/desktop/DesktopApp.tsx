@@ -25,6 +25,8 @@ import { ProductMark } from './components/ProductMark';
 import { DashboardPage } from './pages/DashboardPage';
 import { StatusPage } from './pages/StatusPage';
 import { UpcomingPage } from './pages/UpcomingPage';
+import { JobsPage } from './pages/JobsPage';
+import { ReportsPage } from './pages/ReportsPage';
 import type { DesktopPage } from './navigation';
 import type { TranslationKey } from '../../shared/i18n/strings';
 
@@ -239,8 +241,12 @@ export const DesktopApp: React.FC = () => {
           </div>
         )}
         {page === 'dashboard' && <DashboardPage />}
-        {page === 'jobs' && <UpcomingPage step="Step 6" descriptionKey="upcoming.jobs" />}
-        {page === 'reports' && <UpcomingPage step="Step 6" descriptionKey="upcoming.reports" />}
+        {page === 'jobs' && (
+          <JobsPage onNavigate={setPage} />
+        )}
+        {page === 'reports' && (
+          <ReportsPage />
+        )}
         {page === 'settings' && <UpcomingPage step="Step 7" descriptionKey="upcoming.settings" />}
       </main>
 
