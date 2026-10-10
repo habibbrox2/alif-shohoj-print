@@ -1,0 +1,343 @@
+{
+  "version": 1,
+  "format": {
+    "codec": "mp3",
+    "channels": "mono",
+    "bitrate_kbps": 64
+  },
+  "languages": [
+    "bn",
+    "en"
+  ],
+  "defaultLanguage": "bn",
+  "customer": {
+    "basePath": "audio/{lang}/",
+    "clips": [
+      {
+        "id": "C01",
+        "key": "welcome",
+        "file": "C01.mp3",
+        "text": {
+          "bn": "স্বাগতম! আমি আপনাকে ধাপে ধাপে সাহায্য করব।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C02",
+        "key": "choose_service",
+        "file": "C02.mp3",
+        "text": {
+          "bn": "আপনি কী প্রিন্ট করতে চান? নিচের বাটন থেকে বেছে নিন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C03",
+        "key": "service_tap",
+        "file": "C03.mp3",
+        "text": {
+          "bn": "আপনার প্রয়োজনীয় সার্ভিসটির কার্ডে চাপুন।",
+          "en": "Tap the card for the service you need."
+        }
+      },
+      {
+        "id": "C06",
+        "key": "upload_prompt",
+        "file": "C06.mp3",
+        "text": {
+          "bn": "এবার আপনার ফাইল বা ছবি আপলোড করুন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C07",
+        "key": "uploading",
+        "file": "C07.mp3",
+        "text": {
+          "bn": "আপলোড হচ্ছে, একটু অপেক্ষা করুন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C08",
+        "key": "upload_done",
+        "file": "C08.mp3",
+        "text": {
+          "bn": "আপলোড সম্পন্ন হয়েছে।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C09",
+        "key": "upload_failed",
+        "file": "C09.mp3",
+        "text": {
+          "bn": "ছবি ঠিকমতো যায়নি। আবার চেষ্টা করুন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C10",
+        "key": "choose_copies",
+        "file": "C10.mp3",
+        "text": {
+          "bn": "কয় কপি লাগবে, সংখ্যাটি বেছে নিন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C11",
+        "key": "choose_size",
+        "file": "C11.mp3",
+        "text": {
+          "bn": "ছবির সাইজ বেছে নিন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C12",
+        "key": "choose_color",
+        "file": "C12.mp3",
+        "text": {
+          "bn": "রঙিন নাকি সাদা-কালো, সেটি বেছে নিন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C13",
+        "key": "crop_rotate",
+        "file": "C13.mp3",
+        "text": {
+          "bn": "প্রয়োজনে ছবি কাটুন বা ঘুরিয়ে নিন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C14",
+        "key": "preview_confirm",
+        "file": "C14.mp3",
+        "text": {
+          "bn": "প্রিভিউ দেখে নিন। সব ঠিক থাকলে \"কনফার্ম\" চাপুন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C15",
+        "key": "order_sent",
+        "file": "C15.mp3",
+        "text": {
+          "bn": "আপনার অর্ডার দোকানে পাঠানো হয়েছে। দোকানদার দেখে নিশ্চিত করবেন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C16",
+        "key": "please_wait",
+        "file": "C16.mp3",
+        "text": {
+          "bn": "অনুগ্রহ করে অপেক্ষা করুন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C17",
+        "key": "approved",
+        "file": "C17.mp3",
+        "text": {
+          "bn": "আপনার অর্ডারটি অনুমোদিত হয়েছে। প্রিন্ট শুরু হচ্ছে।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C18",
+        "key": "ready",
+        "file": "C18.mp3",
+        "text": {
+          "bn": "আপনার প্রিন্ট প্রস্তুত। দোকান থেকে সংগ্রহ করুন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C19",
+        "key": "price_changed",
+        "file": "C19.mp3",
+        "text": {
+          "bn": "দোকানদার দাম বদলেছেন। নতুন দাম দেখে সম্মতি দিন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C20",
+        "key": "rejected",
+        "file": "C20.mp3",
+        "text": {
+          "bn": "দুঃখিত, আপনার অর্ডারটি গ্রহণ করা যায়নি। কারণটি নিচে দেখুন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C21",
+        "key": "refund",
+        "file": "C21.mp3",
+        "text": {
+          "bn": "টাকা দিলে আপনি ফেরত পাবেন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C22",
+        "key": "payment_choose",
+        "file": "C22.mp3",
+        "text": {
+          "bn": "পেমেন্ট করতে বিকাশ বা নগদ বেছে নিন, অথবা কাউন্টারে দিন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C23",
+        "key": "payment_success",
+        "file": "C23.mp3",
+        "text": {
+          "bn": "পেমেন্ট সফল হয়েছে। ধন্যবাদ।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C24",
+        "key": "shop_closed",
+        "file": "C24.mp3",
+        "text": {
+          "bn": "দুঃখিত, দোকান এখন অর্ডার নিচ্ছে না। একটু পরে আসুন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C25",
+        "key": "offline",
+        "file": "C25.mp3",
+        "text": {
+          "bn": "ইন্টারনেট সংযোগ নেই। সংযোগ দেখে আবার চেষ্টা করুন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C26",
+        "key": "privacy_note",
+        "file": "C26.mp3",
+        "text": {
+          "bn": "আপনার তথ্য নিরাপদ। কাজ শেষে ফাইল মুছে ফেলা হবে।",
+          "en": ""
+        }
+      },
+      {
+        "id": "C27",
+        "key": "goodbye",
+        "file": "C27.mp3",
+        "text": {
+          "bn": "ধন্যবাদ! আবার আসবেন।",
+          "en": ""
+        }
+      }
+    ],
+    "retiredIds": [
+      "C04",
+      "C05"
+    ]
+  },
+  "shop": {
+    "basePath": "sounds/",
+    "clips": [
+      {
+        "id": "S01",
+        "key": "new_order",
+        "file": "S01.mp3",
+        "text": {
+          "bn": "নতুন অর্ডার এসেছে।",
+          "en": ""
+        }
+      },
+      {
+        "id": "S02",
+        "key": "pending_reminder",
+        "file": "S02.mp3",
+        "text": {
+          "bn": "একটি অর্ডার এখনো অপেক্ষায় আছে।",
+          "en": ""
+        }
+      },
+      {
+        "id": "S03",
+        "key": "paper_empty",
+        "file": "S03.mp3",
+        "text": {
+          "bn": "প্রিন্টারে কাগজ শেষ।",
+          "en": ""
+        }
+      },
+      {
+        "id": "S04",
+        "key": "ink_low",
+        "file": "S04.mp3",
+        "text": {
+          "bn": "প্রিন্টারে কালি কম।",
+          "en": ""
+        }
+      },
+      {
+        "id": "S05",
+        "key": "printer_disconnected",
+        "file": "S05.mp3",
+        "text": {
+          "bn": "প্রিন্টার সংযোগ বিচ্ছিন্ন।",
+          "en": ""
+        }
+      },
+      {
+        "id": "S06",
+        "key": "offline_mode",
+        "file": "S06.mp3",
+        "text": {
+          "bn": "ইন্টারনেট নেই, অফলাইন মোডে চলছে।",
+          "en": ""
+        }
+      }
+    ]
+  },
+  "tts": {
+    "voice": "bn-BD",
+    "templates": [
+      {
+        "key": "total_price",
+        "text": {
+          "bn": "আপনার মোট দাম {amount} টাকা।"
+        },
+        "vars": [
+          "amount"
+        ]
+      },
+      {
+        "key": "pickup_code",
+        "text": {
+          "bn": "আপনার পিকআপ কোড {code}।"
+        },
+        "vars": [
+          "code"
+        ]
+      },
+      {
+        "key": "order_number",
+        "text": {
+          "bn": "আপনার অর্ডার নম্বর {number}।"
+        },
+        "vars": [
+          "number"
+        ]
+      }
+    ],
+    "neverSpeak": [
+      "nid_number",
+      "full_name",
+      "phone"
+    ]
+  }
+}
