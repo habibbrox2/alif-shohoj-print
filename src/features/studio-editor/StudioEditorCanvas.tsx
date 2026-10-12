@@ -35,7 +35,21 @@ import { useTheme } from '../../shared/context/ThemeContext';
 import { removeBackground } from '@imgly/background-removal';
 import { CROP_PRESETS, CROP_SIZE, getInitialCropPreset, type CropPreset } from './cropPresets';
 import { validateImageFile, readFileAsDataUrl } from './validateImageFile';
-import { addPoint, createBrushStroke, createShapeStroke, eraseStrokes, type Stroke } from './strokeModel';
+import {
+  DEFAULT_PAINT_LAYER_ID,
+  addPoint,
+  createBrushStroke,
+  createPaintLayer,
+  createShapeStroke,
+  defaultContentLayerStack,
+  eraseStrokes,
+  insertContentLayer,
+  moveContentLayer,
+  nextPaintLayerName,
+  updatePaintLayerStrokes,
+  type ContentLayer,
+  type Stroke,
+} from './strokeModel';
 import { pushHistory, undo, redo, HISTORY_LIMIT, type EditorSnapshot } from './editorHistory';
 import {
   ADJUSTMENT_RANGES,
@@ -50,7 +64,7 @@ import {
   editorHistorySummary,
   resolveFontStack,
 } from './studioAdjustments';
-import type { EditorFilter, OverlayLayerId, StudioCanvasAdjustments, TextAlign, ToolId } from './studioTypes';
+import type { EditorFilter, StudioCanvasAdjustments, TextAlign, ToolId } from './studioTypes';
 import { StudioOverflowMenu, StudioStatusBar, StudioToolRail, getStudioTool, type StudioMenuItem } from './StudioWorkspaceChrome';
 
 interface StudioEditorCanvasProps {
@@ -273,26 +287,32 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
   const [textAlign, setTextAlign] = useState<TextAlign>(DEFAULT_TEXT_ALIGN);
   const [textFont, setTextFont] = useState<string>(DEFAULT_TEXT_FONT);
   const [backgroundColor, setBackgroundColor] = useState<string>(DEFAULT_BACKGROUND_COLOR);
-  const [strokes, setStrokes] = useState<Stroke[]>([]);
-  const strokesRef = useRef<Stroke[]>([]);
+  // Ordered content stack (paint layers + the text layer); pointer gestures
+  // write through the ref so an in-flight stroke never reads a stale stack.
+  const [contentLayers, setContentLayers] = useState<ContentLayer[]>(defaultContentLayerStack);
+  const contentLayersRef = useRef<ContentLayer[]>(contentLayers);
   useEffect(() => {
-    strokesRef.current = strokes;
-  }, [strokes]);
-  const [overlayOrder, setOverlayOrder] = useState<OverlayLayerId[]>(['marks', 'text']);
+    contentLayersRef.current = contentLayers;
+  }, [contentLayers]);
+  // Layer pointer strokes land on; applySnapshot keeps it inside the stack.
+  const [activeLayerId, setActiveLayerId] = useState<string>(DEFAULT_PAINT_LAYER_ID);
 
   // --- layers visibility / lock
-  const [layerVisible, setLayerVisible] = useState<Record<OverlayLayerId | 'photo' | 'adjust', boolean>>({
+  const [layerVisible, setLayerVisible] = useState<Record<string, boolean>>({
     text: true,
     marks: true,
     photo: true,
     adjust: true,
   });
-  const [layerLocked, setLayerLocked] = useState<Record<OverlayLayerId | 'photo' | 'adjust', boolean>>({
+  const [layerLocked, setLayerLocked] = useState<Record<string, boolean>>({
     text: false,
     marks: false,
     photo: true,
     adjust: false,
   });
+  // Layers without an explicit flag (new paint layers) render visible and unlocked.
+  const isLayerVisible = (id: string) => layerVisible[id] ?? true;
+  const isLayerLocked = (id: string) => layerLocked[id] ?? false;
 
   // --- history
   const [history, setHistory] = useState<EditorSnapshot[]>([]);
@@ -349,7 +369,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     textAlign: DEFAULT_TEXT_ALIGN,
     textFont: DEFAULT_TEXT_FONT,
     backgroundColor: DEFAULT_BACKGROUND_COLOR,
-    strokes: [],
+    contentLayers: defaultContentLayerStack(),
     showBgRemoved: false,
   }), []);
 
@@ -370,7 +390,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     textAlign,
     textFont,
     backgroundColor,
-    strokes: strokesRef.current,
+    contentLayers: contentLayersRef.current,
     showBgRemoved,
   }), [rotation, scale, brightness, contrast, saturation, exposure, grayscale, activeFilter, cropPreset, annotationText, showWatermark, textColor, textSize, textAlign, textFont, backgroundColor, showBgRemoved]);
 
@@ -391,7 +411,12 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     setTextAlign(next.textAlign);
     setTextFont(next.textFont);
     setBackgroundColor(next.backgroundColor);
-    setStrokes(next.strokes);
+    setContentLayers(next.contentLayers);
+    setActiveLayerId(current =>
+      next.contentLayers.some(layer => layer.id === current)
+        ? current
+        : next.contentLayers.find(layer => layer.kind === 'paint')?.id ?? DEFAULT_PAINT_LAYER_ID
+    );
     setShowBgRemoved(next.showBgRemoved);
   }, []);
 
@@ -449,8 +474,6 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
       setShowBgRemoved(false);
       setBgRemovedImgElement(null);
       const seed = makeSeed(preset ?? 'free');
-      strokesRef.current = [];
-      setStrokes([]);
       applySnapshot(seed);
       resetHistory(seed);
       setViewZoom(1);
@@ -521,8 +544,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
       ctx.restore();
     }
 
-    const drawStrokes = () => {
-      if (!layerVisible.marks) return;
+    const drawStrokes = (strokes: readonly Stroke[]) => {
       ctx.save();
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -562,7 +584,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     };
 
     const drawText = () => {
-      if (!layerVisible.text || !annotationText || !showWatermark) return;
+      if (!annotationText || !showWatermark) return;
       ctx.save();
       ctx.font = `bold ${textSize}px ${resolveFontStack(textFont)}`;
       ctx.fillStyle = textColor;
@@ -575,8 +597,9 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
       ctx.restore();
     };
 
-    for (const layer of overlayOrder) {
-      if (layer === 'marks') drawStrokes();
+    for (const layer of contentLayers) {
+      if (!isLayerVisible(layer.id)) continue;
+      if (layer.kind === 'paint') drawStrokes(layer.strokes);
       else drawText();
     }
   }, [
@@ -597,9 +620,8 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     textSize,
     textAlign,
     textFont,
-    strokes,
+    contentLayers,
     showBgRemoved,
-    overlayOrder,
     layerVisible,
   ]);
 
@@ -637,18 +659,27 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     setCursorPos(previous => (previous && previous.x === x && previous.y === y ? previous : { x, y }));
   };
 
+  // Gesture writes go through the ref first so a stroke in progress never
+  // reads a stack from a superseded render (the stale-closure erasure guard).
+  const writeActiveLayer = (update: (strokes: Stroke[]) => Stroke[]) => {
+    const next = updatePaintLayerStrokes(contentLayersRef.current, activeLayerId, update);
+    contentLayersRef.current = next;
+    setContentLayers(next);
+  };
+
   const eraseAt = (point: { x: number; y: number }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const radius = (brushSize * 4) / Math.max(rect.width, 1);
-    const next = eraseStrokes(strokesRef.current, point, radius);
-    strokesRef.current = next;
-    setStrokes(next);
+    writeActiveLayer(strokes => eraseStrokes(strokes, point, radius));
   };
 
+  const activeLayer = contentLayers.find(layer => layer.id === activeLayerId);
   const canPaint = (toolId: ToolId) =>
-    (toolId === 'brush' || toolId === 'shape' || toolId === 'eraser') && !layerLocked.marks;
+    (toolId === 'brush' || toolId === 'shape' || toolId === 'eraser') &&
+    activeLayer?.kind === 'paint' &&
+    !isLayerLocked(activeLayerId);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const point = toCanvasPoint(event);
@@ -666,7 +697,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     }
 
     if (tool === 'eraser') {
-      if (layerLocked.marks) return;
+      if (!canPaint(tool)) return;
       erasingRef.current = true;
       eraseAt(point);
       try {
@@ -683,8 +714,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
       ? createShapeStroke(id, point, shapeKind, brushColor, Math.max(2, brushSize / 2), brushOpacity)
       : createBrushStroke(id, point, brushColor, brushSize, brushOpacity);
     activeStrokeRef.current = stroke;
-    strokesRef.current = [...strokesRef.current, stroke];
-    setStrokes(strokesRef.current);
+    writeActiveLayer(strokes => [...strokes, stroke]);
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
@@ -713,8 +743,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     if (!active || event.buttons !== 1) return;
     const updated = addPoint(active, point);
     activeStrokeRef.current = updated;
-    strokesRef.current = strokesRef.current.map(stroke => (stroke.id === updated.id ? updated : stroke));
-    setStrokes(strokesRef.current);
+    writeActiveLayer(strokes => strokes.map(stroke => (stroke.id === updated.id ? updated : stroke)));
   };
 
   const endStroke = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -731,7 +760,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     erasingRef.current = false;
     if (activeStrokeRef.current || wasErasing) {
       activeStrokeRef.current = null;
-      // snapshot() reads strokesRef.current, which pointer events keep in sync.
+      // snapshot() reads contentLayersRef.current, which pointer events keep in sync.
       commit({}, 'Marks');
     }
     try {
@@ -753,7 +782,6 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
   const handleReset = () => {
     const seed = makeSeed('free');
-    strokesRef.current = [];
     applySnapshot(seed);
     const result = pushHistory(historyRef.current, historyIndexRef.current, seed, HISTORY_LIMIT);
     historyRef.current = result.history;
@@ -890,27 +918,38 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
   };
 
   // ----------------------------------------------------------------- layers
-  const moveLayer = (id: OverlayLayerId, direction: -1 | 1) => {
-    const index = overlayOrder.indexOf(id);
-    const target = index + direction;
-    if (index === -1 || target < 0 || target >= overlayOrder.length) return;
-    const next = [...overlayOrder];
-    [next[index], next[target]] = [next[target], next[index]];
-    setOverlayOrder(next);
+  const moveLayer = (id: string, direction: -1 | 1) => {
+    const next = moveContentLayer(contentLayers, id, direction);
+    if (next === contentLayers) return;
+    // Reordering stays outside history, like the visibility and lock flags.
+    contentLayersRef.current = next;
+    setContentLayers(next);
   };
 
-  const toggleLayerVisibility = (id: OverlayLayerId | 'photo' | 'adjust') =>
+  const toggleLayerVisibility = (id: string) =>
     setLayerVisible(previous => ({ ...previous, [id]: !previous[id] }));
 
-  const layerMeta: Array<{ id: OverlayLayerId | 'photo' | 'adjust'; label: string; icon: React.ReactNode }> = useMemo(() => [
-    ...overlayOrder.map(id => ({
-      id: id as OverlayLayerId | 'photo' | 'adjust',
-      label: id === 'text' ? 'Watermark' : 'Marks',
-      icon: id === 'text' ? <Circle className="h-3.5 w-3.5" /> : <SlidersHorizontal className="h-3.5 w-3.5" />,
+  const handleCreateLayer = () => {
+    const activeLayerIndex = contentLayers.findIndex(layer => layer.id === activeLayerId);
+    const layer = createPaintLayer(
+      `layer_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      nextPaintLayerName(contentLayers),
+    );
+    const nextStack = insertContentLayer(contentLayers, activeLayerIndex + 1, layer);
+    commit({ contentLayers: nextStack }, 'New layer');
+    setActiveLayerId(layer.id);
+  };
+
+  const layerMeta: Array<{ id: string; label: string; icon: React.ReactNode; reorderable: boolean }> = useMemo(() => [
+    ...contentLayers.map(layer => ({
+      id: layer.id,
+      label: layer.name,
+      icon: layer.kind === 'text' ? <Circle className="h-3.5 w-3.5" /> : <SlidersHorizontal className="h-3.5 w-3.5" />,
+      reorderable: true,
     })),
-    { id: 'photo' as const, label: 'Photo', icon: <FileText className="h-3.5 w-3.5" /> },
-    { id: 'adjust' as const, label: 'Adjustments', icon: <Sun className="h-3.5 w-3.5" /> },
-  ], [overlayOrder]);
+    { id: 'photo', label: 'Photo', icon: <FileText className="h-3.5 w-3.5" />, reorderable: false },
+    { id: 'adjust', label: 'Adjustments', icon: <Sun className="h-3.5 w-3.5" />, reorderable: false },
+  ], [contentLayers]);
 
   const cursorClass = tool === 'move' ? 'cursor-grab active:cursor-grabbing' : canPaint(tool) ? 'cursor-crosshair' : 'cursor-default';
 
@@ -1299,18 +1338,21 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
                 {layerMeta.map((layer, index) => (
                   <li
                     key={layer.id}
-                    className={`flex items-center gap-1.5 rounded-[10px] px-2 py-1.5 transition-colors ${index === 0 ? 'bg-bg-secondary' : ''}`}
+                    onClick={() => {
+                      if (layer.reorderable) setActiveLayerId(layer.id);
+                    }}
+                    className={`flex items-center gap-1.5 rounded-[10px] px-2 py-1.5 transition-colors ${layer.id === activeLayerId ? 'bg-bg-secondary' : ''}`}
                   >
                     <span className="text-text-tertiary">{layer.icon}</span>
-                    <span className={`flex-1 truncate text-[11px] ${index === 0 ? 'font-medium text-text-primary' : 'text-text-secondary'}`}>
+                    <span className={`flex-1 truncate text-[11px] ${layer.id === activeLayerId ? 'font-medium text-text-primary' : 'text-text-secondary'}`}>
                       {layer.label}
                     </span>
 
-                    {layer.id === 'marks' || layer.id === 'text' ? (
+                    {layer.reorderable ? (
                       <>
                         <button
                           type="button"
-                          onClick={() => moveLayer(layer.id as OverlayLayerId, -1)}
+                          onClick={() => moveLayer(layer.id, -1)}
                           disabled={index === 0}
                           title="Move up"
                           className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary disabled:opacity-30"
@@ -1319,8 +1361,8 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
                         </button>
                         <button
                           type="button"
-                          onClick={() => moveLayer(layer.id as OverlayLayerId, 1)}
-                          disabled={index === overlayOrder.length - 1}
+                          onClick={() => moveLayer(layer.id, 1)}
+                          disabled={index === contentLayers.length - 1}
                           title="Move down"
                           className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary disabled:opacity-30"
                         >
@@ -1334,10 +1376,10 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
                     <button
                       type="button"
                       onClick={() => toggleLayerVisibility(layer.id)}
-                      title={layerVisible[layer.id] ? 'Hide layer' : 'Show layer'}
+                      title={isLayerVisible(layer.id) ? 'Hide layer' : 'Show layer'}
                       className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary"
                     >
-                      {layerVisible[layer.id] ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 opacity-50" />}
+                      {isLayerVisible(layer.id) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 opacity-50" />}
                     </button>
 
                     {layer.id === 'photo' || layer.id === 'adjust' ? (
@@ -1348,10 +1390,10 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
                       <button
                         type="button"
                         onClick={() => setLayerLocked(previous => ({ ...previous, [layer.id]: !previous[layer.id] }))}
-                        title={layerLocked[layer.id] ? 'Unlock layer' : 'Lock layer'}
+                        title={isLayerLocked(layer.id) ? 'Unlock layer' : 'Lock layer'}
                         className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary"
                       >
-                        {layerLocked[layer.id] ? <Lock className="h-3 w-3 text-brand" /> : <LockOpen className="h-3.5 w-3.5" />}
+                        {isLayerLocked(layer.id) ? <Lock className="h-3 w-3 text-brand" /> : <LockOpen className="h-3.5 w-3.5" />}
                       </button>
                     )}
                   </li>
