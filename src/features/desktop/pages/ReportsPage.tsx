@@ -1,122 +1,147 @@
-import React, { memo } from 'react';
-import { BarChart3, CalendarDays, FileText, TrendingUp, Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { BarChart3, CalendarDays, Clock3, Printer, TriangleAlert } from 'lucide-react';
+import { useStudio } from '../../../shared/context/StudioContext';
 import { useI18n } from '../../../shared/i18n/I18nContext';
-import type { TranslationKey } from '../../../shared/i18n/strings';
+import { buildReportSummary } from '../../../shared/services/reportMetrics';
 
-type ReportTabKey = 'today' | 'thisMonth';
+type ReportPeriod = 'today' | 'thisMonth';
 
-interface ReportTabButtonProps {
-  activeKey: ReportTabKey;
-  labelKey: TranslationKey;
-}
-
-/** Placeholder page for the Reports tab. The real Today / This Month reporting
- * lands in a later step, but the two summary tabs and the report header already
- * exist so the shell can route here without a dead page.
- */
 export const ReportsPage: React.FC = () => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const { jobs, desktopQueueError } = useStudio();
+  const [period, setPeriod] = useState<ReportPeriod>('today');
+  const summary = buildReportSummary(jobs, new Date())[period];
+  const numberFormat = new Intl.NumberFormat(language === 'bn' ? 'bn-BD' : 'en-BD');
+  const dateLabel = new Intl.DateTimeFormat(language === 'bn' ? 'bn-BD' : 'en-BD', {
+    dateStyle: 'long',
+  }).format(new Date());
 
-  const today = (value: number, suffix: string) => (
-    <div className="flex items-baseline gap-1">
-      <span className="text-3xl font-bold tabular-nums text-text-primary">{value}</span>
-      <span className="text-[13px] font-semibold text-text-secondary">{suffix}</span>
-    </div>
-  );
-
-  const todayStats = [
-    { label: t('upcoming.reports.today.printed'), icon: <CalendarDays className="h-4 w-4" />, valueRow: today(0, 'jobs') },
-    { label: t('upcoming.reports.today.inQueue'), icon: <FileText className="h-4 w-4" />, valueRow: today(0, 'jobs') },
-    { label: t('upcoming.reports.today.earnings'), icon: <Users className="h-4 w-4" />, valueRow: today(0, '৳') },
+  const metrics = [
+    {
+      id: 'printed',
+      label: t('reports.printedJobs'),
+      value: numberFormat.format(summary.printedJobs),
+      icon: <Printer className="h-5 w-5" />,
+      iconClassName: 'bg-brand-soft text-brand',
+    },
+    {
+      id: 'queued',
+      label: t('reports.inQueue'),
+      value: numberFormat.format(summary.queuedJobs),
+      icon: <Clock3 className="h-5 w-5" />,
+      iconClassName: 'bg-warning-bg text-warning',
+    },
+    {
+      id: 'earnings',
+      label: t('reports.completedValue'),
+      value: `৳ ${numberFormat.format(summary.earningsBDT)}`,
+      icon: <BarChart3 className="h-5 w-5" />,
+      iconClassName: 'bg-success-bg text-success',
+    },
   ];
 
-  const thisMonthStats = [
-    { label: t('upcoming.reports.month.printed'), icon: <TrendingUp className="h-4 w-4" />, valueRow: today(0, 'jobs') },
-    { label: t('upcoming.reports.month.earnings'), icon: <BarChart3 className="h-4 w-4" />, valueRow: today(0, '৳') },
-  ];
+  const pageTitle = period === 'today' ? t('reports.todayHeading') : t('reports.monthHeading');
+  const pageSubtitle = period === 'today' ? t('reports.todaySubtitle') : t('reports.monthSubtitle');
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center gap-2 border-b border-border-secondary bg-surface px-4 py-2">
+      <header className="flex shrink-0 items-center gap-2 border-b border-border-secondary bg-surface px-5 py-3">
         <BarChart3 className="h-4 w-4 text-brand" />
         <h2 className="text-sm font-bold text-text-primary">{t('nav.reports')}</h2>
-        <span className="ml-auto rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand">
-          {t('upcoming.title')}
-        </span>
-      </div>
+      </header>
 
-      <div className="flex shrink-0 border-b border-border-secondary bg-surface">
-        <ReportTabButton activeKey="today" labelKey="upcoming.reports.today.heading" />
-        <ReportTabButton activeKey="thisMonth" labelKey="upcoming.reports.thisMonth.heading" />
-      </div>
+      <nav
+        aria-label={t('reports.periodNavigation')}
+        className="flex shrink-0 border-b border-border-secondary bg-surface px-5"
+      >
+        <ReportTab
+          label={t('reports.today')}
+          active={period === 'today'}
+          onClick={() => setPeriod('today')}
+        />
+        <ReportTab
+          label={t('reports.thisMonth')}
+          active={period === 'thisMonth'}
+          onClick={() => setPeriod('thisMonth')}
+        />
+      </nav>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="mx-auto grid max-w-5xl gap-4">
-          <section className="rounded-xl border border-border-primary bg-surface p-4 shadow-sm">
-            <div className="flex items-center justify-between">
+      <main className="min-h-0 flex-1 overflow-y-auto p-5">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h1 className="text-lg font-bold text-text-primary">{pageTitle}</h1>
+              <p className="mt-1 text-xs text-text-secondary">{pageSubtitle}</p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {dateLabel}
+            </div>
+          </div>
+
+          {desktopQueueError ? (
+            <section
+              role="alert"
+              className="flex items-start gap-3 rounded-xl border border-error bg-error-bg p-4 text-error"
+            >
+              <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />
               <div>
-                <h3 className="text-sm font-bold text-text-primary">{t('upcoming.reports.today.heading')}</h3>
-                <p className="mt-0.5 text-[11px] text-text-secondary">{t('upcoming.reports.today.sub')}</p>
+                <h3 className="text-sm font-semibold">{t('reports.queueErrorTitle')}</h3>
+                <p className="mt-1 text-xs leading-relaxed">{t('reports.queueError')}</p>
               </div>
-              <div className="h-8 w-8 shrink-0 rounded-full bg-success-bg text-success flex items-center justify-center">
-                <FileText className="h-4 w-4" />
+            </section>
+          ) : (
+            <>
+              {summary.printedJobs === 0 && summary.queuedJobs === 0 && (
+                <p className="mb-4 rounded-lg border border-border-primary bg-surface px-4 py-3 text-xs text-text-secondary">
+                  {t('reports.empty')}
+                </p>
+              )}
+              <div className="grid gap-3 md:grid-cols-3">
+                {metrics.map(metric => (
+                  <section
+                    key={metric.id}
+                    className="rounded-xl border border-border-primary bg-surface p-4 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium text-text-secondary">{metric.label}</span>
+                      <span className={`flex h-10 w-10 items-center justify-center rounded-full ${metric.iconClassName}`}>
+                        {metric.icon}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-3xl font-bold tabular-nums text-text-primary">{metric.value}</p>
+                  </section>
+                ))}
               </div>
-            </div>
-            <div className="mt-4 space-y-3">
-              {todayStats.map(stat => (
-                <div key={stat.label} className="flex items-center gap-3 rounded-lg bg-bg-secondary px-3 py-2.5 text-sm">
-                  <span className="shrink-0 rounded-full bg-surface text-text-secondary flex items-center justify-center p-1">
-                    {stat.icon}
-                  </span>
-                  <span className="text-xs text-text-secondary">{stat.label}</span>
-                  <div className="ml-auto">{stat.valueRow}</div>
-                </div>
-              ))}
-            </div>
-          </section>
+            </>
+          )}
 
-          <section className="rounded-xl border border-border-primary bg-surface p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-text-primary">{t('upcoming.reports.thisMonth.heading')}</h3>
-                <p className="mt-0.5 text-[11px] text-text-secondary">{t('upcoming.reports.thisMonth.sub')}</p>
-              </div>
-              <div className="h-8 w-8 shrink-0 rounded-full bg-brand-soft text-brand flex items-center justify-center">
-                <BarChart3 className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-4 space-y-3">
-              {thisMonthStats.map(stat => (
-                <div key={stat.label} className="flex items-center gap-3 rounded-lg bg-bg-secondary px-3 py-2.5 text-sm">
-                  <span className="shrink-0 rounded-full bg-surface text-text-secondary flex items-center justify-center p-1">
-                    {stat.icon}
-                  </span>
-                  <span className="text-xs text-text-secondary">{stat.label}</span>
-                  <div className="ml-auto">{stat.valueRow}</div>
-                </div>
-              ))}
-            </div>
-          </section>
+          <p className="mt-4 rounded-lg border border-border-secondary bg-bg-secondary px-3 py-2.5 text-[11px] leading-relaxed text-text-secondary">
+            {t('reports.localHistoryNote')}
+          </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
 
-const ReportTabButton: React.FC<ReportTabButtonProps> = memo(({ activeKey, labelKey }) => {
-  const { t } = useI18n();
-  return (
-    <button
-      type="button"
-      className={`flex-1 border-b-2 px-4 py-2 text-left text-xs font-semibold transition-colors ${
-        activeKey === 'today'
-          ? 'border-brand text-brand'
-          : 'border-transparent text-text-secondary hover:text-text-primary'
-      }`}
-    >
-      {t(labelKey)}
-    </button>
-  );
-});
+interface ReportTabProps {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}
 
-ReportTabButton.displayName = 'ReportTabButton';
+const ReportTab: React.FC<ReportTabProps> = ({ label, active, onClick }) => (
+  <button
+    type="button"
+    aria-pressed={active}
+    onClick={onClick}
+    className={`border-b-2 px-4 py-2.5 text-xs font-semibold transition-colors ${
+      active
+        ? 'border-brand text-brand'
+        : 'border-transparent text-text-secondary hover:text-text-primary'
+    }`}
+  >
+    {label}
+  </button>
+);

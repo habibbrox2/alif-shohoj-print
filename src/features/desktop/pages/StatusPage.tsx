@@ -4,18 +4,19 @@ import {
   CalendarDays,
   ChartColumn,
   Circle,
+  ClipboardList,
   Clock,
   EllipsisVertical,
   LayoutDashboard,
   Printer,
-  Radio,
   RotateCw,
-  Settings as SettingsIcon,
   Store
 } from 'lucide-react';
 import { useStudio } from '../../../shared/context/StudioContext';
 import { useI18n } from '../../../shared/i18n/I18nContext';
 import { BRAND } from '../../../shared/config/brand';
+import { DashboardPage } from './DashboardPage';
+import { ShopPosView } from '../../shop-pos/ShopPosView';
 import {
   formatJobTime,
   jobDisplayName,
@@ -44,10 +45,7 @@ interface StatusPageProps {
 }
 
 /**
- * Main status window from the design reference: connection + shop identity and
- * the printer fleet on the left, job overview and the recent-jobs table on the
- * right, action buttons at the bottom. All numbers come from the live studio
- * state and the desktop print queue — nothing here is mocked.
+ * Dashboard workspace for live shop status, order review, and POS operations.
  */
 export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate, onOpenPrinterSettings }) => {
   const { t } = useI18n();
@@ -56,7 +54,6 @@ export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate, onOpenPrinte
     printers,
     jobs,
     pendingJobsCount,
-    todayPrintedCount,
     desktopQueueError,
     togglePrinterStatus,
     triggerTestPrint,
@@ -66,6 +63,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate, onOpenPrinte
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [openPrinterMenuId, setOpenPrinterMenuId] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<'overview' | 'orders' | 'shop'>('overview');
 
   const thisMonthCount = useMemo(
     () => jobs.filter(job => job.status === 'completed' && startOfMonth() <= (job.completedAt ?? job.createdAt)).length,
@@ -79,6 +77,11 @@ export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate, onOpenPrinte
 
   const recentJobs = useMemo(
     () => [...jobs].sort((a, b) => b.createdAt - a.createdAt).slice(0, RECENT_JOB_LIMIT),
+    [jobs]
+  );
+
+  const openOrdersCount = useMemo(
+    () => jobs.filter(job => job.status !== 'completed' && job.status !== 'rejected').length,
     [jobs]
   );
 
@@ -102,7 +105,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate, onOpenPrinte
       icon: <Clock className="h-4 w-4" />,
       iconClass: 'bg-info-bg text-info',
       linkLabel: t('status.viewJobs'),
-      target: 'dashboard' as DesktopPage
+      target: 'jobs' as DesktopPage
     },
     {
       key: 'today',
@@ -125,41 +128,82 @@ export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate, onOpenPrinte
   ];
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto grid max-w-6xl gap-5 p-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
-        {/* Left column: connection, shop identity, printer fleet */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-success-bg text-success">
-              <Radio className="h-5 w-5" />
+    <div className="h-full overflow-y-auto bg-bg-secondary">
+      <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border-primary bg-surface p-4 shadow-sm sm:p-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+              <Store className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-text-primary">{t('status.connected')}</p>
-              <p className="truncate text-xs text-text-secondary">
-                {t('status.connectedDetail', { product: BRAND.productName })}
-              </p>
-            </div>
-          </div>
-
-          <section className="rounded-xl border border-border-primary bg-surface p-3.5 shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                <Store className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-text-primary">{shopProfile.name}</p>
-                <span className="mt-1 inline-block rounded bg-brand px-2 py-0.5 font-mono text-[11px] font-semibold text-on-brand">
-                  {shopProfile.code}
+              <h1 className="truncate text-lg font-bold text-text-primary">{shopProfile.name}</h1>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-secondary">
+                <span className="font-mono font-semibold">{shopProfile.code}</span>
+                <span aria-hidden="true">·</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-success" />
+                  {t('status.connectedDetail', { product: BRAND.productName })}
                 </span>
               </div>
             </div>
-            <div className="mt-3 flex items-center gap-2 border-t border-border-secondary pt-2.5 text-xs text-text-secondary">
-              <CalendarDays className="h-3.5 w-3.5" />
-              <span>{t('status.subscription')}</span>
-              <span className="font-semibold text-brand">{t('status.subscriptionActive')}</span>
-            </div>
-          </section>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenPrinterSettings}
+              className="inline-flex items-center gap-2 rounded-lg border border-border-primary bg-surface px-3.5 py-2 text-xs font-semibold text-text-primary transition-colors hover:bg-surface-hover"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              {t('status.printerSettings')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection('orders')}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand px-3.5 py-2 text-xs font-semibold text-on-brand transition-colors hover:bg-brand-hover"
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              {t('dashboard.openOrders', { count: openOrdersCount })}
+            </button>
+          </div>
+        </header>
 
+        <nav
+          aria-label={t('dashboard.sections')}
+          className="flex gap-1 overflow-x-auto rounded-xl border border-border-primary bg-surface p-1 shadow-sm"
+        >
+          {([
+            { id: 'overview', label: t('dashboard.section.overview'), icon: <LayoutDashboard className="h-4 w-4" /> },
+            { id: 'orders', label: t('dashboard.section.orders'), icon: <ClipboardList className="h-4 w-4" /> },
+            { id: 'shop', label: t('dashboard.section.shop'), icon: <Store className="h-4 w-4" /> }
+          ] as const).map(section => (
+            <button
+              key={section.id}
+              type="button"
+              aria-current={activeSection === section.id ? 'page' : undefined}
+              onClick={() => setActiveSection(section.id)}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold transition-colors ${
+                activeSection === section.id
+                  ? 'bg-brand text-on-brand shadow-sm'
+                  : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+              }`}
+            >
+              {section.icon}
+              {section.label}
+              {section.id === 'orders' && openOrdersCount > 0 && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
+                  activeSection === section.id ? 'bg-white/20 text-on-brand' : 'bg-brand-soft text-brand'
+                }`}>
+                  {openOrdersCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        {activeSection === 'overview' && (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        {/* Printer fleet */}
+        <div className="flex flex-col gap-4">
           <section>
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary">
@@ -217,7 +261,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate, onOpenPrinte
           </section>
         </div>
 
-        {/* Right column: overview, recent jobs, actions */}
+        {/* Job overview and recent activity */}
         <div className="flex min-w-0 flex-col gap-5">
           <section>
             <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary">
@@ -307,33 +351,11 @@ export const StatusPage: React.FC<StatusPageProps> = ({ onNavigate, onOpenPrinte
             </div>
           </section>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => onNavigate('dashboard')}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-on-brand transition-colors hover:bg-brand-hover"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              {t('status.openDashboard')}
-            </button>
-            <button
-              type="button"
-              onClick={onOpenPrinterSettings}
-              className="inline-flex items-center gap-2 rounded-lg border border-border-primary bg-surface px-4 py-2 text-xs font-semibold text-text-primary transition-colors hover:bg-surface-hover"
-            >
-              <Printer className="h-3.5 w-3.5" />
-              {t('status.printerSettings')}
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('settings')}
-              className="inline-flex items-center gap-2 rounded-lg border border-border-primary bg-surface px-4 py-2 text-xs font-semibold text-text-primary transition-colors hover:bg-surface-hover"
-            >
-              <SettingsIcon className="h-3.5 w-3.5" />
-              {t('status.shop')}
-            </button>
-          </div>
         </div>
+        </div>
+        )}
+        {activeSection === 'orders' && <DashboardPage embedded />}
+        {activeSection === 'shop' && <ShopPosView />}
       </div>
     </div>
   );

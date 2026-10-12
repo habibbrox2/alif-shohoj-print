@@ -24,6 +24,8 @@ coverage/
 
 # Debug logs and temporary files.
 *.log
+# Agent/browser screenshots and one-off check scripts (see AGENTS.md).
+/tmp/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

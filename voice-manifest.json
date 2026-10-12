@@ -1,9 +1,9 @@
 {
-  "version": 1,
+  "version": 4,
   "format": {
-    "codec": "mp3",
+    "codec": "wav",
     "channels": "mono",
-    "bitrate_kbps": 64
+    "sample_rate_hz": 16000
   },
   "languages": [
     "bn",
@@ -19,7 +19,7 @@
         "file": "C01.mp3",
         "text": {
           "bn": "স্বাগতম! আমি আপনাকে ধাপে ধাপে সাহায্য করব।",
-          "en": ""
+          "en": "Welcome! I will guide you step by step."
         }
       },
       {
@@ -28,7 +28,7 @@
         "file": "C02.mp3",
         "text": {
           "bn": "আপনি কী প্রিন্ট করতে চান? নিচের বাটন থেকে বেছে নিন।",
-          "en": ""
+          "en": "What would you like to print? Choose from the buttons below."
         }
       },
       {
@@ -46,7 +46,7 @@
         "file": "C06.mp3",
         "text": {
           "bn": "এবার আপনার ফাইল বা ছবি আপলোড করুন।",
-          "en": ""
+          "en": "Now upload your file or photo."
         }
       },
       {
@@ -55,7 +55,7 @@
         "file": "C07.mp3",
         "text": {
           "bn": "আপলোড হচ্ছে, একটু অপেক্ষা করুন।",
-          "en": ""
+          "en": "Uploading, please wait a moment."
         }
       },
       {
@@ -64,7 +64,7 @@
         "file": "C08.mp3",
         "text": {
           "bn": "আপলোড সম্পন্ন হয়েছে।",
-          "en": ""
+          "en": "Upload complete."
         }
       },
       {
@@ -73,7 +73,7 @@
         "file": "C09.mp3",
         "text": {
           "bn": "ছবি ঠিকমতো যায়নি। আবার চেষ্টা করুন।",
-          "en": ""
+          "en": "The photo did not upload correctly. Please try again."
         }
       },
       {
@@ -82,7 +82,7 @@
         "file": "C10.mp3",
         "text": {
           "bn": "কয় কপি লাগবে, সংখ্যাটি বেছে নিন।",
-          "en": ""
+          "en": "Choose how many copies you need."
         }
       },
       {
@@ -91,7 +91,7 @@
         "file": "C11.mp3",
         "text": {
           "bn": "ছবির সাইজ বেছে নিন।",
-          "en": ""
+          "en": "Choose the photo size."
         }
       },
       {
@@ -100,7 +100,7 @@
         "file": "C12.mp3",
         "text": {
           "bn": "রঙিন নাকি সাদা-কালো, সেটি বেছে নিন।",
-          "en": ""
+          "en": "Choose colour or black-and-white."
         }
       },
       {
@@ -109,7 +109,7 @@
         "file": "C13.mp3",
         "text": {
           "bn": "প্রয়োজনে ছবি কাটুন বা ঘুরিয়ে নিন।",
-          "en": ""
+          "en": "Crop or rotate the photo if needed."
         }
       },
       {
@@ -118,7 +118,7 @@
         "file": "C14.mp3",
         "text": {
           "bn": "প্রিভিউ দেখে নিন। সব ঠিক থাকলে \"কনফার্ম\" চাপুন।",
-          "en": ""
+          "en": "Check the preview. If everything is correct, press “Confirm”."
         }
       },
       {
@@ -127,7 +127,7 @@
         "file": "C15.mp3",
         "text": {
           "bn": "আপনার অর্ডার দোকানে পাঠানো হয়েছে। দোকানদার দেখে নিশ্চিত করবেন।",
-          "en": ""
+          "en": "Your order has been sent to the shop. The shopkeeper will review and confirm it."
         }
       },
       {
@@ -136,7 +136,7 @@
         "file": "C16.mp3",
         "text": {
           "bn": "অনুগ্রহ করে অপেক্ষা করুন।",
-          "en": ""
+          "en": "Please wait."
         }
       },
       {
@@ -145,7 +145,7 @@
         "file": "C17.mp3",
         "text": {
           "bn": "আপনার অর্ডারটি অনুমোদিত হয়েছে। প্রিন্ট শুরু হচ্ছে।",
-          "en": ""
+          "en": "Your order has been approved. Printing is starting."
         }
       },
       {
@@ -154,7 +154,7 @@
         "file": "C18.mp3",
         "text": {
           "bn": "আপনার প্রিন্ট প্রস্তুত। দোকান থেকে সংগ্রহ করুন।",
-          "en": ""
+          "en": "Your print is ready. Please collect it from the shop."
         }
       },
       {
@@ -163,7 +163,7 @@
         "file": "C19.mp3",
         "text": {
           "bn": "দোকানদার দাম বদলেছেন। নতুন দাম দেখে সম্মতি দিন।",
-          "en": ""
+          "en": "The shopkeeper has changed the price. Please review the new price and agree."
         }
       },
       {
@@ -172,7 +172,7 @@
         "file": "C20.mp3",
         "text": {
           "bn": "দুঃখিত, আপনার অর্ডারটি গ্রহণ করা যায়নি। কারণটি নিচে দেখুন।",
-          "en": ""
+          "en": "Sorry, your order could not be accepted. See the reason below."
         }
       },
       {
@@ -181,7 +181,7 @@
         "file": "C21.mp3",
         "text": {
           "bn": "টাকা দিলে আপনি ফেরত পাবেন।",
-          "en": ""
+          "en": "If you have paid, you will receive a refund."
         }
       },
       {
@@ -190,7 +190,7 @@
         "file": "C22.mp3",
         "text": {
           "bn": "পেমেন্ট করতে বিকাশ বা নগদ বেছে নিন, অথবা কাউন্টারে দিন।",
-          "en": ""
+          "en": "Choose bKash or Nagad to pay, or pay at the counter."
         }
       },
       {
@@ -199,7 +199,7 @@
         "file": "C23.mp3",
         "text": {
           "bn": "পেমেন্ট সফল হয়েছে। ধন্যবাদ।",
-          "en": ""
+          "en": "Payment successful. Thank you."
         }
       },
       {
@@ -208,7 +208,7 @@
         "file": "C24.mp3",
         "text": {
           "bn": "দুঃখিত, দোকান এখন অর্ডার নিচ্ছে না। একটু পরে আসুন।",
-          "en": ""
+          "en": "Sorry, the shop is not taking orders right now. Please come back later."
         }
       },
       {
@@ -217,7 +217,7 @@
         "file": "C25.mp3",
         "text": {
           "bn": "ইন্টারনেট সংযোগ নেই। সংযোগ দেখে আবার চেষ্টা করুন।",
-          "en": ""
+          "en": "No internet connection. Check the connection and try again."
         }
       },
       {
@@ -226,7 +226,7 @@
         "file": "C26.mp3",
         "text": {
           "bn": "আপনার তথ্য নিরাপদ। কাজ শেষে ফাইল মুছে ফেলা হবে।",
-          "en": ""
+          "en": "Your information is safe. Files will be deleted after the job is done."
         }
       },
       {
@@ -235,7 +235,7 @@
         "file": "C27.mp3",
         "text": {
           "bn": "ধন্যবাদ! আবার আসবেন।",
-          "en": ""
+          "en": "Thank you! Come again."
         }
       }
     ],
@@ -253,7 +253,7 @@
         "file": "S01.mp3",
         "text": {
           "bn": "নতুন অর্ডার এসেছে।",
-          "en": ""
+          "en": "A new order has arrived."
         }
       },
       {
@@ -262,7 +262,7 @@
         "file": "S02.mp3",
         "text": {
           "bn": "একটি অর্ডার এখনো অপেক্ষায় আছে।",
-          "en": ""
+          "en": "One order is still pending."
         }
       },
       {
@@ -271,7 +271,7 @@
         "file": "S03.mp3",
         "text": {
           "bn": "প্রিন্টারে কাগজ শেষ।",
-          "en": ""
+          "en": "The printer is out of paper."
         }
       },
       {
@@ -280,7 +280,7 @@
         "file": "S04.mp3",
         "text": {
           "bn": "প্রিন্টারে কালি কম।",
-          "en": ""
+          "en": "Printer ink is low."
         }
       },
       {
@@ -289,7 +289,7 @@
         "file": "S05.mp3",
         "text": {
           "bn": "প্রিন্টার সংযোগ বিচ্ছিন্ন।",
-          "en": ""
+          "en": "Printer disconnected."
         }
       },
       {
@@ -298,7 +298,120 @@
         "file": "S06.mp3",
         "text": {
           "bn": "ইন্টারনেট নেই, অফলাইন মোডে চলছে।",
-          "en": ""
+          "en": "No internet, running in offline mode."
+        }
+      }
+    ]
+  },
+  "commands": {
+    "basePath": "audio/{lang}/",
+    "clips": [
+      {
+        "id": "VC01",
+        "key": "cmd_next",
+        "file": "VC01.mp3",
+        "text": {
+          "bn": "পরের ধাপে যাচ্ছি।",
+          "en": "Going to the next step."
+        }
+      },
+      {
+        "id": "VC02",
+        "key": "cmd_back",
+        "file": "VC02.mp3",
+        "text": {
+          "bn": "আগের ধাপে ফিরছি।",
+          "en": "Going back."
+        }
+      },
+      {
+        "id": "VC03",
+        "key": "cmd_confirm",
+        "file": "VC03.mp3",
+        "text": {
+          "bn": "অর্ডার নিশ্চিত করা হচ্ছে।",
+          "en": "Confirming your order."
+        }
+      },
+      {
+        "id": "VC04",
+        "key": "cmd_copies_up",
+        "file": "VC04.mp3",
+        "text": {
+          "bn": "এক কপি বাড়ানো হয়েছে।",
+          "en": "One copy added."
+        }
+      },
+      {
+        "id": "VC05",
+        "key": "cmd_copies_down",
+        "file": "VC05.mp3",
+        "text": {
+          "bn": "এক কপি কমানো হয়েছে।",
+          "en": "One copy removed."
+        }
+      },
+      {
+        "id": "VC06",
+        "key": "cmd_color",
+        "file": "VC06.mp3",
+        "text": {
+          "bn": "রঙিন প্রিন্ট বাছা হয়েছে।",
+          "en": "Colour print selected."
+        }
+      },
+      {
+        "id": "VC07",
+        "key": "cmd_bw",
+        "file": "VC07.mp3",
+        "text": {
+          "bn": "সাদা-কালো প্রিন্ট বাছা হয়েছে।",
+          "en": "Black-and-white selected."
+        }
+      },
+      {
+        "id": "VC08",
+        "key": "cmd_replay",
+        "file": "VC08.mp3",
+        "text": {
+          "bn": "আবার শোনাচ্ছি।",
+          "en": "Playing it again."
+        }
+      },
+      {
+        "id": "VC09",
+        "key": "cmd_help",
+        "file": "VC09.mp3",
+        "text": {
+          "bn": "বলতে পারেন: পরের ধাপ, পেছনে যাও, কনফার্ম করো, কপি বাড়াও, অথবা থামো।",
+          "en": "You can say: next, back, confirm, more copies, or stop."
+        }
+      },
+      {
+        "id": "VC10",
+        "key": "cmd_stop",
+        "file": "VC10.mp3",
+        "text": {
+          "bn": "ঠিক আছে, থামছি।",
+          "en": "Okay, stopped."
+        }
+      },
+      {
+        "id": "VC11",
+        "key": "cmd_approve",
+        "file": "VC11.mp3",
+        "text": {
+          "bn": "অনুমোদন করা হয়েছে।",
+          "en": "Order approved."
+        }
+      },
+      {
+        "id": "VC12",
+        "key": "cmd_reject",
+        "file": "VC12.mp3",
+        "text": {
+          "bn": "বাতিলের কারণ বেছে নিন।",
+          "en": "Choose a reason to reject."
         }
       }
     ]
@@ -309,7 +422,8 @@
       {
         "key": "total_price",
         "text": {
-          "bn": "আপনার মোট দাম {amount} টাকা।"
+          "bn": "আপনার মোট দাম {amount} টাকা।",
+          "en": "Your total is {amount} taka."
         },
         "vars": [
           "amount"
@@ -318,7 +432,8 @@
       {
         "key": "pickup_code",
         "text": {
-          "bn": "আপনার পিকআপ কোড {code}।"
+          "bn": "আপনার পিকআপ কোড {code}।",
+          "en": "Your pickup code is {code}."
         },
         "vars": [
           "code"
@@ -327,7 +442,8 @@
       {
         "key": "order_number",
         "text": {
-          "bn": "আপনার অর্ডার নম্বর {number}।"
+          "bn": "আপনার অর্ডার নম্বর {number}।",
+          "en": "Your order number is {number}."
         },
         "vars": [
           "number"

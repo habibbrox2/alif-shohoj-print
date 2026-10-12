@@ -5,6 +5,7 @@ import { useI18n } from '../../../shared/i18n/I18nContext';
 import { capabilitiesRegistry } from '../drivers/PrinterCapabilitiesRegistry';
 import { matchPrinterForJob } from '../printerRouting';
 import type { PrinterDevice, StudioService } from '../../../shared/types';
+import type { TranslationKey } from '../../../shared/i18n/strings';
 
 interface DetectedPrintersModalProps {
   isOpen: boolean;
@@ -22,28 +23,35 @@ const PAPER_SHORT_LABEL: Record<string, string> = {
 };
 
 /** Service names as they appear in the reference dialog's "Default for" column. */
-const SERVICE_SHORT_LABEL: Record<string, string> = {
-  doc_a4: 'Document',
-  nid_card: 'NID Copy',
-  passport_photo: 'Passport',
-  stamp_photo: 'Stamp',
-  photo_4r: 'Photo Print',
-  photo_6r: 'Photo 6R'
+const SERVICE_SHORT_LABEL: Record<string, TranslationKey> = {
+  doc_a4: 'printer.service.document',
+  nid_card: 'printer.service.nidCopy',
+  passport_photo: 'printer.service.passport',
+  stamp_photo: 'printer.service.stamp',
+  photo_4r: 'printer.service.photoPrint',
+  photo_6r: 'printer.service.photo6R'
 };
 
-const capabilityLabels = (printer: PrinterDevice): string[] => {
+const capabilityLabels = (printer: PrinterDevice, t: (key: TranslationKey) => string): string[] => {
   const caps = capabilitiesRegistry.getCapabilitiesForDevice(printer);
   const labels = caps.supportedPaperSizes.map(spec => PAPER_SHORT_LABEL[String(spec.id)] ?? String(spec.id));
-  labels.push(printer.colorCapability === 'color' ? 'Color' : 'B&W');
-  if (caps.photoDpi >= 2880) labels.push('Photo');
-  if (printer.supportedPaperSizes.includes('A4 (8.27x11.69 in)')) labels.push('Document');
+  labels.push(t(printer.colorCapability === 'color' ? 'printer.capability.color' : 'printer.capability.bw'));
+  if (caps.photoDpi >= 2880) labels.push(t('printer.capability.photo'));
+  if (printer.supportedPaperSizes.includes('A4 (8.27x11.69 in)')) labels.push(t('printer.capability.document'));
   return labels;
 };
 
-const servicesForPrinter = (printerId: string, services: StudioService[]): string[] =>
+const servicesForPrinter = (
+  printerId: string,
+  services: StudioService[],
+  t: (key: TranslationKey) => string
+): string[] =>
   services
     .filter(service => service.preferredPrinterId === printerId)
-    .map(service => SERVICE_SHORT_LABEL[service.id] ?? service.title);
+    .map(service => {
+      const labelKey = SERVICE_SHORT_LABEL[service.id];
+      return labelKey ? t(labelKey) : service.title;
+    });
 
 /**
  * "Printer Settings" dialog from the design reference: every detected device is a
@@ -122,7 +130,7 @@ export const DetectedPrintersModal: FC<DetectedPrintersModalProps> = ({ isOpen, 
         role="dialog"
         aria-modal="true"
         aria-label={t('printers.settings.title')}
-        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border-primary bg-surface text-text-primary shadow-xl"
+        className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border-primary bg-surface text-text-primary shadow-xl"
       >
         <div className="flex items-center gap-2 border-b border-border-secondary px-4 py-3">
           <Printer className="h-4 w-4 text-brand" />
@@ -157,7 +165,7 @@ export const DetectedPrintersModal: FC<DetectedPrintersModalProps> = ({ isOpen, 
                   key={printer.id}
                   printer={printer}
                   isSelected={selectedIds.has(printer.id)}
-                  defaultServices={servicesForPrinter(printer.id, services)}
+                  defaultServices={servicesForPrinter(printer.id, services, t)}
                   onToggle={() =>
                     setSelectedIds(previous => {
                       const next = new Set(previous);
@@ -248,7 +256,7 @@ const PrinterCard: FC<PrinterCardProps> = ({ printer, isSelected, defaultService
           <>
             <div>
               <p className="text-[11px] font-semibold text-brand">{t('printers.settings.capabilities')}</p>
-              <p className="mt-0.5 text-[11px] text-text-secondary">{capabilityLabels(printer).join(', ')}</p>
+              <p className="mt-0.5 text-[11px] text-text-secondary">{capabilityLabels(printer, t).join(', ')}</p>
             </div>
             <div>
               <p className="text-[11px] font-semibold text-brand">{t('printers.settings.defaultFor')}</p>

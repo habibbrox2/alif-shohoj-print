@@ -1,4 +1,4 @@
-import type { ColorMode, ServicePricing } from '../types';
+import type { ColorMode, ServicePricing, StudioService } from '../types';
 
 /**
  * Shared pricing formula for shop orders (audit improvement #3).
@@ -17,6 +17,18 @@ export interface PriceQuery {
   colorMode?: ColorMode;
 }
 
+export const INITIAL_SERVICE_PRICING: ServicePricing = {
+  passport4in1: 50,
+  passport8in1: 80,
+  stampPhoto: 30,
+  nidSmartCard: 40,
+  nidNormalA4: 15,
+  photo4R: 35,
+  photo6R: 60,
+  docA4BW: 5,
+  docA4Color: 15,
+};
+
 /** Price of a single unit of a service (one copy / one sheet). */
 export const unitPriceForService = (
   serviceId: string,
@@ -28,6 +40,8 @@ export const unitPriceForService = (
       return query.gridCount === 8 ? pricing.passport8in1 : pricing.passport4in1;
     case 'nid_card':
       return pricing.nidSmartCard;
+    case 'stamp_photo':
+      return pricing.stampPhoto;
     case 'photo_4r':
       return pricing.photo4R;
     case 'doc_a4':
@@ -44,6 +58,24 @@ export const priceForService = (
   query: PriceQuery = {}
 ): number =>
   unitPriceForService(serviceId, pricing, query) * (query.copies ?? 1);
+
+/**
+ * Total price for an order using the shop's live service definition.
+ * Services created from a preset (or by hand) have no dedicated
+ * `ServicePricing` tier, so they bill their own `basePriceBDT`; the built-in
+ * services keep the shared tiered formula (passport grids, A4 colour, …).
+ */
+export const priceForServiceOrder = (
+  service: Pick<StudioService, 'id' | 'basePriceBDT'> | undefined,
+  pricing: ServicePricing,
+  query: PriceQuery = {}
+): number => {
+  if (!service) return FALLBACK_UNIT_PRICE * (query.copies ?? 1);
+  if (Object.prototype.hasOwnProperty.call(PRICING_KEY_BY_SERVICE, service.id)) {
+    return priceForService(service.id, pricing, query);
+  }
+  return service.basePriceBDT * (query.copies ?? 1);
+};
 
 /**
  * Which `ServicePricing` key holds the base price of each built-in service.

@@ -8,15 +8,16 @@ import { useStudio } from '../context/StudioContext';
  * flow when its entry point changes.
  */
 export const InstallationSetup: React.FC = () => {
-  const { installationConfig, configureInstallation, counters } = useStudio();
+  const { installationConfig, configureInstallation, counters, saveCounterFeedKey } = useStudio();
   const [installationMode, setInstallationMode] = useState<'master' | 'counter'>('master');
   const [installationCounterId, setInstallationCounterId] = useState('CTR-02');
   const [masterUrl, setMasterUrl] = useState('https://');
+  const [feedKey, setFeedKey] = useState('');
   const [installationError, setInstallationError] = useState<string | null>(null);
 
   if (installationConfig) return null;
 
-  const save = () => {
+  const save = async () => {
     const normalizedMasterUrl = masterUrl.trim().replace(/\/$/, '');
     let validMasterUrl = false;
     try {
@@ -30,6 +31,19 @@ export const InstallationSetup: React.FC = () => {
     if (installationMode === 'counter' && !validMasterUrl) {
       setInstallationError('Counter PC-এর জন্য Master PC-এর সম্পূর্ণ URL দিন।');
       return;
+    }
+    const trimmedFeedKey = feedKey.trim();
+    if (installationMode === 'counter' && trimmedFeedKey) {
+      if (!/^[0-9a-f]{64}$/i.test(trimmedFeedKey)) {
+        setInstallationError('ফিড কী ৬৪ অক্ষরের hex হতে হবে; মূল পিসির সেটআপ থেকে এটি কপি করুন।');
+        return;
+      }
+      try {
+        await saveCounterFeedKey(trimmedFeedKey);
+      } catch (error) {
+        setInstallationError(error instanceof Error ? error.message : 'ফিড কী সংরক্ষণ করা যায়নি।');
+        return;
+      }
     }
     const saved = configureInstallation({
       mode: installationMode,
@@ -90,6 +104,19 @@ export const InstallationSetup: React.FC = () => {
                     className="w-full rounded-lg border border-border-primary bg-surface p-2 text-sm text-text-primary"
                   />
                   <span className="text-xs text-text-secondary">QR-এর একই host ও port-এর base URL দিন; ?shop=… অংশ দেবেন না।</span>
+                  <input
+                    type="password"
+                    value={feedKey}
+                    onChange={event => setFeedKey(event.target.value)}
+                    placeholder="মূল পিসির কাউন্টার ফিড কী (ঐচ্ছিক)"
+                    aria-label="Master counter feed key"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="w-full rounded-lg border border-border-primary bg-surface p-2 font-mono text-sm text-text-primary"
+                  />
+                  <span className="text-xs text-text-secondary">
+                    কী ছাড়া এই কাউন্টার ইনবক্স শুধু নিজের সংরক্ষিত অর্ডার দেখায়। কী বসালে মূল পিসির লাইভ অর্ডার দেখা যাবে।
+                  </span>
                 </div>
               )}
             </span>
@@ -97,7 +124,7 @@ export const InstallationSetup: React.FC = () => {
         </div>
         <button
           type="button"
-          onClick={save}
+          onClick={() => void save()}
           className="mt-5 w-full rounded-xl bg-accent px-4 py-3 text-sm font-bold text-accent-text hover:bg-accent-hover transition-colors"
         >
           Shop POS চালু করুন

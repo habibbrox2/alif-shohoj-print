@@ -532,3 +532,38 @@
 .theme-dark .backdrop-mica {
   background: rgba(31, 31, 31, 0.8);
 }
+
+/* Studio editor: minimal range slider with a brand-coloured fill knob */
+.studio-range {
+  height: 4px;
+  background: var(--color-bg-tertiary);
+  border-radius: 9999px;
+}
+
+.studio-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 9999px;
+  background: var(--color-brand);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.studio-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.4);
+}
+
+.studio-range::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 9999px;
+  background: var(--color-brand);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   PrinterDevice,
   PrintJob,
@@ -25,7 +25,7 @@ import {
   rejectJobTransition,
   tickJobRetention,
 } from '../services/jobLifecycle';
-import { PRICING_KEY_BY_SERVICE } from '../services/pricing';
+import { INITIAL_SERVICE_PRICING, PRICING_KEY_BY_SERVICE } from '../services/pricing';
 import {
   COUNTERS_STORAGE_KEY,
   PRICING_STORAGE_KEY,
@@ -36,7 +36,35 @@ import {
   savePersisted,
   validators,
 } from '../services/persistedState';
-import type { CustomerAppConfig, DesktopQueueJob } from '../desktop-api';
+import type { CounterFeedStatus, CustomerAppConfig, DesktopQueueJob } from '../desktop-api';
+import { DEFAULT_APP_SETTINGS, type AppSettings } from '../settings';
+import { validateCustomerOrderLimits } from '../services/customerPolicy';
+import { mergeFeedOrders, type CounterFeedOrder } from '../services/counterFeed';
+
+export type CounterConnectionState = 'unknown' | 'connected' | 'disconnected';
+
+/** `unconfigured` means this counter PC has no master pairing key yet. */
+export type CounterFeedState = 'unconfigured' | 'syncing' | 'live' | 'error';
+
+export interface CounterFeedInfo {
+  state: CounterFeedState;
+  lastSyncedAt: number | null;
+  error: string | null;
+  /** False when the key is stored without OS encryption. */
+  keyProtected: boolean;
+}
+
+const EMPTY_COUNTER_FEED: CounterFeedInfo = {
+  state: 'unconfigured',
+  lastSyncedAt: null,
+  error: null,
+  keyProtected: false,
+};
+
+/** Poll interval for the counter PC's order feed. */
+const COUNTER_FEED_POLL_MS = 15_000;
+/** Re-read slightly behind the newest known order so a status change is never missed. */
+const COUNTER_FEED_OVERLAP_MS = 60_000;
 
 interface StudioContextType {
   // Current view
@@ -45,6 +73,30 @@ interface StudioContextType {
   installationConfig: InstallationConfig | null;
   isMaster: boolean;
   configureInstallation: (config: InstallationConfig) => boolean;
+  /** Result of the counter PC's last heartbeat to the master PC. */
+  counterConnection: CounterConnectionState;
+  /**
+   * Live order feed from the master PC. Empty on the master PC itself, which
+   * owns the orders directly.
+   */
+  feedOrders: CounterFeedOrder[];
+  counterFeed: CounterFeedInfo;
+  refreshCounterFeed: () => Promise<void>;
+  /** Pairs this counter PC with the master PC using that counter's feed key. */
+  saveCounterFeedKey: (key: string) => Promise<void>;
+  /** Unpairs this counter PC; the live feed stops until a new key is entered. */
+  clearCounterFeedKey: () => Promise<void>;
+  appSettings: AppSettings;
+  appSettingsLoaded: boolean;
+  appSettingsError: string | null;
+  saveAppSettings: (settings: AppSettings) => Promise<void>;
+
+  /** Order that should be opened in Studio tab when it becomes active. */
+  pendingStudioOrder: PrintJob | null;
+  /** Request to open a specific order in the Studio tab. */
+  openOrderInStudio: (job: PrintJob) => void;
+  /** Clear the pending studio order. */
+  clearPendingStudioOrder: () => void;
 
   // Shop & Hardware State
   shopProfile: ShopProfile;
@@ -155,18 +207,6 @@ const INITIAL_SHOP_PROFILE: ShopProfile = {
     connectedClients: 4,
     uptimeSeconds: 14820,
   },
-};
-
-const INITIAL_PRICING: ServicePricing = {
-  passport4in1: 50,
-  passport8in1: 80,
-  stampPhoto: 30,
-  nidSmartCard: 40,
-  nidNormalA4: 15,
-  photo4R: 35,
-  photo6R: 60,
-  docA4BW: 5,
-  docA4Color: 15,
 };
 
 // Preset initial LAN Shop Counters
@@ -383,6 +423,17 @@ const INITIAL_JOBS: PrintJob[] = [
 const INSTALLATION_STORAGE_KEY = 'alif-shohoj-print-installation';
 const SERVICES_STORAGE_KEY = 'alif-shohoj-print-studio-services';
 
+/**
+ * Settings and the Windows agent layer run in `?window=` sub-windows next to
+ * the main shell. Each window keeps its own React state, so only the main
+ * window plays order sounds, polls counter heartbeats, and publishes the
+ * customer PWA config; sub-windows mirror shared state instead.
+ */
+const isAuxiliaryShell = (): boolean => {
+  const target = new URLSearchParams(window.location.search).get('window');
+  return target === 'settings' || target === 'agent';
+};
+
 const loadInstallationConfig = (): InstallationConfig | null => {
   try {
     const saved = readMigratedStorageValue(INSTALLATION_STORAGE_KEY, 'broxprint-installation');
@@ -440,7 +491,7 @@ const loadStudioServices = (): StudioService[] => {
   }
 };
 
-export type StudioView = 'windows_agent' | 'customer_pwa' | 'shop_pos';
+export type StudioView = 'windows_agent' | 'customer_pwa' | 'shop_pos' | 'studio';
 
 interface StudioProviderProps {
   children: React.ReactNode;
@@ -460,6 +511,17 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
   });
   const [installationConfig, setInstallationConfig] = useState<InstallationConfig | null>(loadInstallationConfig);
   const isMaster = installationConfig?.mode !== 'counter';
+  const isCounterPc = installationConfig?.mode === 'counter';
+  const [counterConnection, setCounterConnection] = useState<CounterConnectionState>('unknown');
+  const [feedOrders, setFeedOrders] = useState<CounterFeedOrder[]>([]);
+  const [counterFeedKey, setCounterFeedKey] = useState<CounterFeedStatus>({ hasKey: false, protected: false });
+  const [counterFeedError, setCounterFeedError] = useState<string | null>(null);
+  const [counterFeedSyncedAt, setCounterFeedSyncedAt] = useState<number | null>(null);
+  // Always-fresh feed snapshot for the polling callback, which is created once.
+  const feedOrdersRef = useRef<CounterFeedOrder[]>(feedOrders);
+  useEffect(() => {
+    feedOrdersRef.current = feedOrders;
+  }, [feedOrders]);
   const [services, setServices] = useState<StudioService[]>(loadStudioServices);
   const [servicePersistenceError, setServicePersistenceError] = useState<string | null>(null);
   const [desktopQueueError, setDesktopQueueError] = useState<string | null>(null);
@@ -478,7 +540,7 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
     jobsRef.current = jobs;
   }, [jobs]);
   const [pricing, setPricing] = useState<ServicePricing>(() =>
-    loadPersisted(PRICING_STORAGE_KEY, validators.pricing, INITIAL_PRICING)
+    loadPersisted(PRICING_STORAGE_KEY, validators.pricing, INITIAL_SERVICE_PRICING)
   );
   const [voiceGuideEnabled, setVoiceGuideEnabled] = useState<boolean>(false);
   const [counters, setCounters] = useState<ShopCounter[]>(() =>
@@ -489,6 +551,45 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
       ? installationConfig.counterId
       : counters.find(counter => counter.code === new URLSearchParams(window.location.search).get('counter'))?.id || 'CTR-01'
   );
+  const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
+  const [appSettingsLoaded, setAppSettingsLoaded] = useState(!window.alifShohojPrintDesktop);
+  const [appSettingsError, setAppSettingsError] = useState<string | null>(null);
+
+  const saveAppSettings = async (settings: AppSettings): Promise<void> => {
+    const desktop = window.alifShohojPrintDesktop;
+    if (!desktop) throw new Error('Operational settings require the desktop application.');
+    const savedSettings = await desktop.saveAppSettings(settings);
+    setAppSettings(savedSettings);
+    setAppSettingsError(null);
+  };
+
+  useEffect(() => {
+    const desktop = window.alifShohojPrintDesktop;
+    if (!desktop) return;
+    let active = true;
+    void desktop.getAppSettings().then(settings => {
+      if (!active) return;
+      setAppSettings(settings);
+      setAppSettingsLoaded(true);
+      setAppSettingsError(null);
+    }).catch(error => {
+      if (!active) return;
+      setAppSettingsLoaded(false);
+      setAppSettingsError(error instanceof Error ? error.message : String(error));
+    });
+    // The settings window saves over IPC; the other desktop windows adopt the
+    // result through this broadcast instead of re-reading the store.
+    const unsubscribeSettings = desktop.onAppSettingsChanged?.(settings => {
+      if (!active) return;
+      setAppSettings(settings);
+      setAppSettingsLoaded(true);
+      setAppSettingsError(null);
+    });
+    return () => {
+      active = false;
+      unsubscribeSettings?.();
+    };
+  }, []);
 
   // Active Toast Notification for Windows
   const [activeToast, setActiveToast] = useState<{
@@ -507,6 +608,17 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
   const [activeOrderCardJob, setActiveOrderCardJob] = useState<PrintJob | null>(null);
   const [orderCardRequest, setOrderCardRequest] = useState<OrderCardOpenRequest | null>(null);
   const orderCardSeqRef = useRef(0);
+
+  // Order that should be opened in Studio tab when it becomes active
+  const [pendingStudioOrder, setPendingStudioOrder] = useState<PrintJob | null>(null);
+
+  const openOrderInStudio = useCallback((job: PrintJob) => {
+    setPendingStudioOrder(job);
+  }, []);
+
+  const clearPendingStudioOrder = useCallback(() => {
+    setPendingStudioOrder(null);
+  }, []);
 
   const openOrderCard = (job: PrintJob, tab: OrderCardTab = 'card') => {
     orderCardSeqRef.current += 1;
@@ -579,9 +691,63 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
     savePersisted(SHOP_PROFILE_STORAGE_KEY, shopProfile);
   }, [counters, printers, pricing, shopProfile]);
 
+  // Settings now runs in its own window, so a save made there must reach this
+  // window without a reload. The `storage` event fires in every other window
+  // of the same origin; the focus re-read is a fallback for the packaged
+  // file:// build, where that event is not guaranteed to propagate.
+  useEffect(() => {
+    const resyncPersistedState = () => {
+      setShopProfile(previous => {
+        const next = loadPersisted(SHOP_PROFILE_STORAGE_KEY, validators.shopProfile, INITIAL_SHOP_PROFILE);
+        return JSON.stringify(previous) === JSON.stringify(next) ? previous : next;
+      });
+      setPrinters(previous => {
+        const next = loadPersisted(PRINTERS_STORAGE_KEY, validators.printers, INITIAL_PRINTERS);
+        return JSON.stringify(previous) === JSON.stringify(next) ? previous : next;
+      });
+      setPricing(previous => {
+        const next = loadPersisted(PRICING_STORAGE_KEY, validators.pricing, INITIAL_SERVICE_PRICING);
+        return JSON.stringify(previous) === JSON.stringify(next) ? previous : next;
+      });
+      setCounters(previous => {
+        const next = loadPersisted(COUNTERS_STORAGE_KEY, validators.counters, INITIAL_COUNTERS);
+        return JSON.stringify(previous) === JSON.stringify(next) ? previous : next;
+      });
+      setServices(previous => {
+        const next = loadStudioServices();
+        return JSON.stringify(previous) === JSON.stringify(next) ? previous : next;
+      });
+    };
+    const resyncKeys: readonly string[] = [
+      SHOP_PROFILE_STORAGE_KEY,
+      PRINTERS_STORAGE_KEY,
+      PRICING_STORAGE_KEY,
+      COUNTERS_STORAGE_KEY,
+      SERVICES_STORAGE_KEY,
+    ];
+    const onStorage = (event: StorageEvent) => {
+      // `key === null` means the whole storage area was cleared.
+      if (event.key !== null && !resyncKeys.includes(event.key)) return;
+      resyncPersistedState();
+    };
+    // Give this window's own pending persist effects a turn before re-reading,
+    // so a focus landing right after a local edit cannot revert it.
+    let focusTimer: number | undefined;
+    const onFocus = () => { focusTimer = window.setTimeout(resyncPersistedState, 0); };
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', onFocus);
+      if (focusTimer !== undefined) window.clearTimeout(focusTimer);
+    };
+  }, []);
+
   useEffect(() => {
     const desktop = window.alifShohojPrintDesktop;
-    if (desktop && isMaster) {
+    // One publisher per PC: concurrent publishes from several windows can
+    // race and leave the gateway holding a stale config.
+    if (desktop && isMaster && !isAuxiliaryShell()) {
       void desktop.publishCustomerConfig({
         shopProfile: {
           id: shopProfile.id,
@@ -593,14 +759,20 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
           bkashNumber: shopProfile.bkashNumber,
           nagadNumber: shopProfile.nagadNumber,
           voiceGuide: shopProfile.voiceGuide,
+          isDndMode: shopProfile.isDndMode,
         },
         counters,
         printers,
         pricing,
         services,
+        operationalPolicy: {
+          businessHours: appSettings.businessHours,
+          orderLimits: appSettings.orderLimits,
+          previewWatermarkEnabled: appSettings.previewWatermarkEnabled,
+        },
       }).catch(error => console.error('Could not publish the customer PWA settings to the LAN gateway.', error));
     }
-  }, [isMaster, shopProfile, counters, pricing, services]);
+  }, [isMaster, shopProfile, counters, pricing, services, appSettings]);
 
   useEffect(() => {
     if (window.alifShohojPrintDesktop || window.location.protocol === 'file:') return;
@@ -616,13 +788,21 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
         setPrinters(config.printers);
         setPricing(config.pricing);
         setServices(config.services);
+        setAppSettings(previous => ({
+          ...previous,
+          businessHours: config.operationalPolicy.businessHours,
+          orderLimits: config.operationalPolicy.orderLimits,
+          previewWatermarkEnabled: config.operationalPolicy.previewWatermarkEnabled,
+        }));
       })
       .catch(error => console.warn('Customer app configuration is not available from the master PC.', error));
   }, []);
 
   useEffect(() => {
     const desktop = window.alifShohojPrintDesktop;
-    if (!desktop || !isMaster) return;
+    // Only the main window polls; sub-windows receive the resulting counter
+    // state through the storage re-sync above.
+    if (!desktop || !isMaster || isAuxiliaryShell()) return;
     const counterIds = counters.filter(counter => !counter.isMasterHost).map(counter => counter.id);
     let cancelled = false;
     const refreshStatuses = () => {
@@ -652,20 +832,26 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
   useEffect(() => {
     if (installationConfig?.mode !== 'counter' || !installationConfig.masterUrl || activeView === 'customer_pwa') return;
     const desktop = window.alifShohojPrintDesktop;
-    const sendHeartbeat = () => {
-      if (desktop) {
-        void desktop.sendCounterHeartbeat(installationConfig.masterUrl!, installationConfig.counterId)
-          .catch(error => console.warn('Could not send a counter heartbeat to the master PC.', error));
-        return;
+    const sendHeartbeat = async () => {
+      try {
+        if (desktop) {
+          const delivered = await desktop.sendCounterHeartbeat(installationConfig.masterUrl!, installationConfig.counterId);
+          setCounterConnection(delivered ? 'connected' : 'disconnected');
+          return;
+        }
+        const response = await fetch('/api/counter-heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ counterId: installationConfig.counterId }),
+        });
+        setCounterConnection(response.ok ? 'connected' : 'disconnected');
+      } catch (error) {
+        setCounterConnection('disconnected');
+        console.warn('Could not send a counter heartbeat to the master PC.', error);
       }
-      void fetch('/api/counter-heartbeat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ counterId: installationConfig.counterId }),
-      }).catch(error => console.warn('Could not send a counter heartbeat to the master PC.', error));
     };
-    sendHeartbeat();
-    const timer = setInterval(sendHeartbeat, 10_000);
+    void sendHeartbeat();
+    const timer = setInterval(() => void sendHeartbeat(), 10_000);
     return () => clearInterval(timer);
   }, [installationConfig?.mode, installationConfig?.counterId, installationConfig?.masterUrl, activeView]);
 
@@ -703,9 +889,13 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
 
     const unsubscribeIncoming = desktop.onIncomingJob(job => {
       setJobs(prev => prev.some(existing => existing.id === job.id) ? prev : [job, ...prev]);
-      const counterNumber = job.counterId?.match(/\d+/)?.[0];
-      if (shopProfile.soundAlertEnabled) globalVoice.speakShopAlert(job.tokenCode, job.serviceLabelBn, counterNumber);
-      else playIncomingOrderChime();
+      // Every window shows the toast, but a three-window setup must sound
+      // the alert once, from the main window.
+      if (!isAuxiliaryShell()) {
+        const counterNumber = job.counterId?.match(/\d+/)?.[0];
+        if (shopProfile.soundAlertEnabled) globalVoice.speakShopAlert(job.tokenCode, job.serviceLabelBn, counterNumber);
+        else playIncomingOrderChime();
+      }
       setActiveToast({
         job,
         title: `নতুন অর্ডার #${job.tokenCode}`,
@@ -723,6 +913,99 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
       unsubscribeQueue();
     };
   }, [shopProfile.soundAlertEnabled]);
+
+  const counterFeed: CounterFeedInfo = useMemo(() => {
+    if (!isCounterPc) return EMPTY_COUNTER_FEED;
+    const state: CounterFeedState = !counterFeedKey.hasKey
+      ? 'unconfigured'
+      : counterFeedError
+        ? 'error'
+        : counterFeedSyncedAt
+          ? 'live'
+          : 'syncing';
+    return {
+      state,
+      lastSyncedAt: counterFeedSyncedAt,
+      error: counterFeedError,
+      keyProtected: counterFeedKey.protected,
+    };
+  }, [isCounterPc, counterFeedKey, counterFeedError, counterFeedSyncedAt]);
+
+  const refreshCounterFeed = useCallback(async (): Promise<void> => {
+    const desktop = window.alifShohojPrintDesktop;
+    const masterUrl = installationConfig?.masterUrl;
+    if (!desktop || !isCounterPc || !masterUrl || !counterFeedKey.hasKey) return;
+    try {
+      const newest = feedOrdersRef.current.reduce((latest, order) => Math.max(latest, order.createdAt), 0);
+      const response = await desktop.pullCounterOrders(
+        masterUrl,
+        installationConfig.counterId,
+        Math.max(0, newest - COUNTER_FEED_OVERLAP_MS),
+      );
+      setFeedOrders(previous => mergeFeedOrders(previous, response.orders));
+      setCounterFeedSyncedAt(Date.now());
+      setCounterFeedError(null);
+    } catch (error) {
+      setCounterFeedError(error instanceof Error ? error.message : String(error));
+    }
+  }, [isCounterPc, installationConfig?.masterUrl, installationConfig?.counterId, counterFeedKey.hasKey]);
+
+  const saveCounterFeedKey = async (key: string): Promise<void> => {
+    const desktop = window.alifShohojPrintDesktop;
+    if (!desktop) throw new Error('Counter pairing requires the desktop application.');
+    const status = await desktop.setCounterFeedKey(key);
+    setCounterFeedKey(status);
+    setCounterFeedError(null);
+    setCounterFeedSyncedAt(null);
+  };
+
+  const clearCounterFeedKey = async (): Promise<void> => {
+    const desktop = window.alifShohojPrintDesktop;
+    if (!desktop) return;
+    await desktop.stopCounterFeedWs?.();
+    const status = await desktop.clearCounterFeedKey();
+    setCounterFeedKey(status);
+    setFeedOrders([]);
+    setCounterFeedError(null);
+    setCounterFeedSyncedAt(null);
+  };
+
+  // The key lives in the main process, so the renderer only ever learns whether
+  // this counter PC is paired and whether the stored key is encrypted at rest.
+  useEffect(() => {
+    const desktop = window.alifShohojPrintDesktop;
+    if (!desktop || !isCounterPc) return;
+    let active = true;
+    void desktop.getCounterFeedStatus().then(status => {
+      if (active) setCounterFeedKey(status);
+    }).catch(error => {
+      if (active) setCounterFeedError(error instanceof Error ? error.message : String(error));
+    });
+    return () => { active = false; };
+  }, [isCounterPc]);
+
+  useEffect(() => {
+    if (!isCounterPc || !installationConfig?.masterUrl || !counterFeedKey.hasKey) return;
+    const desktop = window.alifShohojPrintDesktop;
+    void refreshCounterFeed();
+    const timer = setInterval(() => void refreshCounterFeed(), COUNTER_FEED_POLL_MS);
+    let unsubscribe: (() => void) | undefined;
+    if (desktop?.startCounterFeedWs) {
+      void desktop.startCounterFeedWs(installationConfig.masterUrl, installationConfig.counterId).catch(() => undefined);
+    }
+    if (desktop?.onCounterFeedUpdate) {
+      unsubscribe = desktop.onCounterFeedUpdate(update => {
+        setFeedOrders(previous => mergeFeedOrders(previous, update.orders));
+        setCounterFeedSyncedAt(Date.now());
+        setCounterFeedError(null);
+      });
+    }
+    return () => {
+      clearInterval(timer);
+      unsubscribe?.();
+      void desktop?.stopCounterFeedWs?.();
+    };
+  }, [isCounterPc, installationConfig?.masterUrl, installationConfig?.counterId, counterFeedKey.hasKey, refreshCounterFeed]);
 
   const configureInstallation = (config: InstallationConfig): boolean => {
     if (
@@ -792,6 +1075,8 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
 
   const deleteStudioService = (serviceId: string): boolean => {
     if (!isMaster || !services.some(service => service.id === serviceId)) return false;
+    // The POS and the customer app need at least one service to route orders to.
+    if (services.length <= 1) return false;
     setServices(prev => prev.filter(service => service.id !== serviceId));
     return true;
   };
@@ -837,6 +1122,11 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
       prev.map(p => {
         if (p.id === id) {
           const nextStatus = p.status === 'online' ? 'offline' : 'online';
+          if (nextStatus === 'offline' && appSettings.printer.alerts.offline) {
+            void window.alifShohojPrintDesktop?.notifyPrinterStatus(p.name, false).catch(error => {
+              console.error('Could not show the printer status alert.', error);
+            });
+          }
           return { ...p, status: nextStatus };
         }
         return p;
@@ -878,6 +1168,8 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
     newJobData: Omit<PrintJob, 'id' | 'createdAt' | 'status' | 'auditLogs' | 'autoDeleteCountdownSeconds' | 'targetPrinterId' | 'targetPrinterName' | 'routingReason'>
   ): PrintJob => {
     const isRemoteCustomerPwa = !window.alifShohojPrintDesktop && activeView === 'customer_pwa';
+    const limitsError = validateCustomerOrderLimits(newJobData, appSettings.orderLimits);
+    if (limitsError) throw new Error(limitsError);
     const studioService = services.find(service => service.id === newJobData.serviceType);
     if (!studioService || !studioService.enabled) {
       throw new Error('This studio service is unavailable.');
@@ -906,7 +1198,7 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
     const isTargetCounterOffline = !targetCounter.isMasterHost && targetCounter.isOnline !== true;
 
     // Offline counters always require the master operator to review the order.
-    const isAutoApprovable = studioService.autoApprove && !isTargetCounterOffline;
+    const isAutoApprovable = !appSettings.approvals.manualApprovalRequired && studioService.autoApprove && !isTargetCounterOffline;
     const initialStatus: JobStatus = isAutoApprovable ? 'approved' : 'queued';
 
     const newJob: PrintJob = {
@@ -924,7 +1216,7 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
         paperSize: newJobData.paperSize,
         defaultCopies: newJobData.copies,
       },
-      autoDeleteCountdownSeconds: 900, // 15 mins
+      autoDeleteCountdownSeconds: appSettings.retention.completedMinutes * 60,
       counterId: targetCounter.id,
       counterName: targetCounter.name,
       auditLogs: [
@@ -1127,7 +1419,9 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
   const rejectJob = (jobId: string, reason: RejectReason, note?: string) => {
     const jobToReject = jobs.find(job => job.id === jobId);
     const rejectedAt = Date.now();
-    setJobs(prev => prev.map(j => (j.id === jobId ? rejectJobTransition(j, reason, note, rejectedAt) : j)));
+    setJobs(prev => prev.map(j => (j.id === jobId
+      ? { ...rejectJobTransition(j, reason, note, rejectedAt), autoDeleteCountdownSeconds: appSettings.retention.rejectedMinutes * 60 }
+      : j)));
 
     if (activeToast?.job.id === jobId) {
       dismissToast();
@@ -1148,6 +1442,15 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
   };
 
   const editJob = (jobId: string, updates: Partial<PrintJob>, auditNote: string) => {
+    if (!appSettings.approvals.allowOrderEditing) throw new Error('Order editing is disabled in Settings.');
+    const existing = jobs.find(job => job.id === jobId);
+    if (
+      appSettings.approvals.requirePriceChangeConsent &&
+      existing &&
+      updates.priceBDT !== undefined &&
+      updates.priceBDT !== existing.priceBDT &&
+      updates.priceChangedConsentRequired !== true
+    ) throw new Error('Customer consent is required before changing the order price.');
     const auditLog = {
       id: `log_${Date.now()}_edit`,
       timestamp: Date.now(),
@@ -1430,6 +1733,16 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
         installationConfig,
         isMaster,
         configureInstallation,
+        counterConnection,
+        feedOrders,
+        counterFeed,
+        refreshCounterFeed,
+        saveCounterFeedKey,
+        clearCounterFeedKey,
+        appSettings,
+        appSettingsLoaded,
+        appSettingsError,
+        saveAppSettings,
         shopProfile,
         updateShopProfile,
         printers,
@@ -1481,6 +1794,9 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
         setIsExePackageModalOpen,
         voiceGuideEnabled,
         setVoiceGuideEnabled,
+        pendingStudioOrder,
+        openOrderInStudio,
+        clearPendingStudioOrder,
       }}
     >
       {children}

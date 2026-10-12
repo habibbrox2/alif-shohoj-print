@@ -2,12 +2,35 @@ import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { createServer as createSecureServer } from 'node:https';
 import { extname, join, normalize, resolve, sep } from 'node:path';
+import { WebSocketServer, WebSocket } from 'ws';
 import type { PrintJob } from '../../src/shared/types.js';
 import type { CustomerAppConfig } from '../../src/shared/desktop-api.js';
+import {
+  isWithinShopHours,
+  validateCustomerOrderLimits,
+  validateCustomerOrderPayment,
+} from '../../src/shared/services/customerPolicy.js';
 import { isPrintJob } from './job-websocket.js';
+import {
+  COUNTER_FEED_KEY_HEADER,
+  COUNTER_FEED_KEY_PATTERN,
+  COUNTER_FEED_MAX_ORDERS,
+  COUNTER_ID_PATTERN,
+  toCounterFeedOrder,
+  type CounterFeedOrder,
+} from '../../src/shared/services/counterFeed.js';
 
 const MAX_REQUEST_BYTES = 56 * 1024 * 1024;
 const HEARTBEAT_TIMEOUT_MS = 30_000;
+// A counter PC may send one request every few seconds; more failed keys than
+// this in a row is a guessing attempt, not a misconfigured counter.
+const FEED_FAILURE_LIMIT = 10;
+const FEED_LOCKOUT_MS = 60_000;
+const WS_AUTH_TIMEOUT_MS = 5000;
+const WS_MAX_MESSAGE_BYTES = 1024 * 1024;
+// Built entry documents; Vite emits them under dist/resources/views/.
+const DEFAULT_DOCUMENT = 'resources/views/index.html';
+const FALLBACK_DOCUMENT = 'resources/views/pwa.html';
 const CONTENT_TYPES: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -30,13 +53,32 @@ export interface LocalGatewayOptions {
   webRoot: string;
   tls?: { certPath: string; keyPath: string };
   onCustomerOrder: (job: PrintJob) => PrintJob;
+  getPendingOrderCount: () => number;
   onCounterHeartbeat: (counterId: string, online: boolean) => void;
   onError: (error: Error) => void;
+  /** Only provided by the master PC, which is the only host that serves a counter feed. */
+  verifyCounterFeedKey?: (counterId: string, key: string) => boolean;
+  getCounterFeedOrders?: (counterId: string) => PrintJob[];
+  /** Optional callback when a counter feed WebSocket client authenticates. */
+  onCounterFeedWsAuth?: (counterId: string) => void;
+}
+
+interface FeedFailureState {
+  attempts: number;
+  lockedUntil: number;
+}
+
+interface AuthenticatedWsClient {
+  socket: WebSocket;
+  counterId: string;
 }
 
 export class LocalGateway {
   private readonly server: Server;
+  private readonly wsServer: WebSocketServer;
+  private readonly wsClients = new Map<WebSocket, AuthenticatedWsClient>();
   private readonly heartbeats = new Map<string, number>();
+  private readonly feedFailures = new Map<string, FeedFailureState>();
   private customerConfig: CustomerAppConfig | null = null;
 
   constructor(private readonly options: LocalGatewayOptions) {
@@ -51,6 +93,11 @@ export class LocalGateway {
       ? createSecureServer({ cert: readFileSync(options.tls.certPath), key: readFileSync(options.tls.keyPath) }, handler)
       : createServer(handler);
     this.server.on('error', options.onError);
+
+    // Create WebSocket server attached to the same HTTP server
+    this.wsServer = new WebSocketServer({ server: this.server, maxPayload: WS_MAX_MESSAGE_BYTES });
+    this.wsServer.on('error', options.onError);
+    this.wsServer.on('connection', (socket, request) => this.handleWsConnection(socket, request));
   }
 
   listen(): void {
@@ -58,6 +105,11 @@ export class LocalGateway {
   }
 
   close(): void {
+    for (const [socket] of this.wsClients) {
+      socket.close(1001, 'Server closing');
+    }
+    this.wsClients.clear();
+    this.wsServer.close();
     this.server.close();
   }
 
@@ -125,24 +177,53 @@ export class LocalGateway {
       return;
     }
     if (request.method === 'POST' && pathname === '/api/customer-orders') {
-      const body = await this.readJson(request, response, MAX_REQUEST_BYTES);
-      if (!body) return;
       if (!this.customerConfig) {
         this.sendJson(response, 503, { error: 'The shop is still loading its customer settings.' });
         return;
       }
+      if (this.customerConfig.shopProfile.isDndMode) {
+        this.sendJson(response, 503, { error: 'The shop is temporarily closed to new orders.' });
+        return;
+      }
+      const body = await this.readJson(request, response, MAX_REQUEST_BYTES);
+      if (!body) return;
       const job = body as unknown as PrintJob;
       const allowedCounter = this.customerConfig.counters.some(counter => counter.id === job.counterId);
       if (!allowedCounter || !isPrintJob(job)) {
         this.sendJson(response, 400, { error: 'The order details are invalid or the selected counter does not exist.' });
         return;
       }
+      const { businessHours, orderLimits } = this.customerConfig.operationalPolicy;
+      if (!isWithinShopHours(Date.now(), businessHours)) {
+        this.sendJson(response, 503, { error: 'The shop is currently outside its order acceptance hours.' });
+        return;
+      }
+      const paymentError = validateCustomerOrderPayment(job);
+      if (paymentError) {
+        this.sendJson(response, 400, { error: paymentError });
+        return;
+      }
+      const limitError = validateCustomerOrderLimits(job, orderLimits);
+      if (limitError) {
+        this.sendJson(response, 413, { error: limitError });
+        return;
+      }
+      if (this.options.getPendingOrderCount() >= orderLimits.maxPendingOrders) {
+        this.sendJson(response, 429, { error: 'The shop has reached its pending order limit. Please try again later.' });
+        return;
+      }
       try {
+        // No await between checking capacity and persistence: onCustomerOrder
+        // synchronously reserves a queue slot before another request can pass.
         const acceptedJob = this.options.onCustomerOrder(job);
         this.sendJson(response, 201, { job: acceptedJob });
       } catch (error) {
         this.sendJson(response, 500, { error: error instanceof Error ? error.message : 'The shop could not save this order.' });
       }
+      return;
+    }
+    if (request.method === 'GET' && pathname === '/api/counter-orders') {
+      this.handleCounterOrders(request, response);
       return;
     }
     if (request.method === 'GET' && pathname === '/api/counter-status') {
@@ -158,6 +239,177 @@ export class LocalGateway {
     this.serveStatic(pathname, response, request.method === 'HEAD');
   }
 
+  /**
+   * Serves one counter PC the orders that belong to it. This is the only route
+   * that returns order data, so it is the only route that requires a pairing
+   * key: a customer phone (or any other PC on the shop LAN) must not be able to
+   * read another counter's orders.
+   */
+  private handleCounterOrders(request: IncomingMessage, response: ServerResponse): void {
+    const { verifyCounterFeedKey, getCounterFeedOrders } = this.options;
+    if (!verifyCounterFeedKey || !getCounterFeedOrders) {
+      this.sendJson(response, 503, { error: 'This PC does not serve a counter order feed.' });
+      return;
+    }
+    const url = new URL(request.url || '/', 'http://localhost');
+    const counterId = url.searchParams.get('counterId') || '';
+    if (!COUNTER_ID_PATTERN.test(counterId)) {
+      this.sendJson(response, 400, { error: 'A valid counter ID is required.' });
+      return;
+    }
+    if (!this.customerConfig) {
+      this.sendJson(response, 503, { error: 'The shop is still loading its counter settings.' });
+      return;
+    }
+    if (!this.customerConfig.counters.some(counter => counter.id === counterId)) {
+      this.sendJson(response, 400, { error: 'The counter is not configured on this master PC.' });
+      return;
+    }
+
+    const now = Date.now();
+    const failures = this.feedFailures.get(counterId);
+    if (failures && failures.lockedUntil > now) {
+      this.sendJson(response, 429, { error: 'Too many rejected feed keys. Try again shortly.' });
+      return;
+    }
+
+    const header = request.headers[COUNTER_FEED_KEY_HEADER];
+    const providedKey = typeof header === 'string' ? header : '';
+    if (!COUNTER_FEED_KEY_PATTERN.test(providedKey) || !verifyCounterFeedKey(counterId, providedKey)) {
+      const attempts = (failures?.attempts ?? 0) + 1;
+      this.feedFailures.set(counterId, {
+        attempts,
+        lockedUntil: attempts >= FEED_FAILURE_LIMIT ? now + FEED_LOCKOUT_MS : 0,
+      });
+      // Never echo the key or the expected value: only the fact of a mismatch.
+      this.sendJson(response, 401, { error: 'The counter feed key was not accepted.' });
+      return;
+    }
+    this.feedFailures.delete(counterId);
+
+    const rawSince = Number(url.searchParams.get('since') ?? '0');
+    const since = Number.isFinite(rawSince) && rawSince > 0 ? rawSince : 0;
+    const orders = getCounterFeedOrders(counterId)
+      .filter(job => job.createdAt >= since)
+      .sort((left, right) => right.createdAt - left.createdAt)
+      .slice(0, COUNTER_FEED_MAX_ORDERS)
+      .map(job => toCounterFeedOrder(job))
+      .filter(order => order !== null);
+    this.sendJson(response, 200, { counterId, serverTime: now, orders });
+  }
+
+  /**
+   * Handles WebSocket connections for the counter feed.
+   * The client must authenticate with { type: 'auth', counterId, key }.
+   */
+  private handleWsConnection(socket: WebSocket, request: IncomingMessage): void {
+    const { verifyCounterFeedKey, getCounterFeedOrders, onCounterFeedWsAuth } = this.options;
+    if (!verifyCounterFeedKey || !getCounterFeedOrders) {
+      socket.close(4003, 'Counter feed not available on this PC');
+      return;
+    }
+
+    let authenticated = false;
+    let client: AuthenticatedWsClient | null = null;
+    const authTimer = setTimeout(() => {
+      if (!authenticated) socket.close(4001, 'Authentication required');
+    }, WS_AUTH_TIMEOUT_MS);
+
+    socket.on('message', rawMessage => {
+      const messageBuffer = Array.isArray(rawMessage)
+        ? Buffer.concat(rawMessage)
+        : Buffer.isBuffer(rawMessage)
+          ? rawMessage
+          : Buffer.from(rawMessage);
+
+      if (messageBuffer.byteLength > WS_MAX_MESSAGE_BYTES) {
+        socket.close(1009, 'Message too large');
+        return;
+      }
+
+      let message: { type?: string; counterId?: string; key?: string };
+      try {
+        message = JSON.parse(messageBuffer.toString()) as typeof message;
+      } catch {
+        socket.send(JSON.stringify({ type: 'error', error: 'Invalid JSON.' }));
+        return;
+      }
+
+      if (!authenticated) {
+        if (
+          message.type !== 'auth' ||
+          typeof message.counterId !== 'string' ||
+          typeof message.key !== 'string'
+        ) {
+          socket.close(4003, 'Invalid credentials');
+          return;
+        }
+
+        const counterId = message.counterId;
+        const key = message.key.trim().toLowerCase();
+
+        if (
+          !COUNTER_ID_PATTERN.test(counterId) ||
+          !COUNTER_FEED_KEY_PATTERN.test(key)
+        ) {
+          socket.close(4003, 'Invalid credentials');
+          return;
+        }
+
+        if (!verifyCounterFeedKey(counterId, key)) {
+          socket.close(4003, 'Invalid credentials');
+          return;
+        }
+
+        authenticated = true;
+        client = { socket, counterId };
+        this.wsClients.set(socket, client);
+        clearTimeout(authTimer);
+        socket.send(JSON.stringify({ type: 'authenticated', counterId }));
+        onCounterFeedWsAuth?.(counterId);
+        return;
+      }
+    });
+
+    socket.on('close', () => {
+      clearTimeout(authTimer);
+      this.wsClients.delete(socket);
+    });
+
+    socket.on('error', () => {
+      clearTimeout(authTimer);
+      this.wsClients.delete(socket);
+    });
+  }
+
+  /**
+   * Pushes a real-time update to all authenticated WebSocket clients for a counter.
+   * Called when a new order arrives for that counter.
+   */
+  pushCounterFeedUpdate(counterId: string): void {
+    const { getCounterFeedOrders } = this.options;
+    if (!getCounterFeedOrders) return;
+
+    const orders = getCounterFeedOrders(counterId)
+      .map(job => toCounterFeedOrder(job))
+      .filter((order): order is CounterFeedOrder => order !== null)
+      .sort((left, right) => right.createdAt - left.createdAt)
+      .slice(0, 100);
+
+    const message = JSON.stringify({
+      type: 'feed:update',
+      counterId,
+      serverTime: Date.now(),
+      orders,
+    });
+
+    for (const [socket, client] of this.wsClients) {
+      if (client.counterId === counterId && socket.readyState === WebSocket.OPEN) {
+        socket.send(message);
+      }
+    }
+  }
+
   private serveStatic(pathname: string, response: ServerResponse, headOnly: boolean): void {
     let decodedPath: string;
     try {
@@ -168,14 +420,14 @@ export class LocalGateway {
     }
     const normalizedPath = normalize(decodedPath).replace(/^([/\\])+/, '');
     const webRoot = resolve(this.options.webRoot);
-    let filePath = resolve(webRoot, normalizedPath || 'index.html');
+    let filePath = resolve(webRoot, normalizedPath || DEFAULT_DOCUMENT);
     if (filePath !== webRoot && !filePath.startsWith(webRoot + sep)) {
       response.writeHead(403).end();
       return;
     }
     // Unknown paths fall back to the customer PWA: the shopkeeper shell must
     // never be served to a customer phone that mistypes a URL.
-    if (!existsSync(filePath) || !statSync(filePath).isFile()) filePath = join(webRoot, 'pwa.html');
+    if (!existsSync(filePath) || !statSync(filePath).isFile()) filePath = join(webRoot, FALLBACK_DOCUMENT);
     if (!existsSync(filePath)) {
       response.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' }).end('The customer app has not been built.');
       return;

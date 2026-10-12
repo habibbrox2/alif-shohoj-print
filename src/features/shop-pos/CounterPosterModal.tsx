@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStudio } from '../../shared/context/StudioContext';
 import { ShopCounter } from '../../shared/types';
 import QRCode from 'qrcode';
-import { X, Printer, Download, Sparkles, Volume2, ShieldCheck, Laptop, Monitor, Layers, Check } from 'lucide-react';
+import { X, Printer, Download, Sparkles, Volume2, ShieldCheck, Laptop, Monitor, Layers, Check, KeyRound, Eye, EyeOff, Copy, RefreshCw, Trash2 } from 'lucide-react';
+import { useI18n } from '../../shared/i18n/I18nContext';
 
 export const CounterPosterModal: React.FC = () => {
+  const { t } = useI18n();
   const {
     isPosterModalOpen,
     setIsPosterModalOpen,
@@ -19,7 +21,15 @@ export const CounterPosterModal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('CTR-01');
   const [qrUrls, setQrUrls] = useState<Record<string, string>>({});
   const [qrError, setQrError] = useState<string | null>(null);
+  // The pairing key is only ever read through the preload bridge and lives in
+  // memory here while the shopkeeper types it into the counter PC.
+  const [feedKey, setFeedKey] = useState<string | null>(null);
+  const [isFeedKeyVisible, setIsFeedKeyVisible] = useState(false);
+  const [isFeedKeyCopied, setIsFeedKeyCopied] = useState(false);
+  const [feedKeyError, setFeedKeyError] = useState<string | null>(null);
   const singleCanvasRef = useRef<HTMLCanvasElement>(null);
+  const feedKeyCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [feedKeyQrDataUrl, setFeedKeyQrDataUrl] = useState<string | null>(null);
 
   // References for all counters grid
   const allCanvasesRef = useRef<Record<string, HTMLCanvasElement | null>>({});
@@ -29,6 +39,22 @@ export const CounterPosterModal: React.FC = () => {
       setActiveTab(selectedPosterCounter.id);
     }
   }, [selectedPosterCounter]);
+
+  useEffect(() => {
+    if (!isPosterModalOpen || activeTab === 'all') return;
+    const desktop = window.alifShohojPrintDesktop;
+    if (!desktop) return;
+    let active = true;
+    setFeedKey(null);
+    setFeedKeyError(null);
+    setIsFeedKeyVisible(false);
+    void desktop.getCounterFeedKey(activeTab).then(key => {
+      if (active) setFeedKey(key);
+    }).catch(() => {
+      if (active) setFeedKeyError(t('counterFeed.key.loadFailed'));
+    });
+    return () => { active = false; };
+  }, [isPosterModalOpen, activeTab, t]);
 
   // Generate QR for single active counter
   useEffect(() => {
@@ -93,6 +119,27 @@ export const CounterPosterModal: React.FC = () => {
     }
   }, [isPosterModalOpen, activeTab, shopProfile.code, counters]);
 
+  // Generate QR for feed key
+  useEffect(() => {
+    if (isPosterModalOpen && activeTab !== 'all' && feedKey && feedKeyCanvasRef.current) {
+      const canvas = feedKeyCanvasRef.current;
+      void (async () => {
+        try {
+          await QRCode.toCanvas(canvas, feedKey, {
+            width: 160,
+            margin: 1,
+            color: { dark: '#0f172a', light: '#ffffff' },
+          });
+          setFeedKeyQrDataUrl(canvas.toDataURL());
+        } catch (error) {
+          setFeedKeyQrDataUrl(null);
+        }
+      })();
+    } else {
+      setFeedKeyQrDataUrl(null);
+    }
+  }, [isPosterModalOpen, activeTab, feedKey]);
+
   if (!isPosterModalOpen) return null;
 
   const currentCounter = counters.find(c => c.id === activeTab) || counters[0];
@@ -100,6 +147,55 @@ export const CounterPosterModal: React.FC = () => {
 
   const handlePrintPoster = () => {
     window.print();
+  };
+
+  const issueFeedKey = async () => {
+    const desktop = window.alifShohojPrintDesktop;
+    if (!desktop || activeTab === 'all') return;
+    if (!window.confirm(t('counterFeed.key.rotateConfirm'))) return;
+    try {
+      const key = await desktop.rotateCounterFeedKey(activeTab);
+      setFeedKey(key);
+      setIsFeedKeyVisible(true);
+      setFeedKeyError(null);
+    } catch (error) {
+      setFeedKeyError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const removeFeedKey = async () => {
+    const desktop = window.alifShohojPrintDesktop;
+    if (!desktop || activeTab === 'all') return;
+    if (!window.confirm(t('counterFeed.key.removeConfirm'))) return;
+    try {
+      await desktop.revokeCounterFeedKey(activeTab);
+      setFeedKey(null);
+      setIsFeedKeyVisible(false);
+      setFeedKeyError(null);
+    } catch (error) {
+      setFeedKeyError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const copyFeedKey = async () => {
+    if (!feedKey) return;
+    try {
+      await navigator.clipboard.writeText(feedKey);
+      setIsFeedKeyCopied(true);
+      window.setTimeout(() => setIsFeedKeyCopied(false), 2000);
+    } catch {
+      setFeedKeyError(t('counterFeed.key.copyFailed'));
+    }
+  };
+
+  const downloadFeedKeyQr = (): void => {
+    if (!feedKeyQrDataUrl || !currentCounter) return;
+    const link = document.createElement('a');
+    link.href = feedKeyQrDataUrl;
+    link.download = `alif-shohoj-print-${currentCounter.id}-pairing-qr.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   return (
@@ -298,6 +394,77 @@ export const CounterPosterModal: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Counter pairing key. Never printed: the key must not end up on a poster. */}
+        {activeTab !== 'all' && (
+          <div className="print:hidden shrink-0 border-t border-slate-700 bg-slate-800 px-5 py-3">
+            {currentCounter.isMasterHost ? (
+              <p className="text-[11px] text-slate-400">{t('counterFeed.key.masterHost')}</p>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <KeyRound className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="text-xs font-bold text-slate-100">{t('counterFeed.key.title')}</span>
+                  <span className="text-[10px] text-slate-400">{t('counterFeed.key.hint')}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <code className="min-w-[16rem] flex-1 select-all truncate rounded border border-slate-600 bg-slate-900 px-2 py-1.5 font-mono text-[11px] text-emerald-300">
+                    {feedKey ? (isFeedKeyVisible ? feedKey : '•'.repeat(64)) : t('counterFeed.key.none')}
+                  </code>
+                  {feedKey && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setIsFeedKeyVisible(visible => !visible)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-600 bg-slate-700 px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 transition-colors hover:bg-slate-600"
+                      >
+                        {isFeedKeyVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        {t(isFeedKeyVisible ? 'counterFeed.key.hide' : 'counterFeed.key.show')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void copyFeedKey()}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-600 bg-slate-700 px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 transition-colors hover:bg-slate-600"
+                      >
+                        {isFeedKeyCopied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                        {t(isFeedKeyCopied ? 'counterFeed.key.copied' : 'counterFeed.key.copy')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={downloadFeedKeyQr}
+                        disabled={!feedKeyQrDataUrl}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-600 bg-slate-700 px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 transition-colors hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Download className="h-3 w-3" />
+                        QR ডাউনলোড
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void issueFeedKey()}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-500"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    {t('counterFeed.key.rotate')}
+                  </button>
+                  {feedKey && (
+                    <button
+                      type="button"
+                      onClick={() => void removeFeedKey()}
+                      className="inline-flex items-center gap-1 rounded-lg border border-rose-800 bg-rose-950 px-2.5 py-1.5 text-[11px] font-semibold text-rose-300 transition-colors hover:bg-rose-900"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      {t('counterFeed.key.remove')}
+                    </button>
+                  )}
+                </div>
+                {feedKeyError && <p role="alert" className="mt-1.5 text-[10px] text-rose-300">{feedKeyError}</p>}
+                <canvas ref={feedKeyCanvasRef} className="hidden" />
+              </>
+            )}
+          </div>
+        )}
 
         {/* Footer Actions */}
         <div className="p-4 bg-slate-800 border-t border-slate-700 flex items-center justify-between">

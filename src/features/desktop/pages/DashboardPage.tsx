@@ -12,6 +12,10 @@ import {
 } from '../../../shared/services/jobDisplay';
 import type { JobStatusTone } from '../../../shared/services/jobDisplay';
 import type { PrintJob, RejectReason } from '../../../shared/types';
+import { VoiceCommandButton } from '../../../shared/components/VoiceCommandButton';
+import { voiceGuide } from '../../../shared/services/voiceGuideService';
+import type { VoiceCommandId } from '../../../shared/types/voiceCommands';
+import { VOICE_COMMAND_CLIP_ID } from '../../../shared/services/voiceCommands';
 
 const REJECT_REASONS: RejectReason[] = [
   'blurry_photo',
@@ -129,15 +133,17 @@ const formatTimeAgo = (timestamp: number, now: number, t: ReturnType<typeof useI
  * its reject step) so the approval, audit-log and desktop-queue logic stays in
  * exactly one place.
  */
-export const DashboardPage: FC = () => {
-  const { t } = useI18n();
+export const DashboardPage: FC<{ embedded?: boolean }> = ({ embedded = false }) => {
+  const { t, language } = useI18n();
   const {
     jobs,
     counters,
     desktopQueueError,
     approveJob,
     rejectJob,
-    openOrderCard
+    openOrderCard,
+    openOrderInStudio,
+    setActiveView,
   } = useStudio();
 
   const [selectedCounterId, setSelectedCounterId] = useState<string>('all');
@@ -167,17 +173,38 @@ export const DashboardPage: FC = () => {
     approveJob(job.id);
   };
 
+  const handleVoiceCommand = (command: VoiceCommandId) => {
+    const first = visibleOrders[0];
+    if (!first) return;
+    if (command === 'approve' || command === 'confirm') {
+      handleApprove(first);
+      void voiceGuide.play(VOICE_COMMAND_CLIP_ID.approve);
+    } else if (command === 'reject' || command === 'back') {
+      setRejectTarget(first);
+      void voiceGuide.play(VOICE_COMMAND_CLIP_ID.reject);
+    } else if (command === 'next') {
+      const ids = ['all', ...counters.map(counter => counter.id)];
+      const index = ids.indexOf(selectedCounterId);
+      setSelectedCounterId(ids[(index + 1) % ids.length]);
+    } else if (command === 'stop') {
+      setRejectTarget(null);
+    }
+  };
+
   return (
-    <div className="h-full overflow-y-auto">
+    <div className={embedded ? 'min-h-0' : 'h-full overflow-y-auto'}>
       <div className="mx-auto max-w-6xl space-y-4 p-4">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <h1 className="text-sm font-bold text-text-primary">{t('dashboard.title')}</h1>
             <p className="mt-0.5 text-xs text-text-secondary">{t('dashboard.subtitle')}</p>
           </div>
-          <span className="text-[11px] font-semibold text-text-tertiary">
-            {t('dashboard.openOrders', { count: openOrders.length })}
-          </span>
+          <div className="flex items-center gap-2">
+            <VoiceCommandButton lang={language === 'bn' ? 'bn' : 'en'} onCommand={handleVoiceCommand} compact />
+            <span className="text-[11px] font-semibold text-text-tertiary">
+              {t('dashboard.openOrders', { count: openOrders.length })}
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -239,7 +266,10 @@ export const DashboardPage: FC = () => {
                 job={job}
                 now={now}
                 onPreview={() => openOrderCard(job, 'preview')}
-                onEdit={() => openOrderCard(job, 'edit')}
+                onEdit={() => {
+                  openOrderInStudio(job);
+                  setActiveView('studio');
+                }}
                 onReject={() => setRejectTarget(job)}
                 onApprove={() => handleApprove(job)}
               />

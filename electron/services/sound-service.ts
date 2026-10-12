@@ -1,6 +1,10 @@
 import { app } from 'electron';
 import { join } from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import { unlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { AppLogger } from './app-logger.js';
 
 // ============================================================================
@@ -181,8 +185,8 @@ export class SoundService {
     // Check if file exists
     const filePath = join(this.options.resourcesPath, soundDef.file);
     if (!existsSync(filePath)) {
-      this.logger.warn(`Sound file not found: ${filePath}, using system beep`);
-      return this.playSystemBeep();
+      this.logger.warn(`Sound file not found: ${filePath}, using a generated tone`);
+      return this.playVolumeScaledTone();
     }
 
     try {
@@ -199,40 +203,69 @@ export class SoundService {
       return await this.playAudioFile(filePath);
     } catch (error) {
       this.logger.error(`Failed to play sound ${soundId}`, error);
-      return this.playSystemBeep();
+      return this.playVolumeScaledTone();
     }
   }
 
   private async playAudioFile(filePath: string): Promise<boolean> {
-    // In Electron main process, we can use the 'play-sound' package or
-    // spawn a child process to play audio
-    // For now, we'll use a simple approach with system beep
-    
-    // TODO: Replace with actual audio playback using:
-    // - 'play-sound' npm package (cross-platform)
-    // - 'node-wav-player' for WAV files
-    // - Electron's native audio APIs
-    
-    // For now, use system beep as fallback
-    return this.playSystemBeep();
+    void filePath;
+    return this.playVolumeScaledTone();
   }
 
-  private playSystemBeep(): boolean {
-    try {
-      // Use system beep - works on Windows
-      if (process.platform === 'win32') {
-        // Windows: use PowerShell to play a beep
-        const { spawn } = require('child_process');
-        const ps = spawn('powershell', ['-c', '[console]::beep(800,300)']);
-        ps.on('error', () => {
-          // Ignore errors
-        });
-      } else {
-        // Linux/Mac: use terminal beep
-        process.stdout.write('\x07');
-      }
+  private async playVolumeScaledTone(): Promise<boolean> {
+    if (this.options.volume <= 0) return false;
+    if (process.platform !== 'win32') {
+      process.stdout.write('\x07');
       return true;
-    } catch {
+    }
+
+    const sampleRate = 22_050;
+    const sampleCount = sampleRate * 0.3;
+    const pcmBytes = Buffer.alloc(sampleCount * 2);
+    const amplitude = Math.round(32_767 * this.options.volume / 100);
+    for (let index = 0; index < sampleCount; index += 1) {
+      const sample = Math.round(amplitude * Math.sin(2 * Math.PI * 800 * index / sampleRate));
+      pcmBytes.writeInt16LE(sample, index * 2);
+    }
+
+    const wav = Buffer.alloc(44 + pcmBytes.length);
+    wav.write('RIFF', 0);
+    wav.writeUInt32LE(wav.length - 8, 4);
+    wav.write('WAVE', 8);
+    wav.write('fmt ', 12);
+    wav.writeUInt32LE(16, 16);
+    wav.writeUInt16LE(1, 20);
+    wav.writeUInt16LE(1, 22);
+    wav.writeUInt32LE(sampleRate, 24);
+    wav.writeUInt32LE(sampleRate * 2, 28);
+    wav.writeUInt16LE(2, 32);
+    wav.writeUInt16LE(16, 34);
+    wav.write('data', 36);
+    wav.writeUInt32LE(pcmBytes.length, 40);
+    pcmBytes.copy(wav, 44);
+
+    const wavPath = join(tmpdir(), `alif-notification-${randomBytes(12).toString('hex')}.wav`);
+    try {
+      await writeFile(wavPath, wav, { flag: 'wx' });
+      const escapedPath = wavPath.replace(/'/g, "''");
+      const script = `$player = New-Object System.Media.SoundPlayer('${escapedPath}'); try { $player.Load(); $player.PlaySync() } finally { $player.Dispose() }`;
+      return await new Promise<boolean>(resolve => {
+        const player = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+          windowsHide: true,
+          stdio: 'ignore',
+        });
+        let settled = false;
+        const finish = (result: boolean) => {
+          if (settled) return;
+          settled = true;
+          void unlink(wavPath).finally(() => resolve(result));
+        };
+        player.once('error', () => finish(false));
+        player.once('close', code => finish(code === 0));
+      });
+    } catch (error) {
+      await unlink(wavPath).catch(() => undefined);
+      this.logger.error('Could not play the generated notification tone.', error);
       return false;
     }
   }

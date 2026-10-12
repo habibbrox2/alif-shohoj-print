@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStudio } from '../context/StudioContext';
 import { useTheme } from '../context/ThemeContext';
-import { Monitor, Smartphone, LayoutDashboard, QrCode, Download, Bell, BellOff, Circle, Sun, Moon, Monitor as MonitorIcon } from 'lucide-react';
+import { Monitor, Smartphone, LayoutDashboard, QrCode, Download, Bell, BellOff, Circle, Sun, Moon, Monitor as MonitorIcon, Image } from 'lucide-react';
 
 export const NavigationHeader: React.FC = () => {
   const {
@@ -20,6 +20,7 @@ export const NavigationHeader: React.FC = () => {
     { value: 'windows_agent' as const, label: 'Print Agent', compactLabel: 'Agent', icon: <Monitor className="w-4 h-4" />, badge: pendingJobsCount > 0 ? pendingJobsCount : null },
     { value: 'customer_pwa' as const, label: 'Customer PWA', compactLabel: 'Mobile', icon: <Smartphone className="w-4 h-4" />, badge: null },
     { value: 'shop_pos' as const, label: 'Shop POS', compactLabel: 'POS', icon: <LayoutDashboard className="w-4 h-4" />, badge: null },
+    { value: 'studio' as const, label: 'Studio', compactLabel: 'Studio', icon: <Image className="w-4 h-4" />, badge: null },
   ];
 
   return (

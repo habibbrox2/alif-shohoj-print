@@ -75,7 +75,8 @@ export const matchPrinterForJob = (
   serviceType: ServiceType,
   paperSize: PaperSize,
   colorMode: ColorMode,
-  printers: PrinterDevice[]
+  printers: PrinterDevice[],
+  fallbackPrinterName?: string | null
 ): RoutingResult => {
   const onlinePrinters = printers.filter(p => p.status === 'online');
 
@@ -91,6 +92,20 @@ export const matchPrinterForJob = (
       };
     })
     .filter(c => c.validation.supported);
+
+  if (fallbackPrinterName) {
+    const fallbackCandidate = candidates.find(candidate => candidate.printer.name === fallbackPrinterName);
+    if (fallbackCandidate) {
+      return {
+        printerId: fallbackCandidate.printer.id,
+        printerName: fallbackCandidate.printer.name,
+        reason: `Configured compatible fallback: ${fallbackCandidate.printer.name} (${fallbackCandidate.validation.optimalDpi} DPI)`,
+        isPreferred: false,
+        requiresFallback: true,
+        optimalDpi: fallbackCandidate.validation.optimalDpi,
+      };
+    }
+  }
 
   // Preference Rule 1: High quality photo services (Passport, Stamp, 4R) prefer Photo 6-Color engine
   if (serviceType === 'passport_photo' || serviceType === 'stamp_photo' || serviceType === 'photo_4r') {

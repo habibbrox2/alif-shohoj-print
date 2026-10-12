@@ -18,7 +18,7 @@ export const createTestJob = (fileUrl = 'data:application/pdf;base64,JVBERi0xLjQ
   routingReason: 'Test',
   priceBDT: 20,
   paymentMethod: 'counter_cash',
-  paymentStatus: 'paid_counter',
+  paymentStatus: 'unpaid',
   fileUrl,
   fileName: 'test.pdf',
   fileSize: '1 KB',

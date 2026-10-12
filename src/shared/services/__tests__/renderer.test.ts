@@ -8,7 +8,11 @@ import {
   rejectJobTransition,
   tickJobRetention,
 } from '../jobLifecycle';
-import { PRICING_KEY_BY_SERVICE, priceForService, unitPriceForService } from '../pricing';
+import { PRICING_KEY_BY_SERVICE, priceForService, priceForServiceOrder, unitPriceForService } from '../pricing';
+import { SERVICE_PRESETS, createServiceFromPreset } from '../servicePresets';
+import { INITIAL_STUDIO_SERVICES } from '../studioServices';
+import { buildReportSummary } from '../reportMetrics';
+import { SETTINGS_GROUPS } from '../../../features/desktop/pages/settingsGroups';
 import { isIdentityDocument, isPdfJob, jobDisplayName, jobStatusLabelKey } from '../jobDisplay';
 import {
   COUNTERS_STORAGE_KEY,
@@ -17,6 +21,35 @@ import {
   validators,
 } from '../persistedState';
 import { INITIAL_PRINTERS, matchPrinterForJob } from '../../../features/printers/printerRouting';
+import {
+  isWithinShopHours,
+  isWithinWeeklyDndSchedule,
+  validateCustomerOrderLimits,
+  validateCustomerOrderPayment,
+} from '../customerPolicy';
+import {
+  DEFAULT_APP_SETTINGS,
+  isClockTime,
+  type BusinessHoursSettings,
+  type WeeklyDndSchedule,
+} from '../../settings';
+import { STRINGS, type TranslationKey } from '../../i18n/strings';
+import { counterOrders, mergeCounterInbox, summarizeCounterOrders } from '../counterInbox';
+import {
+  COUNTER_FEED_KEY_PATTERN,
+  isCounterFeedOrder,
+  mergeFeedOrders,
+  parseCounterFeedOrders,
+  toCounterFeedOrder,
+  type CounterFeedOrder,
+} from '../counterFeed';
+import {
+  COUNTER_DESKTOP_TABS,
+  AUXILIARY_WINDOW_BY_PAGE,
+  MASTER_DESKTOP_TABS,
+  defaultDesktopPage,
+  desktopTabsForRole,
+} from '../../../features/desktop/navigation';
 
 // ---------------------------------------------------------------- jobIdentity
 
@@ -61,6 +94,7 @@ test('priceForService applies the shared unit-price mapping', () => {
   assert.equal(priceForService('passport_photo', pricing, { gridCount: 4 }), 40);
   assert.equal(priceForService('passport_photo', pricing), 40, 'defaults to the 4-in-1 sheet');
   assert.equal(priceForService('nid_card', pricing), 30);
+  assert.equal(priceForService('stamp_photo', pricing), 15, 'stamp photo bills the stampPhoto tier, not the fallback');
   assert.equal(priceForService('photo_4r', pricing), 25);
   assert.equal(priceForService('doc_a4', pricing, { colorMode: 'color' }), 12);
   assert.equal(priceForService('doc_a4', pricing, { colorMode: 'bw' }), 5);
@@ -79,6 +113,45 @@ test('PRICING_KEY_BY_SERVICE maps every built-in service to its pricing key', ()
   assert.equal(PRICING_KEY_BY_SERVICE.nid_card, 'nidSmartCard');
   assert.equal(PRICING_KEY_BY_SERVICE.photo_4r, 'photo4R');
   assert.equal(PRICING_KEY_BY_SERVICE.doc_a4, 'docA4BW');
+});
+
+test('priceForServiceOrder bills preset services at their own base price and keeps the tiered formula for built-ins', () => {
+  const presetService = { id: 'custom_abc123', basePriceBDT: 18 };
+  assert.equal(priceForServiceOrder(presetService, pricing, { copies: 2 }), 36);
+  assert.equal(priceForServiceOrder({ id: 'doc_a4', basePriceBDT: 99 }, pricing, { colorMode: 'bw' }), 5, 'built-in services keep the shared pricing tier');
+  assert.equal(priceForServiceOrder({ id: 'passport_photo', basePriceBDT: 99 }, pricing, { gridCount: 8 }), 70);
+  assert.equal(priceForServiceOrder(undefined, pricing, { copies: 1 }), 35, 'unknown service keeps the 35 BDT fallback');
+});
+
+// ------------------------------------------------------------- servicePresets
+
+test('SERVICE_PRESETS covers the default shop services with unique codes', () => {
+  const codes = SERVICE_PRESETS.map(preset => preset.code);
+  assert.equal(new Set(codes).size, codes.length, 'preset codes must be unique');
+  for (const expected of ['IDCARD', 'A4BW', 'DOCFILE', 'PASSPORT4', 'PHOTO34R', 'STAMPPHOTO']) {
+    assert.ok(codes.includes(expected), `missing preset ${expected}`);
+  }
+});
+
+test('SERVICE_PRESETS codes never collide with the built-in service codes', () => {
+  const builtinCodes = new Set(INITIAL_STUDIO_SERVICES.map(service => service.code.toUpperCase()));
+  for (const preset of SERVICE_PRESETS) {
+    assert.equal(builtinCodes.has(preset.code.toUpperCase()), false, `${preset.code} collides with a built-in service`);
+  }
+});
+
+test('createServiceFromPreset produces a valid creatable service and copies preferences', () => {
+  for (const preset of SERVICE_PRESETS) {
+    const service = createServiceFromPreset(preset);
+    assert.equal(service.code, preset.code);
+    assert.equal(service.titleBn, preset.titleBn);
+    assert.equal(service.enabled, true);
+    assert.ok(service.basePriceBDT >= 0);
+    assert.ok(service.preferences.dpi >= 1);
+    assert.equal(service.preferences.defaultCopies >= 1 && Number.isInteger(service.preferences.defaultCopies), true);
+    service.preferences.dpi = 1;
+    assert.notEqual(preset.preferences.dpi, 1, 'preferences must be copied, not shared by reference');
+  }
 });
 
 // -------------------------------------------------------------- jobLifecycle
@@ -109,6 +182,320 @@ const createJob = (overrides: Partial<PrintJob> = {}): PrintJob => ({
   autoDeleteCountdownSeconds: 900,
   auditLogs: [],
   ...overrides,
+});
+
+// --------------------------------------------------------------- reportMetrics
+
+test('buildReportSummary uses local day and month boundaries for completed work', () => {
+  const now = new Date(2026, 9, 10, 12);
+  const dayStart = new Date(2026, 9, 10).getTime();
+  const nextDay = new Date(2026, 9, 11).getTime();
+  const monthStart = new Date(2026, 9, 1).getTime();
+  const nextMonth = new Date(2026, 10, 1).getTime();
+
+  const summary = buildReportSummary([
+    createJob({ id: 'before-day', status: 'completed', completedAt: dayStart - 1, priceBDT: 100 }),
+    createJob({ id: 'today', status: 'completed', completedAt: dayStart, priceBDT: 40, paymentStatus: 'unpaid' }),
+    createJob({ id: 'tomorrow', status: 'completed', completedAt: nextDay, priceBDT: 200 }),
+    createJob({ id: 'this-month', status: 'completed', completedAt: monthStart, priceBDT: 20 }),
+    createJob({ id: 'next-month', status: 'completed', completedAt: nextMonth, priceBDT: 300 }),
+  ], now);
+
+  assert.deepEqual(summary.today, { printedJobs: 1, queuedJobs: 0, earningsBDT: 40 });
+  assert.deepEqual(summary.thisMonth, { printedJobs: 4, queuedJobs: 0, earningsBDT: 360 });
+});
+
+test('buildReportSummary counts active and failed queue jobs by creation time, excluding rejected jobs', () => {
+  const now = new Date(2026, 9, 10, 12);
+  const dayStart = new Date(2026, 9, 10).getTime();
+  const nextDay = new Date(2026, 9, 11).getTime();
+
+  const summary = buildReportSummary([
+    createJob({ id: 'queued-today', status: 'queued', createdAt: dayStart }),
+    createJob({ id: 'failed-today', status: 'failed', createdAt: dayStart + 1 }),
+    createJob({ id: 'rejected-today', status: 'rejected', createdAt: dayStart + 2 }),
+    createJob({ id: 'queued-tomorrow', status: 'queued', createdAt: nextDay }),
+  ], now);
+
+  assert.deepEqual(summary.today, { printedJobs: 0, queuedJobs: 2, earningsBDT: 0 });
+});
+
+test('buildReportSummary returns zero totals for an empty job list', () => {
+  const summary = buildReportSummary([], new Date(2026, 9, 10, 12));
+  assert.deepEqual(summary.today, { printedJobs: 0, queuedJobs: 0, earningsBDT: 0 });
+  assert.deepEqual(summary.thisMonth, { printedJobs: 0, queuedJobs: 0, earningsBDT: 0 });
+});
+
+// --------------------------------------------------------------- settingsGroups
+
+test('SETTINGS_GROUPS contains the ordered 11 setting groups and never disables audit logging', () => {
+  assert.deepEqual(SETTINGS_GROUPS.map(group => group.id), [
+    'shopOrders', 'services', 'approval', 'notifications', 'printers', 'voiceGuide',
+    'payments', 'security', 'staff', 'agent', 'customize',
+  ]);
+  const shopOrderItems = SETTINGS_GROUPS.find(group => group.id === 'shopOrders')?.items;
+  assert.equal(shopOrderItems?.find(item => item.id === 'acceptingOrders')?.status, 'supported');
+  assert.equal(SETTINGS_GROUPS.find(group => group.id === 'agent')?.items.find(item => item.id === 'minimizeToTray')?.status, 'supported');
+  const paymentItems = SETTINGS_GROUPS.find(group => group.id === 'payments')?.items;
+  assert.equal(paymentItems?.find(item => item.id === 'counterPayment')?.status, 'required');
+  for (const itemId of ['paymentMethods', 'automaticRefund']) {
+    assert.equal(paymentItems?.find(item => item.id === itemId)?.status, 'comingSoon');
+  }
+  assert.ok(SETTINGS_GROUPS.some(group => group.items.some(item => item.status === 'comingSoon')));
+  assert.equal(
+    SETTINGS_GROUPS.some(group => group.items.some(item => item.id === 'auditLogDisable')),
+    false,
+  );
+});
+
+test('Approval settings expose auto approval while keeping audit logging required', () => {
+  const approvalItems = SETTINGS_GROUPS.find(group => group.id === 'approval')?.items;
+  const securityItems = SETTINGS_GROUPS.find(group => group.id === 'security')?.items;
+
+  assert.equal(approvalItems?.find(item => item.id === 'autoApproval')?.status, 'supported');
+  for (const itemId of ['manualApproval', 'orderEditing', 'priceConfirmation', 'approvalTimeout']) {
+    assert.equal(approvalItems?.find(item => item.id === itemId)?.status, 'comingSoon');
+  }
+  assert.equal(securityItems?.find(item => item.id === 'auditLogStatus')?.status, 'required');
+});
+
+// --------------------------------------------------------------- counterInbox
+
+test('a counter inbox lists only its own orders, newest first', () => {
+  const orders = counterOrders([
+    createJob({ id: 'older', counterId: 'CTR-02', createdAt: 1_000 }),
+    createJob({ id: 'other-counter', counterId: 'CTR-03', createdAt: 3_000 }),
+    createJob({ id: 'newer', counterId: 'CTR-02', createdAt: 2_000 }),
+  ], 'CTR-02');
+
+  assert.deepEqual(orders.map(order => order.id), ['newer', 'older']);
+  assert.deepEqual(counterOrders([createJob({ counterId: 'CTR-02' })], ''), []);
+});
+
+test('counter order totals separate active, printed, rejected and failed work', () => {
+  const orders = [
+    createJob({ id: 'queued', status: 'queued', counterId: 'CTR-02' }),
+    createJob({ id: 'printing', status: 'printing', counterId: 'CTR-02' }),
+    createJob({ id: 'failed', status: 'failed', counterId: 'CTR-02' }),
+    createJob({ id: 'done', status: 'completed', counterId: 'CTR-02' }),
+    createJob({ id: 'rejected', status: 'rejected', counterId: 'CTR-02' }),
+  ];
+
+  assert.deepEqual(summarizeCounterOrders(orders), { active: 3, printed: 1, rejected: 1 });
+  assert.deepEqual(summarizeCounterOrders([]), { active: 0, printed: 0, rejected: 0 });
+});
+
+const feedOrder = (overrides: Partial<CounterFeedOrder> = {}): CounterFeedOrder => ({
+  id: 'feed-1',
+  counterId: 'CTR-02',
+  tokenCode: '301',
+  serviceType: 'doc_a4',
+  serviceLabel: 'A4 Document',
+  serviceLabelBn: 'A4 ডকুমেন্ট',
+  paperSize: 'A4 (8.27x11.69 in)',
+  copies: 1,
+  status: 'queued',
+  paymentStatus: 'unpaid',
+  priceBDT: 10,
+  createdAt: 5_000,
+  ...overrides,
+});
+
+test('the master feed projection drops customer identity and uploaded documents', () => {
+  const job = createJob({ id: 'job-1', counterId: 'CTR-02' });
+  const projected = toCounterFeedOrder({
+    ...job,
+    customerPhone: '01711111111',
+    customerName: 'Real Customer',
+    fileName: 'nid-scan.jpg',
+    auditLogs: [{ id: 'log-1', timestamp: 1, actor: 'system', action: 'created', details: 'Created' }],
+  });
+
+  assert.ok(projected);
+  assert.deepEqual(Object.keys(projected).sort(), [
+    'copies',
+    'counterId',
+    'createdAt',
+    'id',
+    'paperSize',
+    'paymentStatus',
+    'priceBDT',
+    'serviceLabel',
+    'serviceLabelBn',
+    'serviceType',
+    'status',
+    'tokenCode',
+  ]);
+  assert.equal('fileUrl' in projected, false);
+  assert.equal('customerPhone' in projected, false);
+  assert.equal(
+    toCounterFeedOrder(createJob({ counterId: 'CTR-02', completedAt: 9_000 }))?.completedAt,
+    9_000,
+    'a completed job carries its completion time',
+  );
+  assert.equal(toCounterFeedOrder(createJob({ counterId: undefined })), null, 'an unassigned job has no counter feed');
+});
+
+test('a counter feed payload is validated before it reaches the inbox', () => {
+  assert.deepEqual(parseCounterFeedOrders({ orders: [feedOrder()] }), [feedOrder()]);
+  assert.deepEqual(parseCounterFeedOrders({ orders: [] }), []);
+  assert.equal(parseCounterFeedOrders({ orders: [{ ...feedOrder(), status: 'invented' }] }), null);
+  assert.equal(parseCounterFeedOrders({ orders: [{ ...feedOrder(), priceBDT: Number.NaN }] }), null);
+  assert.equal(parseCounterFeedOrders({ orders: [{ ...feedOrder(), tokenCode: '' }] }), null);
+  assert.equal(parseCounterFeedOrders({ orders: [{ ...feedOrder(), completedAt: 'yesterday' }] }), null);
+  assert.equal(parseCounterFeedOrders({ orders: [feedOrder(), { counterId: 'CTR-02' }] }), null);
+  assert.equal(parseCounterFeedOrders({ orders: 'all of them' }), null);
+  assert.equal(parseCounterFeedOrders(null), null);
+  assert.equal(isCounterFeedOrder(feedOrder()), true);
+  assert.equal(isCounterFeedOrder({ ...feedOrder(), counterId: 42 }), false);
+  assert.equal(COUNTER_FEED_KEY_PATTERN.test('a'.repeat(64)), true);
+  assert.equal(COUNTER_FEED_KEY_PATTERN.test('A'.repeat(64)), false, 'a pasted uppercase key is normalised before saving');
+  assert.equal(COUNTER_FEED_KEY_PATTERN.test('a'.repeat(63)), false);
+});
+
+test('the counter inbox merges the master feed over local rows without duplicating orders', () => {
+  const localJobs = [
+    createJob({ id: 'both', counterId: 'CTR-02', status: 'queued', createdAt: 4_000 }),
+    createJob({ id: 'local-only', counterId: 'CTR-02', createdAt: 1_000 }),
+    createJob({ id: 'elsewhere', counterId: 'CTR-03', createdAt: 9_000 }),
+  ];
+  const feed = [
+    feedOrder({ id: 'both', status: 'completed', createdAt: 4_000 }),
+    feedOrder({ id: 'feed-only', createdAt: 6_000, counterId: 'CTR-02' }),
+    feedOrder({ id: 'other-counter-feed', counterId: 'CTR-03', createdAt: 7_000 }),
+  ];
+
+  const inbox = mergeCounterInbox(localJobs, feed, 'CTR-02');
+  assert.deepEqual(inbox.map(order => order.id), ['feed-only', 'both', 'local-only']);
+  assert.equal(inbox.find(order => order.id === 'both')?.status, 'completed', 'the master owns the job lifecycle');
+  assert.equal(inbox.find(order => order.id === 'both')?.source, 'master');
+  assert.equal(inbox.find(order => order.id === 'local-only')?.source, 'local');
+  assert.equal(inbox.some(order => order.id === 'elsewhere'), false);
+  assert.equal(inbox.some(order => order.id === 'other-counter-feed'), false, 'a counter never sees another counter');
+  assert.deepEqual(mergeCounterInbox(localJobs, feed, ''), []);
+});
+
+test('the counter feed keeps the newest copy of an order and forgets yesterday', () => {
+  const now = 10_000_000;
+  const merged = mergeFeedOrders(
+    [feedOrder({ id: 'kept', createdAt: now - 1_000 }), feedOrder({ id: 'stale', createdAt: now - 2_000 })],
+    [feedOrder({ id: 'kept', status: 'printing', createdAt: now - 1_000 })],
+    now,
+  );
+  assert.deepEqual(merged.map(order => order.id), ['kept', 'stale']);
+  assert.equal(merged[0]?.status, 'printing');
+
+  const pruned = mergeFeedOrders([feedOrder({ id: 'old', createdAt: now - 48 * 60 * 60 * 1000 })], [], now);
+  assert.deepEqual(pruned, []);
+});
+
+test('the desktop shell exposes master tabs to the master and counter inbox + studio to a counter', () => {
+  assert.deepEqual(desktopTabsForRole(true), MASTER_DESKTOP_TABS);
+  assert.deepEqual(desktopTabsForRole(false), COUNTER_DESKTOP_TABS);
+  assert.deepEqual(desktopTabsForRole(false).map(tab => tab.page), ['counter', 'studio']);
+  assert.equal(COUNTER_DESKTOP_TABS.some(tab => ['settings', 'printers', 'reports', 'jobs'].includes(tab.page)), false);
+  assert.equal(defaultDesktopPage(true), 'studio');
+  assert.equal(defaultDesktopPage(false), 'counter');
+});
+
+test('Studio leads the master tab bar and Settings + Printers open in auxiliary windows', () => {
+  assert.equal(MASTER_DESKTOP_TABS[0]?.page, 'studio');
+  assert.deepEqual(
+    MASTER_DESKTOP_TABS.map(tab => tab.page),
+    ['studio', 'status', 'printers', 'jobs', 'reports', 'settings']
+  );
+  assert.equal(AUXILIARY_WINDOW_BY_PAGE.settings, 'settings');
+  assert.equal(AUXILIARY_WINDOW_BY_PAGE.printers, 'agent');
+  assert.equal(AUXILIARY_WINDOW_BY_PAGE.studio, undefined);
+  assert.equal(AUXILIARY_WINDOW_BY_PAGE.jobs, undefined);
+});
+
+test('business hours settings are editable and label every weekday in both languages', () => {
+  const shopOrderItems = SETTINGS_GROUPS.find(group => group.id === 'shopOrders')?.items;
+  assert.equal(shopOrderItems?.find(item => item.id === 'businessHours')?.status, 'supported');
+
+  for (const day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']) {
+    const label = STRINGS[`settings.day.${day}` as TranslationKey];
+    assert.ok(label, `settings.day.${day} must exist`);
+    assert.ok(label.en.length > 0 && label.bn.length > 0, `settings.day.${day} must be translated`);
+  }
+
+  for (const key of [
+    'settings.businessHoursEnabled',
+    'settings.businessHoursOpen',
+    'settings.businessHoursClose',
+    'settings.businessHoursDays',
+    'settings.businessHoursDaysRequired',
+    'settings.invalidTime',
+  ] as const) {
+    assert.ok(STRINGS[key].en.length > 0 && STRINGS[key].bn.length > 0, `${key} must be translated`);
+  }
+});
+
+test('clock times accept only the values the settings form can save', () => {
+  for (const value of ['00:00', '09:00', '17:30', '23:59']) {
+    assert.equal(isClockTime(value), true, `${value} must be accepted`);
+  }
+  for (const value of ['', '9:00', '24:00', '09:60', '0900', 'abc', 900]) {
+    assert.equal(isClockTime(value), false, `${String(value)} must be rejected`);
+  }
+});
+
+test('shop hours use Asia/Dhaka days, boundaries, and overnight intervals', () => {
+  const weekdayHours: BusinessHoursSettings = {
+    ...DEFAULT_APP_SETTINGS.businessHours,
+    enabled: true,
+    daysOfWeek: ['monday'],
+    openTime: '09:00',
+    closeTime: '17:00',
+  };
+  assert.equal(isWithinShopHours(Date.UTC(2026, 9, 12, 2, 59), weekdayHours), false);
+  assert.equal(isWithinShopHours(Date.UTC(2026, 9, 12, 3, 0), weekdayHours), true);
+  assert.equal(isWithinShopHours(Date.UTC(2026, 9, 11, 4, 0), weekdayHours), false);
+
+  const overnightHours: BusinessHoursSettings = {
+    ...weekdayHours,
+    daysOfWeek: ['sunday'],
+    openTime: '22:00',
+    closeTime: '02:00',
+  };
+  assert.equal(isWithinShopHours(Date.UTC(2026, 9, 11, 17, 0), overnightHours), true);
+  assert.equal(isWithinShopHours(Date.UTC(2026, 9, 11, 19, 0), overnightHours), true);
+  assert.equal(isWithinShopHours(Date.UTC(2026, 9, 11, 21, 0), overnightHours), false);
+  assert.equal(isWithinShopHours(Date.now(), { ...weekdayHours, enabled: false }), true);
+});
+
+test('customer order limits validate copy count and encoded file bytes', () => {
+  const limits = DEFAULT_APP_SETTINGS.orderLimits;
+  assert.equal(validateCustomerOrderLimits({ copies: 50, fileUrl: 'data:application/pdf;base64,JVBERg==' }, limits), null);
+  assert.match(validateCustomerOrderLimits({ copies: 51, fileUrl: 'data:application/pdf;base64,JVBERg==' }, limits) || '', /copies/);
+  const oversized = `data:application/pdf;base64,${Buffer.alloc(20 * 1024 * 1024 + 1).toString('base64')}`;
+  assert.match(validateCustomerOrderLimits({ copies: 1, fileUrl: oversized }, limits) || '', /20 MB/);
+  assert.match(validateCustomerOrderLimits({ copies: 1, fileUrl: 'blob:forbidden' }, limits) || '', /data URL/);
+});
+
+test('customer orders are accepted only as unpaid counter cash', () => {
+  assert.equal(validateCustomerOrderPayment({ paymentMethod: 'counter_cash', paymentStatus: 'unpaid' }), null);
+  assert.match(
+    validateCustomerOrderPayment({ paymentMethod: 'bkash', paymentStatus: 'paid_mfs' }) || '',
+    /counter-cash/
+  );
+  assert.match(
+    validateCustomerOrderPayment({ paymentMethod: 'nagad', paymentStatus: 'paid_mfs' }) || '',
+    /counter-cash/
+  );
+  assert.match(
+    validateCustomerOrderPayment({ paymentMethod: 'counter_cash', paymentStatus: 'paid_counter' }) || '',
+    /counter-cash/
+  );
+});
+
+test('weekly DND follows Dhaka schedule days across midnight', () => {
+  const schedule: WeeklyDndSchedule = { daysOfWeek: ['sunday'], startTime: '22:00', endTime: '02:00' };
+  assert.equal(isWithinWeeklyDndSchedule(Date.UTC(2026, 9, 11, 17), schedule), true);
+  assert.equal(isWithinWeeklyDndSchedule(Date.UTC(2026, 9, 11, 19), schedule), true);
+  assert.equal(isWithinWeeklyDndSchedule(Date.UTC(2026, 9, 11, 21), schedule), false);
+  assert.equal(isWithinWeeklyDndSchedule(Date.now(), null), false);
 });
 
 test('approveJobTransition moves a queued job to approved with an audit entry', () => {

@@ -39,6 +39,17 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // The settings window lives in its own window; every other desktop window
+  // follows its language change through the `storage` event.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== LANGUAGE_STORAGE_KEY) return;
+      setLanguageState(readStoredLanguage());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   const t = useCallback<Translate>((key, params) => {
     const entry: string = STRINGS[key][language] || STRINGS[key][DEFAULT_LANGUAGE];
     if (!params) return entry;

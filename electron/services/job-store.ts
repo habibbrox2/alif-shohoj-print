@@ -98,6 +98,17 @@ export class JobStore {
     return this.requireJob(id);
   }
 
+  purgeExpiredCompleted(now: number, retentionMinutes: number): number {
+    if (!Number.isFinite(now) || !Number.isInteger(retentionMinutes) || retentionMinutes < 1) {
+      throw new Error('A valid completed-job retention duration is required.');
+    }
+    const result = this.db.prepare(`
+      DELETE FROM print_queue
+      WHERE status = 'completed' AND updated_at <= ?
+    `).run(now - retentionMinutes * 60_000);
+    return result.changes;
+  }
+
   close(): void {
     this.db.close();
   }

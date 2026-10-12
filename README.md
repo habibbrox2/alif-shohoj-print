@@ -39,13 +39,23 @@ npm run app:dist
 
 This command runs verification and creates a dual-architecture per-user NSIS installer in `artifacts/releases/`. The single installer automatically selects the x64 or 32-bit (ia32) app for the Windows PC. It lets the user choose a destination and adds Start Menu and desktop shortcuts. Uninstalling preserves local settings and queued-job data.
 
-On first launch, choose whether this PC is the master/shopkeeper PC or a counter/operator PC. The app opens on the **Dashboard** tab — the order inbox, where each incoming order is a card with its printer, price, payment state and preview, plus Reject (a reason is required), Edit and Approve actions. The **Status** tab summarises the connection, shop identity, printer fleet, job counts and recent jobs, and its **Printer Settings** button opens the **Detected Printers** dialog, which is also reachable from the right side of the Printers tab. Pages switch with the tab bar below the Windows title bar. In Shop POS settings, enable **Start with Windows** to start the app hidden in the system tray after login. Open it from the tray menu or double-click the tray icon.
+On first launch, choose whether this PC is the master/shopkeeper PC or a counter/operator PC. A **counter PC** opens a locked **Counter Inbox**: its counter name/code, the master PC's connection state, the pairing key that turns on its live order feed, and the orders that belong to that counter — it has no Printers, Jobs, Reports, Settings or POS revenue pages, and every print still runs on the master PC. Its **Counter Inbox** also builds that counter's QR code with a **Download QR** action, so the operator can save their desk code as a PNG. The **Dashboard** tab combines the shop connection, printer fleet, job summary and recent jobs with the order inbox and existing Shop POS tools (revenue, print count, queue, pricing and auto-print controls). Use its **Overview**, **Orders** and **Shop & POS** sections to switch between these work areas without navigating away. Orders remain actionable cards with printer, price, payment state, preview, Reject (a reason is required), Edit and Approve actions. The Dashboard's **Printer Settings** button opens the **Detected Printers** dialog, which is also reachable from the Settings window and the Windows agent window. **Reports** summarizes Today and This Month from jobs retained in the local queue; it is not an archived accounting report. The **Settings** window groups the available controls and marks options without backend support as coming soon. In **Settings → দোকান ও অর্ডার**, turn on **Business hours** and choose the open days with the open and close times; the master gateway then accepts customer orders only inside that Asia/Dhaka schedule (a close time earlier than the open time spans midnight). In **Settings → সার্ভিস → সার্ভিস পরিচালনা** (master PC only), a shopkeeper adds a service from a default preset — ID card, A4 B/W or colour print, Doc/Docs file print, passport photo (4-in-1 or 8-in-1), 3R/4R and 6R photo, stamp-size photo, legal document — and deletes services they no longer offer; add/delete apply immediately, at least one service must always remain, and the customer app's service list, prices and crop frames follow the live service list. Preset-created services bill their own base price, while the built-in services keep the shared pricing tiers. In **Settings → এজেন্ট**, enable **Start agent when Windows starts** to start the app hidden in the system tray after login. Open it from the tray menu or double-click the tray icon.
+
+The master desktop shell keeps the workflow pages — **Studio** (the first tab and default landing page), **Dashboard**, **Jobs** and **Reports** — in the main window, and opens the two setup-heavy surfaces in their own windows: the **Settings** tab and the shop menu's Settings entry open a separate **Settings** window, and the **Printers** tab, the Help menu's printers/services/server entries and the tray's Printer Settings action open the **Windows Agent & Drivers** window on the matching page. Invoking either entry again focuses the already-open window (the agent window switches pages in place) instead of spawning a second copy, and each window carries its own taskbar title. All three windows stay in sync without a reload: a settings save reaches the other windows immediately, queue changes and new-order toasts appear everywhere, and only the main window polls counter heartbeats, publishes the customer PWA config and plays the new-order chime, so nothing runs three times. These windows open only on a master PC; a counter PC keeps its locked Counter Inbox.
 
 ### Counter QR orders and offline alerts
 
 The master PC hosts the customer PWA and its order gateway on port `43822`. Configure `ALIF_SHOHOJ_PRINT_WS_TLS_CERT` and `ALIF_SHOHOJ_PRINT_WS_TLS_KEY` before launching the packaged app; both the customer PWA and gateway use HTTPS, and the certificate must be trusted by customer/counter devices and include the master host/IP in its SAN. Allow TCP port `43822` through Windows Firewall for the shop LAN. Without TLS, the packaged gateway listens on loopback and the app does not generate a LAN QR URL.
 
-In Shop POS, print each counter's QR poster. The QR opens the customer app at `/pwa.html` on the master gateway, so a customer phone never loads the shopkeeper shell. Customers on the same LAN scan it and submit orders through the master PC, which stores them in its SQLite queue for the shopkeeper to review, edit, confirm, or reject. The master speaks the counter number for new orders. Configure each counter PC as a counter and enter the master gateway base URL (use the same host and port as the QR, without its `?shop=...` query; for example, `https://192.168.1.105:43822`); the counter app sends a heartbeat every 10 seconds. If no heartbeat arrives for 30 seconds, the counter is marked offline and new orders remain queued for master review. Counter PCs need network access to the master gateway while running.
+In Shop POS, print each counter's QR poster. The QR opens the customer app at `/resources/pwa.html` on the master gateway, so a customer phone never loads the shopkeeper shell. A previously printed `/pwa.html` poster still reaches the same app, because the gateway serves the customer PWA for unknown paths. Customers on the same LAN scan it and submit orders through the master PC, which stores them in its SQLite queue for the shopkeeper to review, edit, confirm, or reject. Payment is **counter cash only** today: the customer app submits every order as unpaid and the gateway rejects an order that claims a bKash/Nagad or already-collected payment, so nothing is shown as paid before staff confirm the cash at the counter. bKash/Nagad and automatic refunds are planned for a future version. The master speaks the counter number for new orders. Configure each counter PC as a counter and enter the master gateway base URL (use the same host and port as the QR, without its `?shop=...` query; for example, `https://192.168.1.105:43822`); the counter app sends a heartbeat every 10 seconds. If no heartbeat arrives for 30 seconds, the counter is marked offline and new orders remain queued for master review. Counter PCs need network access to the master gateway while running.
+
+#### Counter order feed and pairing
+
+A counter PC reads its own orders from the master PC every 15 seconds, so its Counter Inbox is not limited to whatever that PC already holds. The master PC issues one **counter pairing key** per counter: open the counter's QR poster in Shop POS, copy that key, and enter it once on the counter PC — either during first-run setup or later in the Counter Inbox itself. A counter PC's key is stored by the Windows app, not in the browser, and is encrypted with the Windows account (DPAPI) when the OS supports it; the key is never shown back to the counter's screen after it is saved. Keys can be rotated or removed per counter from the same poster dialog, and a rotated key stops working immediately.
+
+A counter PC also builds its own counter QR in the Counter Inbox and offers **Download QR** to save it as a PNG, so the operator can print or re-print their desk code without the master PC. The code points at the master gateway's `/resources/pwa.html` entry and selects that counter by ID, so it keeps working even if the master renames the counter. The image downloads through the normal browser/Electron download flow into the PC's download folder.
+
+The feed is served at `GET /api/counter-orders` on the master gateway and requires the `x-counter-feed-key` header. A request with a missing, wrong or revoked key is refused with `401`, and repeated failures from one counter are throttled. The feed is scoped to the counter that owns the key, and it carries only the order fields a counter operator needs: token code, service, paper size, copies, status, payment state, price and timestamps. Customer names and phone numbers, the uploaded document (`fileUrl`), the upload file name and the audit log stay on the master PC. If a counter PC has no key, or the master PC is unreachable, its inbox falls back to the orders that PC already holds and shows the feed state (`Live`, `Connecting`, `Feed problem`, `Not paired`) so the operator knows what they are looking at. A counter PC with no master URL configured cannot build its own QR and says so instead of showing a code that would not work.
 
 #### Code signing
 
@@ -138,6 +148,8 @@ Master/counter setup is a local app mode stored in browser `localStorage`, not a
 | Command | Description |
 | --- | --- |
 | `npm run dev` | Start the Vite web UI on `127.0.0.1:3000` |
+| `npm run dev:web` | Open the shopkeeper/master/counter shell (`desktop.html`) in a browser |
+| `npm run dev:web:pwa` | Open the customer PWA (`pwa.html`, the QR-scan target) on port 3001 |
 | `npm run dev:desktop` | Run the web UI and Electron app together |
 | `npm run lint` | Type-check the renderer TypeScript project |
 | `npm run test:desktop` | Run Electron service tests |
@@ -146,24 +158,91 @@ Master/counter setup is a local app mode stored in browser `localStorage`, not a
 | `npm run build` | Build the renderer |
 | `npm run build:electron` | Type-check and build the Electron main process |
 | `npm run verify` | Run lint, tests, runtime smoke check, and both builds |
+| `npm run voice:clips` | Generate Bengali + English voice-guide MP3 clips (needs internet) |
 | `npm run app:dist` | Verify and create the Windows NSIS installer |
+
+## Voice guide clips
+
+The customer voice guide plays pre-recorded MP3 clips (`public/audio/bn|en/`,
+`public/sounds/`) and falls back to on-device TTS when a clip is missing, so the
+app works with or without them. Clip texts live in `voice-manifest.json` (the
+single source of truth, Bengali + English).
+
+- `npm run voice:clips` synthesises every missing clip with free Google TTS and
+  regenerates `public/audio/manifest.json` from the spec. The provider model
+  follows the `create-voice-agent` skill: `-- --provider elevenlabs` uses
+  ElevenLabs `eleven_multilingual_v2` instead (needs `ELEVENLABS_API_KEY` and
+  `--eleven-voice-bn` / `--eleven-voice-en` voice ids). `-- --provider sarvam`
+  uses Sarvam `bulbul:v3` (`bn-IN`, needs `SARVAM_API_KEY`, WAV output,
+  `-- --sarvam-speaker` to change voice, default `kavya`). Delivery follows
+  the voice-quality guide: serious clips at pace 0.85 / pitch -0.3, success
+  clips at 0.97 / +0.2, rest at 0.92 / 0 (`-- --pace X --pitch Y` overrides).
+- Useful flags: `-- --lang bn` (one language), `-- --only C01,VC04` (subset),
+  `-- --force` (rebuild all), `-- --dry-run` (list only).
+- The `VC01–VC12` clips are spoken confirmations for the 12 voice commands
+  (copies, colour, help, approve/reject, …) and play through VoiceGuideService.
+- `npm run voice:mp3` converts the WAV clips to 64 kbps mono MP3 (needs
+  `ffmpeg` on PATH) and repoints the manifest — run it in a fresh terminal
+  after installing ffmpeg.
+- After editing clip texts, re-run with `--force` for the changed ids.
+- Generated MP3s total ~2 MB and are committed so installers work offline.
+
+## Studio — Image Editing & Walk-in Printing
+
+The desktop app now includes a **Studio** tab for image editing and walk-in printing:
+
+### Studio tab
+- A dedicated **Studio** tab is available in the desktop shell (master/shopkeeper PC); it is the first tab and the shell's default landing page.
+- Operators can open existing customer order images **or** import local image files from the computer.
+- Supported formats: JPEG, PNG, WebP. Maximum file size: 40 MiB (aligned with the print agent limit).
+- The original order image is **never overwritten**; edited output is saved as a new version linked to the order.
+
+### Counter operator permissions
+- Authorized counter operators can edit order images immediately after order creation/acceptance — no separate admin approval required.
+- Role/permission is validated **server-side** before any edit action is allowed.
+- The UI clearly shows which order/file is being edited to avoid mistakes.
+- Edit history with undo/redo/reset is available in the editor.
+
+### Image editing tools
+- **Crop, rotate, resize** with aspect-ratio and custom print dimensions.
+- **Brightness, contrast** and basic adjustments.
+- **Preview** before saving/exporting.
+- **Undo / Redo / Reset** to original.
+- Output dimensions and print size are validated before sending to the print queue.
+- Edited output is exported safely and linked to the originating order.
+
+### AI Background Removal
+- Built-in **Background Removal** tool using local inference via `@imgly/background-removal` (runs on-device, no cloud dependency).
+- Original image remains intact; a transparent PNG is produced on success.
+- Background preview and replacement (solid color / another image) are available.
+- On failure, the original image is preserved and an actionable error is shown.
+- Model and dependency licenses have been verified for production use.
+
+### Walk-in printing (local file → print, no payment)
+- Import a local image, edit it, and create a **walk-in print job** directly.
+- Walk-in jobs have **no payment option** — no payment UI, checkout, or online payment flow is shown.
+- Walk-in jobs are a distinct job type, separate from customer orders, so order payment logic is never triggered.
+- Print queue integration: job status, copies, paper/size settings, and success/failure feedback.
+- Local file paths and sensitive metadata are never sent to the server.
 
 ## Project layout
 
 ```text
 src/                  React renderer, features, shared UI and services
 electron/             Electron main process and desktop services
+resources/            Renderer entry documents (desktop, customer PWA, dev harness)
 scripts/              Runtime and signing verification helpers
 artifacts/releases/   Packaged installers
 ```
 
-The renderer has three entry documents: `desktop.html` is the shopkeeper shell the
-Electron app loads, `pwa.html` is the customer phone flow served by the LAN
-gateway, and `index.html` stays the Vite dev harness and the browser POS that
-counter PCs open on the master PC.
+The renderer has three entry documents in `resources/`: `resources/desktop.html`
+is the shopkeeper shell the Electron app loads, `resources/pwa.html` is the
+customer phone flow served by the LAN gateway at `/resources/pwa.html`, and
+`resources/index.html` stays the Vite dev harness and the browser POS that counter
+PCs open on the master PC (the gateway serves it as the default document at `/`).
+Vite emits the entries under `dist/resources/`; in development the root `/` request
+is rewritten to the harness so `npm run dev` and `npm run dev:desktop` keep working.
 
 ## Data and privacy
 
 The queue database, logs, WebSocket token, and crash dumps stay in the local Electron user-data directory. Crash dumps are not uploaded. Protect access to the Windows account and share the WebSocket token only with trusted clients.
-
-

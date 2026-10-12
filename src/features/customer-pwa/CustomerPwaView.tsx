@@ -2,8 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useStudio } from '../../shared/context/StudioContext';
 import { ServiceType, PaperSize, ColorMode, PaymentMethod, PaymentStatus, VoiceStep } from '../../shared/types';
 import { voiceGuide, VoiceGuideEvent } from '../../shared/services/voiceGuideService';
+import { VoiceCommandButton } from '../../shared/components/VoiceCommandButton';
+import type { VoiceCommandId } from '../../shared/types/voiceCommands';
+import { VOICE_COMMAND_CLIP_ID } from '../../shared/services/voiceCommands';
 import { playTapTone } from '../../shared/services/voiceGuide';
-import { priceForService } from '../../shared/services/pricing';
+import { priceForServiceOrder } from '../../shared/services/pricing';
 import confetti from 'canvas-confetti';
 import {
   Volume2,
@@ -160,6 +163,61 @@ export const CustomerPwaView: React.FC = () => {
     }
   };
 
+  const goToStep = (step: number) => {
+    const clamped = Math.max(1, Math.min(5, step));
+    setCurrentStep(clamped);
+    if (clamped === 1) triggerVoice('service_select');
+    else if (clamped === 2) triggerVoice('upload_start');
+    else if (clamped === 3) triggerVoice('crop_rotate');
+    else if (clamped === 4) triggerVoice('copies_select');
+  };
+
+  const handleVoiceCommand = (command: VoiceCommandId) => {
+    switch (command) {
+      case 'next':
+        if (currentStep === 4) handleSubmitOrder();
+        else goToStep(currentStep + 1);
+        break;
+      case 'back':
+        goToStep(currentStep - 1);
+        break;
+      case 'confirm':
+      case 'approve':
+        if (currentStep === 4) handleSubmitOrder();
+        else goToStep(currentStep + 1);
+        break;
+      case 'copies_up':
+        setCopies(value => value + 1);
+        void voiceGuide.play(VOICE_COMMAND_CLIP_ID.copies_up);
+        break;
+      case 'copies_down':
+        setCopies(value => Math.max(1, value - 1));
+        void voiceGuide.play(VOICE_COMMAND_CLIP_ID.copies_down);
+        break;
+      case 'color':
+        setColorMode('color');
+        void voiceGuide.play(VOICE_COMMAND_CLIP_ID.color);
+        break;
+      case 'bw':
+        setColorMode('bw');
+        void voiceGuide.play(VOICE_COMMAND_CLIP_ID.bw);
+        break;
+      case 'replay':
+        voiceGuide.replay();
+        break;
+      case 'help':
+        void voiceGuide.play(VOICE_COMMAND_CLIP_ID.help);
+        break;
+      case 'stop':
+        voiceGuide.stop();
+        void voiceGuide.play(VOICE_COMMAND_CLIP_ID.stop);
+        break;
+      case 'reject':
+        goToStep(currentStep - 1);
+        break;
+    }
+  };
+
   const handleEnableVoiceGuide = () => {
     playTapTone();
     voiceGuide.setEnabled(true);
@@ -200,6 +258,18 @@ export const CustomerPwaView: React.FC = () => {
       setAspectRatio('A4');
       setGridCount(1);
       setFileUrl(PRESET_SAMPLES[3].url);
+    } else {
+      // Services created from a preset: derive the crop frame from the
+      // service's own paper size instead of a hard-coded branch.
+      const paperSize = preferences?.paperSize;
+      setAspectRatio(
+        paperSize === '4R (4x6 in)' ? '4:6'
+        : paperSize === 'A4 (8.27x11.69 in)' || paperSize === 'Legal' ? 'A4'
+        : paperSize === 'Stamp Size' ? '25:30'
+        : '35:45'
+      );
+      setGridCount(paperSize === 'Passport Grid (8-in-1)' ? 8 : paperSize === 'Passport Grid (4-in-1)' ? 4 : 1);
+      setFileUrl('');
     }
 
     setCurrentStep(2);
@@ -258,27 +328,26 @@ export const CustomerPwaView: React.FC = () => {
   };
 
   const calculatePrice = (): number =>
-    priceForService(selectedService, pricing, { copies, gridCount, colorMode });
+    priceForServiceOrder(
+      services.find(item => item.id === selectedService),
+      pricing,
+      { copies, gridCount, colorMode }
+    );
 
   const handleSubmitOrder = () => {
     if (isSubmittingOrder) return;
     playTapTone();
     const finalPrice = calculatePrice();
+    const selectedStudioService = services.find(item => item.id === selectedService);
     const paperSizeLabel: PaperSize =
       selectedService === 'passport_photo'
         ? gridCount === 8 ? 'Passport Grid (8-in-1)' : 'Passport Grid (4-in-1)'
-        : selectedService === 'photo_4r'
-        ? '4R (4x6 in)'
-        : 'A4 (8.27x11.69 in)';
+        : selectedStudioService?.preferences.paperSize ?? 'A4 (8.27x11.69 in)';
 
     const serviceLabelBn =
       selectedService === 'passport_photo'
         ? `পাসপোর্ট ছবি (${gridCount} কপি শিট)`
-        : selectedService === 'nid_card'
-        ? 'এনআইডি স্মার্ট কার্ড কপি'
-        : selectedService === 'photo_4r'
-        ? '4R ল্যাব ফটো প্রিন্ট'
-        : 'A4 ডকুমেন্ট প্রিন্ট';
+        : selectedStudioService?.titleBn ?? 'A4 ডকুমেন্ট প্রিন্ট';
 
     const createJob = async (printableFileUrl: string) => {
       setIsSubmittingOrder(true);
@@ -290,7 +359,7 @@ export const CustomerPwaView: React.FC = () => {
         counterId: selectedCounter.id,
         counterName: selectedCounter.name,
         serviceType: selectedService,
-        serviceLabel: selectedService.replace('_', ' ').toUpperCase(),
+        serviceLabel: selectedStudioService?.code ?? selectedService.replace('_', ' ').toUpperCase(),
         serviceLabelBn,
         paperSize: paperSizeLabel,
         paperFinish,
@@ -298,7 +367,7 @@ export const CustomerPwaView: React.FC = () => {
         colorMode,
         priceBDT: finalPrice,
         paymentMethod,
-        paymentStatus: paymentMethod === 'bkash' || paymentMethod === 'nagad' ? 'paid_mfs' : 'unpaid',
+        paymentStatus: 'unpaid',
         fileUrl: printableFileUrl,
         fileName,
         fileSize,
@@ -489,7 +558,11 @@ export const CustomerPwaView: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5">{/* Replay button */}
+            <div className="flex items-center gap-1.5">
+              <div className="relative">
+                <VoiceCommandButton lang={voiceLang} onCommand={handleVoiceCommand} />
+              </div>
+              {/* Replay button */}
               <button
                 onClick={() => {
                   playTapTone();
@@ -558,42 +631,19 @@ export const CustomerPwaView: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2.5 pt-2">
-                {[
-                  {
-                    id: 'passport_photo' as ServiceType,
-                    title: 'পাসপোর্ট ছবি',
-                    subtitle: '৪ বা ৮ কপি শিট',
-                    price: `৳ ${pricing.passport4in1}`,
-                    icon: '📸',
-                  },
-                  {
-                    id: 'nid_card' as ServiceType,
-                    title: 'এনআইডি কপি',
-                    subtitle: 'স্মার্ট কার্ড / ল্যামিনেট',
-                    price: `৳ ${pricing.nidSmartCard}`,
-                    icon: '💳',
-                  },
-                  {
-                    id: 'photo_4r' as ServiceType,
-                    title: '৪-আর ছবি প্রিন্ট',
-                    subtitle: '৪×৬ ইঞ্চি গ্লসি ফটো',
-                    price: `৳ ${pricing.photo4R}`,
-                    icon: '🖼️',
-                  },
-                  {
-                    id: 'doc_a4' as ServiceType,
-                    title: 'ডকুমেন্ট ও ফাইল',
-                    subtitle: 'A4 সাদা-কালো বা কালার',
-                    price: `৳ ${pricing.docA4BW} থেকে`,
-                    icon: '📄',
-                  },
-                ].map(item => {
-                  const studio = services.find(s => s.id === item.id);
-                  const isEnabled = studio ? studio.enabled : true;
+                {services.map(srv => {
+                  const isEnabled = srv.enabled;
+                  const unitPrice = priceForServiceOrder(srv, pricing);
+                  const subtitle = srv.descriptionBn || srv.title;
+                  // Passport grids and A4 documents have cheaper variants, so the
+                  // tile advertises a starting price instead of one fixed number.
+                  const priceLabel = srv.id === 'passport_photo' || srv.id === 'doc_a4'
+                    ? `৳ ${unitPrice} থেকে`
+                    : `৳ ${unitPrice}`;
                   return (
                     <button
-                      key={item.id}
-                      onClick={() => isEnabled && handleSelectService(item.id)}
+                      key={srv.id}
+                      onClick={() => isEnabled && handleSelectService(srv.id as ServiceType)}
                       disabled={!isEnabled}
                       className={`p-3.5 rounded-2xl border text-left transition-all group ${
                         isEnabled
@@ -601,14 +651,14 @@ export const CustomerPwaView: React.FC = () => {
                           : 'bg-slate-950/40 border-slate-800/50 opacity-50 cursor-not-allowed'
                       }`}
                     >
-                      <span className="text-2xl block mb-1">{item.icon}</span>
+                      <span className="text-2xl block mb-1">{srv.icon}</span>
                       <h4 className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
-                        {item.title}
+                        {srv.titleBn}
                       </h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{item.subtitle}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{subtitle}</p>
                       {isEnabled ? (
                         <span className="inline-block mt-2 text-[11px] font-mono font-bold text-emerald-400">
-                          {item.price}
+                          {priceLabel}
                         </span>
                       ) : (
                         <span className="inline-block mt-2 text-[10px] font-bold text-amber-400">
@@ -728,7 +778,11 @@ n                </button>
                 {!isPdfFile && (
                   <div className="absolute inset-4 border-2 border-dashed border-emerald-400/80 rounded pointer-events-none flex flex-col justify-between p-2">
                     <div className="flex justify-between text-[10px] font-mono text-emerald-300 bg-black/60 px-1.5 py-0.5 rounded w-fit">
-                      {aspectRatio === '35:45' ? 'পাসপোর্ট (35×45mm)' : aspectRatio === '85:54' ? 'এনআইডি (85×54mm)' : '4R ফটো'}
+                      {aspectRatio === '35:45' ? 'পাসপোর্ট (35×45mm)'
+                        : aspectRatio === '85:54' ? 'এনআইডি (85×54mm)'
+                        : aspectRatio === '25:30' ? 'স্ট্যাম্প (25×30mm)'
+                        : aspectRatio === 'A4' ? 'A4 ডকুমেন্ট'
+                        : '4R ফটো'}
                     </div>
                     <div className="text-[10px] text-center text-emerald-300 bg-black/50 py-0.5 rounded">
                       মাথা ও চোখের রেখা ফ্রেমের মাঝে রাখুন
@@ -909,21 +963,18 @@ n              </button>
                   </button>
 
                   <button
-                    onClick={() => {
-                      playTapTone();
-                      setPaymentMethod('bkash');
-                      triggerVoice('payment');
-                    }}
-                    className={`p-3 rounded-xl border text-left transition-colors ${
-                      paymentMethod === 'bkash'
-                        ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300'
-                        : 'bg-slate-950 border-slate-800 text-slate-400'
-                    }`}
+                    disabled
+                    aria-disabled="true"
+                    title="bKash/Nagad পেমেন্ট ভবিষ্যৎ সংস্করণে যোগ করা হবে"
+                    className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 text-left opacity-60 cursor-not-allowed"
                   >
                     <span className="block font-bold">bKash / Nagad</span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">অটো ভেরিফায়েড পেইড</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">ভবিষ্যৎ সংস্করণে যোগ হবে</span>
                   </button>
                 </div>
+                <p className="text-[11px] leading-relaxed text-slate-400">
+                  এখন শুধু কাউন্টারে ক্যাশ গ্রহণ করা হচ্ছে; bKash/Nagad পেমেন্ট ভবিষ্যৎ সংস্করণে যোগ করা হবে।
+                </p>
               </div>
 
               {/* Price Breakdown */}
@@ -998,7 +1049,7 @@ n              </button>
                 <div className="text-[11px] text-slate-400 flex items-center justify-between">
                   <span>পেমেন্ট স্ট্যাটাস:</span>
                   <span className="text-emerald-400 font-medium">
-                    {paymentMethod === 'bkash' ? 'bKash পেইড ✅' : 'কাউন্টারে প্রদেয় (ক্যাশ)'}
+                    কাউন্টারে প্রদেয় (ক্যাশ)
                   </span>
                 </div>
               </div>

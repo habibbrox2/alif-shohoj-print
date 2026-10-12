@@ -18,7 +18,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { StudioEditorCanvas } from '../studio-editor/StudioEditorCanvas';
-import { priceForService } from '../../shared/services/pricing';
+import { priceForServiceOrder } from '../../shared/services/pricing';
 
 export const OrderCardModal: React.FC = () => {
   const {
@@ -30,6 +30,7 @@ export const OrderCardModal: React.FC = () => {
     editJob,
     printers,
     pricing,
+    services,
   } = useStudio();
 
   const [activeTab, setActiveTab] = useState<OrderCardTab>('card');
@@ -99,11 +100,15 @@ export const OrderCardModal: React.FC = () => {
   };
 
   const calculateRecalculatedPrice = () =>
-    priceForService(job.serviceType, pricing, {
-      copies: editCopies,
-      gridCount: editGridCount,
-      colorMode: editColorMode,
-    });
+    priceForServiceOrder(
+      services.find(service => service.id === job.serviceType),
+      pricing,
+      {
+        copies: editCopies,
+        gridCount: editGridCount,
+        colorMode: editColorMode,
+      }
+    );
 
   const handleSaveEdit = () => {
     const windowsPrinterName = editPrinterId.startsWith('windows:')
