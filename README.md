@@ -204,11 +204,13 @@ The desktop app now includes a **Studio** tab for image editing and walk-in prin
 - Edit history with undo/redo/reset is available in the editor.
 
 ### Image editing workspace
-- The editor follows a desktop photo-editor layout: a **menu bar** (File, Edit, Image, Layer, Filter, View, Help), a context-sensitive **options bar** for the active tool, a left **tool palette** with foreground/background colors, the centre **canvas**, a right **panel** with **Layers / Adjust / History** tabs, and a bottom **status bar** (zoom, size, cursor position, rotation, document).
-- **Tools**: move/pan, crop & rotate, brush, eraser, shapes, and text, with keyboard shortcuts (`V`, `C`, `B`, `E`, `S`, `T`). Tooltips show each shortcut.
-- **Adjustments**: brightness, contrast, saturation, scale, grayscale, and quick filters (passport blue, clean white, sharpen, B/W document).
-- **View aids**: transparency checkerboard, canvas pixel grid, rulers, zoom/pan controls, and a Navigator preview thumbnail.
-- **Collapsible panels** with a first-open tips card; on narrow windows the right panel becomes a slide-in drawer and the tool palette moves to a bottom toolbar.
+- The editor follows a desktop photo-editor layout with **no menu bar**: a topmost context-sensitive **options bar** (tool options on the left; a fixed quick-actions group on the right — Undo/Redo, Save/Export, left/right sidebar toggles, and a compact “More” menu for open/close, reset, canvas settings and help), a left **tool palette** with foreground/background colors, the centre **canvas**, a right **panel** with **Layers / Props / History** tabs, and a bottom **status bar** (zoom, size, cursor, tool, rotation, theme mode).
+- **Theme-aware workspace**: the editor follows the app's light/dark/system theme with dedicated editor surfaces (light mode is a comfortable gray designed for photo work, dark mode is near-black); the status bar shows the active theme mode and updates live when the system theme changes.
+- **Tools**: move/pan, crop & rotate, brush, eraser, shape, and text, grouped into Selection, Painting and Object, with keyboard shortcuts (`V`, `C`, `B`, `E`, `S`, `T`). Tooltips show each shortcut.
+- **Adjustments**: brightness, contrast, saturation, exposure (EV), scale, grayscale, and quick filters (passport blue, clean white, sharpen, B/W document) — in the **Props** tab, which also shows the text controls while the text tool is active.
+- **Text/watermark controls**: caption text, visibility, font (Hind Siliguri, Segoe UI, Arial, Times New Roman, Courier New), size, colour, and alignment — available in both the options bar and the Props tab; font choice participates in undo/redo.
+- **View aids**: transparency checkerboard, canvas pixel grid, rulers, zoom/pan controls, a document info overlay (size + zoom), and a Navigator preview thumbnail.
+- **Collapsible panels**: the left tool palette (`F8`) and right panel (`F7`) can be hidden/shown from the options bar quick actions or the keyboard shortcuts; on narrow windows the right panel becomes a slide-in drawer and the tool palette moves to a bottom toolbar. A first-open tips card introduces the workspace.
 - **Undo / Redo / Reset** to original, with a clickable history list.
 - Output dimensions and print size are validated before sending to the print queue.
 - Edited output is exported safely and linked to the originating order.

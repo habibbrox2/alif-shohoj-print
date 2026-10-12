@@ -10,26 +10,28 @@ import {
   FileText,
   FolderOpen,
   History,
-  Keyboard,
   Layers as LayersIcon,
   Loader2,
   Lock,
   LockOpen,
   Minus,
+  PanelLeft,
+  PanelRight,
   Plus,
   Redo2,
   RotateCcw,
   RotateCw,
   Save,
-  Settings2,
   SlidersHorizontal,
   Sun,
+  Type,
   Undo2,
   Wand2,
   X,
   Zap,
 } from 'lucide-react';
 import { PrintJob } from '../../shared/types';
+import { useTheme } from '../../shared/context/ThemeContext';
 import { removeBackground } from '@imgly/background-removal';
 import { CROP_PRESETS, CROP_SIZE, getInitialCropPreset, type CropPreset } from './cropPresets';
 import { validateImageFile, readFileAsDataUrl } from './validateImageFile';
@@ -40,13 +42,16 @@ import {
   DEFAULT_BACKGROUND_COLOR,
   DEFAULT_BRUSH_COLOR,
   DEFAULT_TEXT_ALIGN,
+  DEFAULT_TEXT_FONT,
   DEFAULT_TEXT_SIZE,
+  STUDIO_FONTS,
   buildPhotoFilter,
   buildRulerTicks,
   editorHistorySummary,
+  resolveFontStack,
 } from './studioAdjustments';
 import type { EditorFilter, OverlayLayerId, StudioCanvasAdjustments, TextAlign, ToolId } from './studioTypes';
-import { StudioMenuBar, StudioStatusBar, StudioToolRail, getStudioTool, type StudioMenu } from './StudioWorkspaceChrome';
+import { StudioOverflowMenu, StudioStatusBar, StudioToolRail, getStudioTool, type StudioMenuItem } from './StudioWorkspaceChrome';
 
 interface StudioEditorCanvasProps {
   initialImageUrl?: string;
@@ -57,7 +62,7 @@ interface StudioEditorCanvasProps {
   onPrint?: () => void;
 }
 
-type RightTab = 'layers' | 'adjust' | 'history';
+type RightTab = 'layers' | 'props' | 'history';
 
 const COLOR_SWATCHES = ['#ffffff', '#111827', '#ef4444', '#3b82f6', '#14b8a6', '#f59e0b', '#8b5cf6'];
 const FILTERS: ReadonlyArray<{ id: EditorFilter; label: string }> = [
@@ -184,6 +189,41 @@ const Swatches: React.FC<{ value: string; label: string; onSelect: (color: strin
   </div>
 );
 
+const FontSelect: React.FC<{ value: string; onChange: (font: string) => void }> = ({ value, onChange }) => (
+  <select
+    value={value}
+    onChange={event => onChange(event.target.value)}
+    aria-label="Font"
+    className="rounded-[9px] border border-border-primary bg-bg-secondary px-2 py-1.5 text-xs text-text-primary focus:border-brand focus:outline-none"
+  >
+    {STUDIO_FONTS.map(font => (
+      <option key={font.id} value={font.id} style={{ fontFamily: font.stack }}>
+        {font.label}
+      </option>
+    ))}
+  </select>
+);
+
+const TextAlignButtons: React.FC<{ value: TextAlign; onSelect: (align: TextAlign) => void }> = ({ value, onSelect }) => (
+  <div className="flex gap-1">
+    {(['left', 'center', 'right'] as const).map(align => (
+      <button
+        key={align}
+        type="button"
+        onClick={() => onSelect(align)}
+        title={`Align ${align}`}
+        aria-label={`Align ${align}`}
+        aria-pressed={value === align}
+        className={`grid h-7 w-7 place-items-center rounded-[8px] text-[11px] font-semibold uppercase transition-colors ${
+          value === align ? 'bg-brand-soft text-brand' : 'text-text-secondary hover:bg-surface-hover'
+        }`}
+      >
+        {align[0]}
+      </button>
+    ))}
+  </div>
+);
+
 /* ------------------------------------------------------------------ main */
 
 export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialImageUrl, job, onSave, onClose }) => {
@@ -194,6 +234,10 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
   const activeStrokeRef = useRef<Stroke | null>(null);
   const erasingRef = useRef(false);
   const isDesktop = useIsDesktop();
+  // The editor shell follows the app's resolved theme (ThemeContext swaps the
+  // class on <html> live), so the whole workspace reacts without a reload.
+  const { resolvedTheme } = useTheme();
+  const themeLabel = resolvedTheme === 'dark' ? 'Dark' : 'Light (Gray)';
 
   const imageUrl = initialImageUrl || job?.fileUrl || '';
 
@@ -218,6 +262,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
   const [brightness, setBrightness] = useState<number>(job?.cropSettings?.brightness || 100);
   const [contrast, setContrast] = useState<number>(job?.cropSettings?.contrast || 100);
   const [saturation, setSaturation] = useState<number>(100);
+  const [exposure, setExposure] = useState<number>(0);
   const [grayscale, setGrayscale] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<EditorFilter>('none');
   const [cropPreset, setCropPreset] = useState<CropPreset>(getInitialCropPreset(job?.cropSettings?.aspectRatio));
@@ -226,6 +271,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
   const [textColor, setTextColor] = useState<string>('#ffffff');
   const [textSize, setTextSize] = useState<number>(DEFAULT_TEXT_SIZE);
   const [textAlign, setTextAlign] = useState<TextAlign>(DEFAULT_TEXT_ALIGN);
+  const [textFont, setTextFont] = useState<string>(DEFAULT_TEXT_FONT);
   const [backgroundColor, setBackgroundColor] = useState<string>(DEFAULT_BACKGROUND_COLOR);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const strokesRef = useRef<Stroke[]>([]);
@@ -255,14 +301,17 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
   const historyIndexRef = useRef<number>(-1);
 
   // --- panels
-  const [rightTab, setRightTab] = useState<RightTab>('adjust');
+  const [rightTab, setRightTab] = useState<RightTab>('props');
   const [showAdjustments, setShowAdjustments] = useState<boolean>(true);
+  const [showTextOptions, setShowTextOptions] = useState<boolean>(true);
   const [showBackground, setShowBackground] = useState<boolean>(true);
   const [showLayers, setShowLayers] = useState<boolean>(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
   const [mobilePanelOpen, setMobilePanelOpen] = useState<boolean>(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showToolRail, setShowToolRail] = useState<boolean>(true);
+  const [showRightPanel, setShowRightPanel] = useState<boolean>(true);
+  const [showOverflowMenu, setShowOverflowMenu] = useState<boolean>(false);
   const [showTour, setShowTour] = useState<boolean>(() => {
     try {
       return window.localStorage.getItem(TOUR_STORAGE_KEY) !== 'done';
@@ -289,6 +338,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     brightness: 100,
     contrast: 100,
     saturation: 100,
+    exposure: 0,
     grayscale: false,
     activeFilter: 'none',
     cropPreset: preset,
@@ -297,6 +347,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     textColor: '#ffffff',
     textSize: DEFAULT_TEXT_SIZE,
     textAlign: DEFAULT_TEXT_ALIGN,
+    textFont: DEFAULT_TEXT_FONT,
     backgroundColor: DEFAULT_BACKGROUND_COLOR,
     strokes: [],
     showBgRemoved: false,
@@ -308,6 +359,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     brightness,
     contrast,
     saturation,
+    exposure,
     grayscale,
     activeFilter,
     cropPreset,
@@ -316,10 +368,11 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     textColor,
     textSize,
     textAlign,
+    textFont,
     backgroundColor,
     strokes: strokesRef.current,
     showBgRemoved,
-  }), [rotation, scale, brightness, contrast, saturation, grayscale, activeFilter, cropPreset, annotationText, showWatermark, textColor, textSize, textAlign, backgroundColor, showBgRemoved]);
+  }), [rotation, scale, brightness, contrast, saturation, exposure, grayscale, activeFilter, cropPreset, annotationText, showWatermark, textColor, textSize, textAlign, textFont, backgroundColor, showBgRemoved]);
 
   const applySnapshot = useCallback((next: EditorSnapshot) => {
     setRotation(next.rotation);
@@ -327,6 +380,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     setBrightness(next.brightness);
     setContrast(next.contrast);
     setSaturation(next.saturation);
+    setExposure(next.exposure);
     setGrayscale(next.grayscale);
     setActiveFilter(next.activeFilter);
     setCropPreset(next.cropPreset);
@@ -335,6 +389,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     setTextColor(next.textColor);
     setTextSize(next.textSize);
     setTextAlign(next.textAlign);
+    setTextFont(next.textFont);
     setBackgroundColor(next.backgroundColor);
     setStrokes(next.strokes);
     setShowBgRemoved(next.showBgRemoved);
@@ -449,6 +504,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
         brightness,
         contrast,
         saturation,
+        exposure,
         grayscale,
         activeFilter,
         adjustmentsVisible: layerVisible.adjust,
@@ -508,7 +564,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     const drawText = () => {
       if (!layerVisible.text || !annotationText || !showWatermark) return;
       ctx.save();
-      ctx.font = `bold ${textSize}px Hind Siliguri, sans-serif`;
+      ctx.font = `bold ${textSize}px ${resolveFontStack(textFont)}`;
       ctx.fillStyle = textColor;
       ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
       ctx.shadowBlur = 6;
@@ -531,6 +587,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     brightness,
     contrast,
     saturation,
+    exposure,
     grayscale,
     activeFilter,
     backgroundColor,
@@ -539,6 +596,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     textColor,
     textSize,
     textAlign,
+    textFont,
     strokes,
     showBgRemoved,
     overlayOrder,
@@ -856,6 +914,15 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
   const cursorClass = tool === 'move' ? 'cursor-grab active:cursor-grabbing' : canPaint(tool) ? 'cursor-crosshair' : 'cursor-default';
 
+  /**
+   * Selecting the text tool focuses the Props tab so the text controls are in
+   * view; the tab always stays one of the three fixed panels.
+   */
+  const selectTool = useCallback((next: ToolId) => {
+    setTool(next);
+    if (next === 'text') setRightTab('props');
+  }, []);
+
   // Mouse wheel zoom/pan handler
   const handleWheel = useCallback((event: React.WheelEvent<HTMLCanvasElement>) => {
     event.preventDefault();
@@ -948,9 +1015,18 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
       const isShift = event.shiftKey;
 
       if (event.key === 'Escape') {
-        if (openMenuId) setOpenMenuId(null);
+        if (showOverflowMenu) setShowOverflowMenu(false);
+        else if (showSettings) setShowSettings(false);
         else if (showShortcuts) setShowShortcuts(false);
         else if (mobilePanelOpen) setMobilePanelOpen(false);
+        return;
+      }
+
+      // F7/F8 toggle the side panels; only on desktop where they exist.
+      if (isDesktop && !isCtrl && !isShift && (event.key === 'F7' || event.key === 'F8')) {
+        event.preventDefault();
+        if (event.key === 'F7') setShowRightPanel(value => !value);
+        else setShowToolRail(value => !value);
         return;
       }
 
@@ -994,22 +1070,22 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
       switch (event.key.toLowerCase()) {
         case 'v':
-          setTool('move');
+          selectTool('move');
           break;
         case 'c':
-          setTool('crop');
+          selectTool('crop');
           break;
         case 'b':
-          setTool('brush');
+          selectTool('brush');
           break;
         case 't':
-          setTool('text');
+          selectTool('text');
           break;
         case 's':
-          setTool('shape');
+          selectTool('shape');
           break;
         case 'e':
-          setTool('eraser');
+          selectTool('eraser');
           break;
         case '[':
           event.preventDefault();
@@ -1024,87 +1100,19 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openMenuId, showShortcuts, mobilePanelOpen, handleUndo, handleRedo, handleSaveCanvas, handleActualSize]);
+  }, [showOverflowMenu, showSettings, showShortcuts, mobilePanelOpen, isDesktop, handleUndo, handleRedo, handleSaveCanvas, handleActualSize, selectTool]);
 
-  // ------------------------------------------------------------------ menus
-  const menus: StudioMenu[] = [
-    {
-      id: 'file',
-      label: 'File',
-      items: [
-        { id: 'open', label: 'Open image…', onSelect: () => fileInputRef.current?.click() },
-        { id: 'save', label: 'Save to job', hint: 'Ctrl+S', disabled: !imgElement, separatorBefore: true, onSelect: handleSaveCanvas },
-        { id: 'export', label: 'Export JPG', disabled: !imgElement, onSelect: handleDownload },
-        ...(onClose
-          ? [{ id: 'close', label: 'Close image', disabled: !imgElement, separatorBefore: true, onSelect: onClose }]
-          : []),
-      ],
-    },
-    {
-      id: 'edit',
-      label: 'Edit',
-      items: [
-        { id: 'undo', label: 'Undo', hint: 'Ctrl+Z', disabled: !canUndo, onSelect: handleUndo },
-        { id: 'redo', label: 'Redo', hint: 'Ctrl+Y', disabled: !canRedo, onSelect: handleRedo },
-        { id: 'reset', label: 'Reset all edits', danger: true, separatorBefore: true, onSelect: handleReset },
-      ],
-    },
-    {
-      id: 'image',
-      label: 'Image',
-      items: [
-        { id: 'rotate-left', label: 'Rotate left', onSelect: () => handleRotate(-90) },
-        { id: 'rotate-right', label: 'Rotate right', onSelect: () => handleRotate(90) },
-        { id: 'remove-bg', label: 'Remove background', disabled: isRemovingBackground || !originalImgElement, separatorBefore: true, onSelect: () => void handleRemoveBackground() },
-        { id: 'restore', label: 'Restore original', disabled: !showBgRemoved, onSelect: handleRestoreOriginal },
-      ],
-    },
-    {
-      id: 'layer',
-      label: 'Layer',
-      items: [
-        { id: 'vis-photo', label: 'Photo visible', checked: layerVisible.photo, onSelect: () => toggleLayerVisibility('photo') },
-        { id: 'vis-adjust', label: 'Adjustments visible', checked: layerVisible.adjust, onSelect: () => toggleLayerVisibility('adjust') },
-        { id: 'vis-marks', label: 'Marks visible', checked: layerVisible.marks, onSelect: () => toggleLayerVisibility('marks') },
-        { id: 'vis-text', label: 'Watermark visible', checked: layerVisible.text, onSelect: () => toggleLayerVisibility('text') },
-        { id: 'tab-layers', label: 'Open Layers panel', separatorBefore: true, onSelect: () => { setRightTab('layers'); setMobilePanelOpen(true); } },
-      ],
-    },
-    {
-      id: 'filter',
-      label: 'Filter',
-      items: [
-        ...FILTERS.map(filter => ({
-          id: `filter-${filter.id}`,
-          label: filter.label,
-          checked: activeFilter === filter.id,
-          onSelect: () => commit({ activeFilter: filter.id }, filter.label),
-        })),
-        { id: 'grayscale', label: 'Grayscale', checked: grayscale, separatorBefore: true, onSelect: () => commit({ grayscale: !grayscale }, 'Grayscale') },
-      ],
-    },
-    {
-      id: 'view',
-      label: 'View',
-      items: [
-        { id: 'zoom-in', label: 'Zoom in', hint: 'Ctrl++', onSelect: () => setViewZoom(value => Math.min(4, Number((value + 0.25).toFixed(2)))) },
-        { id: 'zoom-out', label: 'Zoom out', hint: 'Ctrl+-', onSelect: () => setViewZoom(value => Math.max(0.25, Number((value - 0.25).toFixed(2)))) },
-        { id: 'actual', label: 'Actual size', hint: 'Ctrl+0', onSelect: handleActualSize },
-        { id: 'fit-width', label: 'Fit to width', separatorBefore: true, onSelect: handleFitToWidth },
-        { id: 'fit-height', label: 'Fit to height', onSelect: handleFitToHeight },
-        { id: 'checker', label: 'Transparency grid', checked: showChecker, separatorBefore: true, onSelect: () => setShowChecker(value => !value) },
-        { id: 'pixel-grid', label: 'Pixel grid', checked: showGrid, onSelect: () => setShowGrid(value => !value) },
-        { id: 'rulers', label: 'Rulers', checked: showRulers, onSelect: () => setShowRulers(value => !value) },
-      ],
-    },
-    {
-      id: 'help',
-      label: 'Help',
-      items: [
-        { id: 'shortcuts', label: 'Keyboard shortcuts', hint: 'Ctrl+/', onSelect: () => setShowShortcuts(true) },
-        { id: 'tour', label: 'Show editor tips', onSelect: () => setShowTour(true) },
-      ],
-    },
+  // ----------------------------------------------------------- overflow menu
+  // The former File/Edit/Image menu bar is gone. The most-used actions live in
+  // the options bar quick actions; the rest are collected here so nothing is
+  // unreachable.
+  const overflowItems: StudioMenuItem[] = [
+    { id: 'open', label: 'Open image…', onSelect: () => fileInputRef.current?.click() },
+    ...(onClose ? [{ id: 'close', label: 'Close image', disabled: !imgElement, onSelect: onClose }] : []),
+    { id: 'reset', label: 'Reset all edits', danger: true, separatorBefore: true, onSelect: handleReset },
+    { id: 'settings', label: 'Canvas settings', separatorBefore: true, onSelect: () => setShowSettings(true) },
+    { id: 'shortcuts', label: 'Keyboard shortcuts', hint: 'Ctrl+/', onSelect: () => setShowShortcuts(true) },
+    { id: 'tour', label: 'Show editor tips', onSelect: () => setShowTour(true) },
   ];
 
   // ------------------------------------------------------------ options bar
@@ -1222,26 +1230,11 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
           >
             {showWatermark ? 'Shown' : 'Hidden'}
           </button>
+          <FontSelect value={textFont} onChange={font => commit({ textFont: font }, 'Text font')} />
           <div className="w-36">
             <Slider label="Font size" value={textSize} min={ADJUSTMENT_RANGES.textSize.min} max={ADJUSTMENT_RANGES.textSize.max} step={1} suffix=" px" onChange={value => commit({ textSize: value }, 'Text size')} />
           </div>
-          <div className="flex gap-1">
-            {(['left', 'center', 'right'] as const).map(align => (
-              <button
-                key={align}
-                type="button"
-                onClick={() => commit({ textAlign: align }, 'Text align')}
-                title={`Align ${align}`}
-                aria-label={`Align ${align}`}
-                aria-pressed={textAlign === align}
-                className={`grid h-7 w-7 place-items-center rounded-[8px] text-[11px] font-semibold uppercase transition-colors ${
-                  textAlign === align ? 'bg-brand-soft text-brand' : 'text-text-secondary hover:bg-surface-hover'
-                }`}
-              >
-                {align[0]}
-              </button>
-            ))}
-          </div>
+          <TextAlignButtons value={textAlign} onSelect={align => commit({ textAlign: align }, 'Text align')} />
           <Swatches value={textColor} label="Text color" onSelect={color => commit({ textColor: color }, 'Text color')} />
         </div>
       );
@@ -1252,7 +1245,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
   const rightTabs: ReadonlyArray<{ id: RightTab; label: string }> = [
     { id: 'layers', label: 'Layers' },
-    { id: 'adjust', label: 'Adjust' },
+    { id: 'props', label: 'Props' },
     { id: 'history', label: 'History' },
   ];
 
@@ -1368,12 +1361,34 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
           </>
         )}
 
-        {rightTab === 'adjust' && (
+        {rightTab === 'props' && (
           <>
+            {tool === 'text' && (
+              <PanelSection title="Text" icon={<Type className="h-3.5 w-3.5" />} open={showTextOptions} onToggle={() => setShowTextOptions(value => !value)}>
+                <label className="block">
+                  <span className="mb-1.5 block text-[11px] text-text-secondary">Font</span>
+                  <FontSelect value={textFont} onChange={font => commit({ textFont: font }, 'Text font')} />
+                </label>
+                <Slider label="Font size" value={textSize} min={ADJUSTMENT_RANGES.textSize.min} max={ADJUSTMENT_RANGES.textSize.max} step={1} suffix=" px" onChange={value => commit({ textSize: value }, 'Text size')} />
+                <div>
+                  <span className="mb-1.5 block text-[11px] text-text-secondary">Color</span>
+                  <Swatches value={textColor} label="Text color" onSelect={color => commit({ textColor: color }, 'Text color')} />
+                </div>
+                <div>
+                  <span className="mb-1.5 block text-[11px] text-text-secondary">Alignment</span>
+                  <TextAlignButtons value={textAlign} onSelect={align => commit({ textAlign: align }, 'Text align')} />
+                </div>
+                <p className="text-[10px] leading-relaxed text-text-tertiary">
+                  Caption text and watermark visibility are edited in the options bar above.
+                </p>
+              </PanelSection>
+            )}
+
             <PanelSection title="Adjustments" icon={<Sun className="h-3.5 w-3.5" />} open={showAdjustments} onToggle={() => setShowAdjustments(value => !value)}>
               <Slider label="Brightness" value={brightness} min={ADJUSTMENT_RANGES.brightness.min} max={ADJUSTMENT_RANGES.brightness.max} step={1} suffix="%" onChange={value => commit({ brightness: value }, 'Brightness')} />
               <Slider label="Contrast" value={contrast} min={ADJUSTMENT_RANGES.contrast.min} max={ADJUSTMENT_RANGES.contrast.max} step={1} suffix="%" onChange={value => commit({ contrast: value }, 'Contrast')} />
               <Slider label="Saturation" value={saturation} min={ADJUSTMENT_RANGES.saturation.min} max={ADJUSTMENT_RANGES.saturation.max} step={1} suffix="%" onChange={value => commit({ saturation: value }, 'Saturation')} />
+              <Slider label="Exposure" value={exposure} min={ADJUSTMENT_RANGES.exposure.min} max={ADJUSTMENT_RANGES.exposure.max} step={ADJUSTMENT_RANGES.exposure.step} suffix={ADJUSTMENT_RANGES.exposure.suffix} onChange={value => commit({ exposure: Number(value.toFixed(1)) }, 'Exposure')} />
               <Slider label="Scale" value={scale} min={ADJUSTMENT_RANGES.scale.min} max={ADJUSTMENT_RANGES.scale.max} step={0.05} suffix="×" onChange={value => commit({ zoom: value }, 'Scale')} />
               <div className="grid grid-cols-2 gap-1.5 pt-1">
                 {FILTERS.map(filter => (
@@ -1502,88 +1517,85 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
   // ------------------------------------------------------------------- view
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-bg-secondary">
-      {/* --------------------------------------------------------- menu bar */}
-      <header className="flex h-10 shrink-0 items-center gap-1 border-b border-border-primary bg-surface px-2">
-        <StudioMenuBar
-          menus={menus}
-          openMenuId={openMenuId}
-          onToggleMenu={id => setOpenMenuId(current => (current === id ? null : id))}
-          onCloseMenu={() => setOpenMenuId(null)}
-        />
-        <span className="mx-1 h-4 w-px bg-border-secondary" aria-hidden="true" />
-        <IconButton onClick={handleUndo} label="Undo (Ctrl+Z)" disabled={!canUndo}>
-          <Undo2 className="h-4 w-4" />
-        </IconButton>
-        <IconButton onClick={handleRedo} label="Redo (Ctrl+Y)" disabled={!canRedo}>
-          <Redo2 className="h-4 w-4" />
-        </IconButton>
-
-        <div className="mx-auto flex min-w-0 items-center gap-2 px-3">
-          <span className="truncate text-xs font-semibold text-text-primary">
-            {job ? `#${job.tokenCode}` : 'Studio'}
-          </span>
-          <span className="hidden truncate text-[11px] text-text-tertiary sm:block">
-            {job?.serviceLabelBn ?? 'Alif Shohoj Print by AAA Tech Solutions'}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <IconButton onClick={handleDownload} label="Export JPG" disabled={!imgElement}>
-            <Download className="h-4 w-4" />
-          </IconButton>
-          <IconButton onClick={handleReset} label="Reset all edits" tone="danger">
-            <RotateCcw className="h-4 w-4" />
-          </IconButton>
-          <IconButton onClick={() => setShowShortcuts(value => !value)} label="Keyboard shortcuts (Ctrl+/)" active={showShortcuts}>
-            <Keyboard className="h-4 w-4" />
-          </IconButton>
-          <IconButton onClick={() => setShowSettings(value => !value)} label="Canvas settings" active={showSettings}>
-            <Settings2 className="h-4 w-4" />
-          </IconButton>
-          <button
-            type="button"
-            onClick={handleSaveCanvas}
-            disabled={isProcessing || !imgElement || !!imageLoadError}
-            className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-[9px] bg-brand px-3 text-xs font-semibold text-on-brand transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Save className="h-3.5 w-3.5" />
-            Save
-          </button>
-        </div>
-      </header>
-
-      {/* ------------------------------------------------------ options bar */}
-      <div className="flex min-h-11 shrink-0 items-center gap-3 overflow-x-auto border-b border-border-primary bg-bg-secondary px-3 py-1.5">
+    <div className="studio-shell relative flex h-full min-h-0 flex-col overflow-hidden bg-[var(--color-studio-app)] text-text-primary">
+      {/* ------------------------------------------------------ options bar
+          Topmost bar: context-sensitive tool options on the left, the fixed
+          quick-actions group on the right. No separate menu bar exists. */}
+      <div className="flex h-12 shrink-0 items-center gap-3 overflow-x-auto border-b border-border-primary bg-[var(--color-studio-panel)] px-3">
         <span className="flex shrink-0 items-center gap-2">
           <span className="text-brand">{toolDefinition.icon}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary">{toolDefinition.label}</span>
+          <span className="hidden text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary sm:inline">{toolDefinition.label}</span>
         </span>
         <span className="h-5 w-px shrink-0 bg-border-secondary" aria-hidden="true" />
         {toolOptions}
-        <div className="ml-auto flex shrink-0 items-center gap-1 lg:hidden">
-          <IconButton onClick={() => setMobilePanelOpen(true)} label="Show panels">
-            <SlidersHorizontal className="h-4 w-4" />
+
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          <IconButton onClick={handleUndo} label="Undo (Ctrl+Z)" disabled={!canUndo}>
+            <Undo2 className="h-4 w-4" />
           </IconButton>
+          <IconButton onClick={handleRedo} label="Redo (Ctrl+Y)" disabled={!canRedo}>
+            <Redo2 className="h-4 w-4" />
+          </IconButton>
+          <span className="mx-1 h-4 w-px bg-border-secondary" aria-hidden="true" />
+          <IconButton onClick={handleSaveCanvas} label="Save to job (Ctrl+S)" disabled={isProcessing || !imgElement || !!imageLoadError}>
+            <Save className="h-4 w-4" />
+          </IconButton>
+          <IconButton onClick={handleDownload} label="Export JPG" disabled={!imgElement}>
+            <Download className="h-4 w-4" />
+          </IconButton>
+          <span className="mx-1 h-4 w-px bg-border-secondary" aria-hidden="true" />
+          <IconButton
+            onClick={() => setShowToolRail(value => !value)}
+            label={showToolRail ? 'Hide tool palette (F8)' : 'Show tool palette (F8)'}
+            active={!showToolRail}
+          >
+            <PanelLeft className="h-4 w-4" />
+          </IconButton>
+          <IconButton
+            onClick={() => setShowRightPanel(value => !value)}
+            label={showRightPanel ? 'Hide side panel (F7)' : 'Show side panel (F7)'}
+            active={!showRightPanel}
+          >
+            <PanelRight className="h-4 w-4" />
+          </IconButton>
+          <span className="mx-1 h-4 w-px bg-border-secondary" aria-hidden="true" />
+          <StudioOverflowMenu
+            label="More actions (open, reset, canvas settings, shortcuts, tips)"
+            items={overflowItems}
+            open={showOverflowMenu}
+            onToggle={() => setShowOverflowMenu(value => !value)}
+            onClose={() => setShowOverflowMenu(false)}
+          />
+          <button
+            type="button"
+            onClick={() => setMobilePanelOpen(true)}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary lg:hidden"
+            title="Show panels"
+            aria-label="Show panels"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
       {/* ------------------------------------------------------------- body */}
       <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row">
-        <StudioToolRail
-          orientation="vertical"
-          className="hidden lg:flex"
-          activeTool={tool}
-          onSelectTool={setTool}
-          foreground={brushColor}
-          background={backgroundColor}
-          onForegroundChange={setBrushColor}
-          onBackgroundChange={setBackgroundColor}
-          onSwapColors={swapColors}
-        />
+        {showToolRail && (
+          <StudioToolRail
+            orientation="vertical"
+            className="hidden lg:flex"
+            activeTool={tool}
+            onSelectTool={selectTool}
+            foreground={brushColor}
+            background={backgroundColor}
+            onForegroundChange={setBrushColor}
+            onBackgroundChange={setBackgroundColor}
+            onSwapColors={swapColors}
+          />
+        )}
 
         {/* canvas stage */}
-        <section className="relative min-w-0 flex-1 overflow-hidden bg-[#0e0f10]">
+        <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--color-studio-canvas)]">
           <div className="absolute inset-0 grid place-items-center overflow-hidden p-8">
             <div
               className="relative"
@@ -1612,26 +1624,28 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
                 </>
               )}
 
-              <div className={`relative overflow-hidden rounded-xl shadow-[0_18px_60px_-12px_rgba(0,0,0,0.75)] ring-1 ring-white/10 ${cursorClass}`}>
-                {showChecker && showBgRemoved && (
-                  <div
-                    className="pointer-events-none absolute inset-0 opacity-[0.35]"
-                    style={{
-                      backgroundImage:
-                        'linear-gradient(45deg,#2a2c2e 25%,transparent 25%),linear-gradient(-45deg,#2a2c2e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#2a2c2e 75%),linear-gradient(-45deg,transparent 75%,#2a2c2e 75%)',
-                      backgroundSize: '16px 16px',
-                      backgroundPosition: '0 0,0 8px,8px -8px,-8px 0',
-                    }}
-                    aria-hidden="true"
-                  />
-                )}
-
+              <div
+                className={`relative overflow-hidden rounded-xl shadow-[0_18px_60px_-12px_rgba(0,0,0,0.45)] ring-1 ring-border-primary ${cursorClass}`}
+                style={
+                  showChecker && showBgRemoved
+                    ? {
+                        // Checkerboard sits behind the canvas so transparent
+                        // pixels after background removal reveal it cleanly.
+                        backgroundColor: 'var(--color-studio-checker-b)',
+                        backgroundImage:
+                          'linear-gradient(45deg, var(--color-studio-checker-a) 25%, transparent 25%),linear-gradient(-45deg, var(--color-studio-checker-a) 25%, transparent 25%),linear-gradient(45deg, transparent 75%, var(--color-studio-checker-a) 75%),linear-gradient(-45deg, transparent 75%, var(--color-studio-checker-a) 75%)',
+                        backgroundSize: '32px 32px',
+                        backgroundPosition: '0 0, 0 16px, 16px -16px, -16px 0',
+                      }
+                    : undefined
+                }
+              >
                 {showGrid && !imageLoadError && imgElement && (
                   <div
                     className="pointer-events-none absolute inset-0"
                     style={{
                       backgroundImage:
-                        'linear-gradient(to right, rgba(148,163,184,0.35) 1px, transparent 1px),linear-gradient(to bottom, rgba(148,163,184,0.35) 1px, transparent 1px)',
+                        'linear-gradient(to right, var(--color-studio-grid) 1px, transparent 1px),linear-gradient(to bottom, var(--color-studio-grid) 1px, transparent 1px)',
                       backgroundSize: '40px 40px',
                     }}
                     aria-hidden="true"
@@ -1678,6 +1692,12 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
             </div>
           </div>
 
+          {imgElement && (
+            <div className="pointer-events-none absolute left-3.5 top-3.5 z-10 rounded-lg border border-border-primary bg-[var(--color-studio-panel)]/85 px-2 py-1 font-mono text-[10px] tabular-nums text-text-secondary backdrop-blur-sm">
+              {canvasSize.w}×{canvasSize.h} px · {Math.round(viewZoom * 100)}%
+            </div>
+          )}
+
           {saveError && (
             <p role="alert" className="absolute left-1/2 top-4 -translate-x-1/2 rounded-lg bg-error-bg px-3 py-1.5 text-xs text-error">
               {saveError}
@@ -1695,7 +1715,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
               <ul className="space-y-1.5 text-[11px] leading-relaxed text-text-secondary">
                 <li>বাম পাশের টুল প্যালেট থেকে টুল বেছে নিন (V, C, B, T, S, E)।</li>
                 <li>উপরের Options Bar-এ টুলের সেটিংস যেমন Brush size, Font size থাকবে।</li>
-                <li>ডান পাশে Layers, Adjust, History ট্যাব ব্যবহার করুন।</li>
+                <li>ডান পাশে Layers, Props, History ট্যাব ব্যবহার করুন।</li>
               </ul>
               <button type="button" onClick={dismissTour} className="mt-2 w-full rounded-[9px] bg-brand px-2.5 py-1.5 text-[11px] font-semibold text-on-brand hover:bg-brand-hover">
                 বুঝেছি
@@ -1727,7 +1747,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
           orientation="horizontal"
           className="lg:hidden"
           activeTool={tool}
-          onSelectTool={setTool}
+          onSelectTool={selectTool}
           foreground={brushColor}
           background={backgroundColor}
           onForegroundChange={setBrushColor}
@@ -1735,8 +1755,8 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
           onSwapColors={swapColors}
         />
 
-        {isDesktop && (
-          <aside className="flex w-64 shrink-0 flex-col border-l border-border-primary bg-surface">
+        {isDesktop && showRightPanel && (
+          <aside className="flex w-[280px] shrink-0 flex-col border-l border-border-primary bg-[var(--color-studio-panel)]">
             {rightPanel}
           </aside>
         )}
@@ -1749,6 +1769,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
         cursorLabel={cursorPos ? `${cursorPos.x}, ${cursorPos.y}` : '—'}
         rotationLabel={`${rotation}°`}
         documentLabel={job ? `#${job.tokenCode} · ${job.serviceLabelBn}` : initialImageUrl ? 'Local image' : 'No image'}
+        themeLabel={themeLabel}
         fileSizeLabel={job?.fileSize}
       />
 
@@ -1756,7 +1777,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
       {!isDesktop && mobilePanelOpen && (
         <div className="fixed inset-0 z-40 flex justify-end">
           <div className="flex-1 bg-black/50" onClick={() => setMobilePanelOpen(false)} aria-hidden="true" />
-          <div className="flex h-full w-72 max-w-[85vw] flex-col border-l border-border-primary bg-surface shadow-2xl">
+          <div className="flex h-full w-72 max-w-[85vw] flex-col border-l border-border-primary bg-[var(--color-studio-panel)] shadow-2xl">
             {rightPanel}
           </div>
         </div>
@@ -1818,13 +1839,15 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
                 ['Ctrl+/', 'Toggle this dialog'],
                 ['Ctrl+0', 'Actual size'],
                 ['Ctrl +/-', 'Zoom in / out'],
-                ['V', 'Move / Select'],
+                ['V', 'Move'],
                 ['C', 'Crop'],
                 ['B', 'Brush'],
                 ['E', 'Eraser'],
-                ['S', 'Shapes'],
+                ['S', 'Shape'],
                 ['T', 'Text'],
                 ['[ / ]', 'Brush size'],
+                ['F7', 'Toggle side panel'],
+                ['F8', 'Toggle tool rail'],
               ].map(([key, label]) => (
                 <React.Fragment key={key}>
                   <kbd className="rounded border border-border-secondary bg-bg-tertiary px-2 py-1 font-mono text-[10px]">{key}</kbd>

@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  DEFAULT_TEXT_FONT,
+  STUDIO_FONTS,
   buildPhotoFilter,
   buildRulerTicks,
   clampAdjustment,
   editorHistorySummary,
+  resolveFontStack,
 } from '../../../features/studio-editor/studioAdjustments.js';
 import type { EditorSnapshot } from '../../../features/studio-editor/editorHistory.js';
 
@@ -14,6 +17,7 @@ const snapshot = (overrides: Partial<EditorSnapshot> = {}): EditorSnapshot => ({
   brightness: 100,
   contrast: 100,
   saturation: 100,
+  exposure: 0,
   grayscale: false,
   activeFilter: 'none',
   cropPreset: 'free',
@@ -22,6 +26,7 @@ const snapshot = (overrides: Partial<EditorSnapshot> = {}): EditorSnapshot => ({
   textColor: '#ffffff',
   textSize: 22,
   textAlign: 'center',
+  textFont: DEFAULT_TEXT_FONT,
   backgroundColor: '#0f172a',
   strokes: [],
   showBgRemoved: false,
@@ -56,6 +61,47 @@ test('buildPhotoFilter falls back to identity when adjustments are hidden', () =
   );
 });
 
+test('buildPhotoFilter applies exposure multiplicatively on top of brightness', () => {
+  // +1 EV doubles the brightness term; -1 EV halves it.
+  assert.equal(
+    buildPhotoFilter({
+      brightness: 100,
+      contrast: 100,
+      saturation: 100,
+      exposure: 1,
+      grayscale: false,
+      activeFilter: 'none',
+      adjustmentsVisible: true,
+    }),
+    'brightness(200%) contrast(100%) saturate(100%)',
+  );
+  assert.equal(
+    buildPhotoFilter({
+      brightness: 100,
+      contrast: 100,
+      saturation: 100,
+      exposure: -1,
+      grayscale: false,
+      activeFilter: 'none',
+      adjustmentsVisible: true,
+    }),
+    'brightness(50%) contrast(100%) saturate(100%)',
+  );
+  // Exposure is ignored while the adjustments layer is hidden.
+  assert.equal(
+    buildPhotoFilter({
+      brightness: 100,
+      contrast: 100,
+      saturation: 100,
+      exposure: 2,
+      grayscale: false,
+      activeFilter: 'none',
+      adjustmentsVisible: false,
+    }),
+    'brightness(100%) contrast(100%) saturate(100%)',
+  );
+});
+
 test('buildPhotoFilter appends grayscale and sharpen terms', () => {
   const grayscale = buildPhotoFilter({
     brightness: 100,
@@ -82,6 +128,12 @@ test('clampAdjustment clamps and rejects non-finite values', () => {
   assert.equal(clampAdjustment(500, 0, 200), 200);
   assert.equal(clampAdjustment(-10, 0, 200), 0);
   assert.equal(clampAdjustment(Number.NaN, 50, 180), 50);
+});
+
+test('resolveFontStack resolves known fonts and falls back to the default', () => {
+  assert.equal(resolveFontStack('arial'), 'Arial, sans-serif');
+  assert.equal(resolveFontStack(DEFAULT_TEXT_FONT), STUDIO_FONTS[0].stack);
+  assert.equal(resolveFontStack('nonexistent-font'), STUDIO_FONTS[0].stack);
 });
 
 test('buildRulerTicks spreads evenly across the axis length', () => {

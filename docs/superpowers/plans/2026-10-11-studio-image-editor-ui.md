@@ -421,3 +421,85 @@ This addendum expands Task 5 into the fuller desktop-editor layout requested by 
 - [ ] Manual desktop + narrow-window inspection in the running shell (not performed in this session)
 - [ ] Electron file-dialog / export path re-check (unchanged code path)
 
+---
+
+## Addendum (2026-10-12, later): workspace layout v3 — collapsible panels, fonts, context-sensitive Text tab
+
+This second addendum closes the remaining gaps between the v2 workspace and the full desktop-editor layout specification (collapsible panels, context-sensitive properties, complete text controls).
+
+**Changes delivered:**
+
+1. **Collapsible side panels (desktop):**
+   - The left tool rail and the right panel can now be hidden/shown independently. State: `showToolRail`, `showRightPanel` (default both visible).
+   - Entry points: View menu items ("Tool rail" with `F8`, "Side panel" with `F7`), a header `PanelRight` toggle button for the side panel, and the `F7`/`F8` shortcuts.
+   - `F7`/`F8` are handled only on desktop (`min-width: 1024px`) where the panels exist; on narrow windows the responsive bottom-toolbar + drawer layout is unchanged and the shortcuts are inert.
+   - `Tab` was deliberately *not* used for panel toggling because intercepting it would break keyboard focus navigation (accessibility).
+   - When the side panel is hidden, the canvas stage expands into the freed space; the status bar and options bar stay pinned.
+
+2. **Text tool font selection:**
+   - New curated font list `STUDIO_FONTS` in `studioAdjustments.ts` (Hind Siliguri default, plus Segoe UI, Arial, Times New Roman, Courier New — all guaranteed on stock Windows). `resolveFontStack(id)` resolves a stored id to a CSS stack and falls back to the default for unknown ids.
+   - `EditorSnapshot` gains `textFont: string` (seeded to `DEFAULT_TEXT_FONT`), so font choice participates in undo/redo like the other text properties.
+   - The canvas render effect now draws the watermark with `resolveFontStack(textFont)` instead of a hard-coded Hind Siliguri stack.
+
+3. **Context-sensitive right-panel Text tab:**
+   - The right panel tab list is now `Layers | Adjust [Text] | History`; the **Text** tab appears only while the text tool is active, and shows Font, Font size, Color and Alignment (the four properties from the layout spec).
+   - A new `selectTool` wrapper switches the panel to the Text tab when the text tool is picked (rail click or `T` key) and falls back to Adjust when another tool is selected, so the panel never shows a tab for an inactive tool.
+   - Shared `FontSelect` / `TextAlignButtons` components are reused by both the options bar and the Text tab so the two surfaces cannot drift apart.
+
+**Deliberately not implemented (unchanged or newly justified):**
+
+- **Channels panel** — no channel data model exists; a Channels tab would be a dead control.
+- **Curves / Levels** — would require a per-pixel tone-mapping engine; the current `ctx.filter` pipeline supports only brightness/contrast/saturation/grayscale. Out of scope for a print-shop editor.
+- **Exposure / Highlights / Shadows sliders** — same constraint as Curves; brightness/contrast/saturation cover the passport/photo-correction workflow. Revisit only if a real operator need appears.
+- **`Tab` shortcut for panel toggling** — blocked by focus-navigation accessibility (see above); `F7`/`F8` are the documented shortcuts.
+
+**Verification (this session):**
+- `npm run lint` (tsc) — PASS
+- `npm run test:renderer` — PASS, 87 tests (86 previous + 1 new `resolveFontStack` test; snapshot fixtures updated for `textFont`)
+- `npm run build` (vite) — PASS
+- Manual inspection in the running desktop shell — not performed in this session
+
+---
+
+## Addendum (2026-10-12, later): workspace layout v4 — menu-bar-less chrome, themed shell, Exposure
+
+This third addendum matches the editor against the final workspace spec: no menu bar, a topmost options bar with fixed quick actions, a 3-tab right panel, and a mandatory dark / light-gray theme system reacting to the OS theme.
+
+**Changes delivered:**
+
+1. **Menu bar removed; topmost Options Bar (≈48 px).**
+   - The `StudioMenuBar` component and `StudioMenu` type are deleted. Tool options render on the left of the options bar; a fixed quick-actions group sits on the right: Undo, Redo, separator, Save, Export, separator, toggle left palette (`F8`), toggle right panel (`F7`), separator, and a compact **More (⋯)** `StudioOverflowMenu` owning the orphaned actions — Open image, Close image, Reset all edits, Canvas settings, Keyboard shortcuts, Editor tips. No action became unreachable.
+   - The header's job-title block moved to the status bar's document label (already present).
+
+2. **Regrouped tool palette (Selection / Painting / Object), 56 px rail.**
+   - Groups now read **Selection** (Move `V`, Crop `C`), **Painting** (Brush `B`, Eraser `E`), **Object** (Shape `S`, Text `T`).
+   - Deliberately omitted (no data model): Select marquee, Clone Stamp, Healing Brush, Gradient, Eyedropper, and dedicated Hand/Zoom tools. Pan/zoom already live on canvas interactions (`Space`+drag, wheel, zoom pill); adding these as palette buttons would violate the no-dead-controls rule.
+
+3. **Right panel ≈280 px, static 3 tabs: Layers | Props | History.**
+   - The dynamic v3 Text tab is gone; Props renders a **Text** section when the text tool is active (font, size, colour, alignment — same shared components as the options bar), followed by **Adjustments** (Brightness, Contrast, Saturation, Exposure, Scale, filters, grayscale) and **Background**.
+   - Selecting the text tool auto-switches to Props so the text controls are in view.
+   - Layers keeps the existing functional list (visibility, lock, reorder). Blend modes / layer opacity / new layer are **not** added — the canvas has a single photo layer plus vector overlays, no compositing model; dead controls would mislead.
+
+4. **Mandatory theme system (dark / light-gray), live via `useTheme()`.**
+   - New scoped `.studio-shell` tokens in `resources/assets/index.css`: dark surfaces `#1a1a1e` (app) / `#232328` (panels) / near-black canvas, dark checkerboard; light-gray surfaces `#e8e8ec` (app) / `#f0f0f4` (panels) / medium-gray canvas, medium-gray checkerboard.
+   - The editor accent is a scoped blue (`--color-brand` overrides: `#5b8def` dark, `#2f6fe4` light) so the rest of the app keeps the teal brand. Tailwind v4 utilities reference `var(--color-brand)`, so the scoped override cascades to every descendant.
+   - The editor reads `useTheme().resolvedTheme` — `ThemeContext` swaps the `.theme-dark`/`.theme-light` class on `<html>` live, so the workspace reacts to system theme changes without a reload.
+   - Status bar now shows **Theme** mode (plus Zoom | Size | Cursor | Tool | Rotate | File) per spec.
+
+5. **Exposure slider (EV).**
+   - New `ADJUSTMENT_RANGES.exposure` (`−2..+2`, step 0.1, suffix `EV`); `EditorSnapshot` gains `exposure` (seeded 0); `buildPhotoFilter` multiplies the brightness term by `2^exposure` (rounded to 2 decimals) so the default 0 keeps existing output and tests byte-identical.
+   - New test: `buildPhotoFilter applies exposure multiplicatively on top of brightness` covers +1 EV, −1 EV, and hidden-adjustments fallback.
+
+6. **Other chrome refinements.**
+   - Canvas document shows a top-left **size + zoom overlay**; checkerboard is now drawn *behind* the canvas (revealed through transparent pixels after background removal) instead of a tinting overlay; grid/ring/shadow colors are theme tokens; right panel and mobile drawer use panel tokens; the settings popover closes on `Escape`.
+
+**Deliberately not implemented (newly justified):**
+- Select marquee / Clone Stamp / Healing Brush / Gradient / Eyedropper / dedicated Hand & Zoom tools — no matching data model; canvas pan/zoom already cover navigation.
+- Layer blend modes, layer opacity, "new layer" — single-layer compositing model; would be dead controls.
+
+**Verification (this session):**
+- `npm run lint` (tsc) — PASS
+- `npm run test:renderer` — PASS, 88 tests (87 previous + 1 new exposure test; fixtures updated for `exposure`)
+- `npm run build` (vite) — PASS
+- Manual inspection in the running desktop shell + PWA — performed; screenshots under `tmp/`
+

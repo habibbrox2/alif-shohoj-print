@@ -533,6 +533,40 @@
   background: rgba(31, 31, 31, 0.8);
 }
 
+/* Studio image editor theme.
+   The editor reads as its own workspace, so it uses dedicated surface tokens
+   and a blue action colour instead of the app's teal brand. Everything is
+   scoped to `.studio-shell` and follows the app theme class on <html>, which
+   `ThemeContext` swaps live when the system theme changes. */
+.studio-shell {
+  --color-studio-app: #e8e8ec;
+  --color-studio-panel: #f0f0f4;
+  --color-studio-canvas: #d6d8dd;
+  --color-studio-checker-a: #c9ccd2;
+  --color-studio-checker-b: #e2e4e8;
+  --color-studio-grid: rgba(71, 85, 105, 0.3);
+
+  /* Blue accent, slightly deeper for comfortable contrast on light gray. */
+  --color-brand: #2f6fe4;
+  --color-brand-hover: #1f5bd0;
+  --color-brand-soft: #dbe7fb;
+  --color-on-brand: #ffffff;
+}
+
+.theme-dark .studio-shell {
+  --color-studio-app: #1a1a1e;
+  --color-studio-panel: #232328;
+  --color-studio-canvas: #101013;
+  --color-studio-checker-a: #2a2c2e;
+  --color-studio-checker-b: #35383b;
+  --color-studio-grid: rgba(148, 163, 184, 0.28);
+
+  --color-brand: #5b8def;
+  --color-brand-hover: #7aa4f5;
+  --color-brand-soft: #1c2a41;
+  --color-on-brand: #0b1220;
+}
+
 /* Studio editor: minimal range slider with a brand-coloured fill knob */
 .studio-range {
   height: 4px;
@@ -555,7 +589,7 @@
 
 .studio-range::-webkit-slider-thumb:hover {
   transform: scale(1.15);
-  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.4);
+  box-shadow: 0 2px 8px rgba(91, 141, 239, 0.45);
 }
 
 .studio-range::-moz-range-thumb {

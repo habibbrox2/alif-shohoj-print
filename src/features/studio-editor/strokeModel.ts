@@ -130,6 +130,8 @@ export interface EditorSnapshot {
   brightness: number;
   contrast: number;
   saturation: number;
+  /** Exposure in stops (EV), applied on top of brightness. */
+  exposure: number;
   grayscale: boolean;
   activeFilter: EditorFilter;
   cropPreset: CropPreset;
@@ -138,6 +140,8 @@ export interface EditorSnapshot {
   textColor: string;
   textSize: number;
   textAlign: TextAlign;
+  /** Font id from `STUDIO_FONTS`; resolved to a CSS stack when rendering. */
+  textFont: string;
   backgroundColor: string;
   strokes: Stroke[];
   showBgRemoved: boolean;
