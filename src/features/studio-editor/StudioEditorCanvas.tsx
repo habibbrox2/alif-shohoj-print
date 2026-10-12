@@ -17,6 +17,7 @@ import {
   PanelLeft,
   PanelRight,
   Plus,
+  Printer,
   Redo2,
   RotateCcw,
   RotateCw,
@@ -66,6 +67,7 @@ import {
 } from './studioAdjustments';
 import type { EditorFilter, StudioCanvasAdjustments, TextAlign, ToolId } from './studioTypes';
 import { StudioOverflowMenu, StudioStatusBar, StudioToolRail, getStudioTool, type StudioMenuItem } from './StudioWorkspaceChrome';
+import { PrintDialog } from './PrintDialog';
 
 interface StudioEditorCanvasProps {
   initialImageUrl?: string;
@@ -365,6 +367,10 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
   const [showBackground, setShowBackground] = useState<boolean>(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
+  const [showPrintDialog, setShowPrintDialog] = useState<boolean>(false);
+  // Captured once when the dialog opens so editing the canvas never mutates the
+  // document the preview and the print job are built from.
+  const [printPreviewDataUrl, setPrintPreviewDataUrl] = useState<string>('');
   const [showToolRail, setShowToolRail] = useState<boolean>(true);
   const [showRightPanel, setShowRightPanel] = useState<boolean>(true);
   const [showOverflowMenu, setShowOverflowMenu] = useState<boolean>(false);
@@ -885,6 +891,12 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     link.click();
   };
 
+  /** Snapshot the canvas once: the preview must not shift under the dialog. */
+  const openPrintDialog = useCallback(() => {
+    setPrintPreviewDataUrl(canvasRef.current?.toDataURL('image/jpeg', 0.92) ?? '');
+    setShowPrintDialog(true);
+  }, []);
+
   const handleFitToWidth = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !imgElement) return;
@@ -1074,7 +1086,8 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
       const isShift = event.shiftKey;
 
       if (event.key === 'Escape') {
-        if (showOverflowMenu) setShowOverflowMenu(false);
+        if (showPrintDialog) setShowPrintDialog(false);
+        else if (showOverflowMenu) setShowOverflowMenu(false);
         else if (showSettings) setShowSettings(false);
         else if (showShortcuts) setShowShortcuts(false);
         return;
@@ -1124,6 +1137,13 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
         setViewZoom(value => Math.max(0.25, Number((value - 0.25).toFixed(2))));
         return;
       }
+      // Kept above the generic Ctrl bail-out so the browser print dialog never
+      // opens over the studio print dialog.
+      if (isCtrl && (event.key === 'p' || event.key === 'P')) {
+        event.preventDefault();
+        openPrintDialog();
+        return;
+      }
       if (isCtrl) return;
 
       switch (event.key.toLowerCase()) {
@@ -1158,7 +1178,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showOverflowMenu, showSettings, showShortcuts, handleUndo, handleRedo, handleSaveCanvas, handleActualSize, selectTool]);
+  }, [showOverflowMenu, showSettings, showShortcuts, showPrintDialog, openPrintDialog, handleUndo, handleRedo, handleSaveCanvas, handleActualSize, selectTool]);
 
   // ----------------------------------------------------------- overflow menu
   // The former File/Edit/Image menu bar is gone. The most-used actions live in
@@ -1613,6 +1633,9 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
           <IconButton onClick={handleDownload} label="Export JPG" disabled={!imgElement}>
             <Download className="h-4 w-4" />
           </IconButton>
+          <IconButton onClick={openPrintDialog} label="Print (Ctrl+P)" disabled={!imgElement}>
+            <Printer className="h-4 w-4" />
+          </IconButton>
           <span className="mx-1 h-4 w-px bg-border-secondary" aria-hidden="true" />
           <IconButton
             onClick={() => setShowToolRail(value => !value)}
@@ -1918,6 +1941,11 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
             </div>
           </div>
         </div>
+      )}
+
+      {/* print settings dialog */}
+      {showPrintDialog && (
+        <PrintDialog job={job} docPx={canvasSize} docDataUrl={printPreviewDataUrl} onClose={() => setShowPrintDialog(false)} />
       )}
 
       <input

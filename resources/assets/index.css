@@ -545,6 +545,8 @@
   --color-studio-checker-a: #c9ccd2;
   --color-studio-checker-b: #e2e4e8;
   --color-studio-grid: rgba(71, 85, 105, 0.3);
+  /* Paper stock in the print dialog preview. */
+  --color-studio-paper: #fdfdfc;
 
   /* Blue accent, slightly deeper for comfortable contrast on light gray. */
   --color-brand: #2f6fe4;
@@ -560,6 +562,7 @@
   --color-studio-checker-a: #2a2c2e;
   --color-studio-checker-b: #35383b;
   --color-studio-grid: rgba(148, 163, 184, 0.28);
+  --color-studio-paper: #c9c9c3;
 
   --color-brand: #5b8def;
   --color-brand-hover: #7aa4f5;
