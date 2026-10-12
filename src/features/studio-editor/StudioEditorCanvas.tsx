@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Circle,
   Download,
@@ -9,8 +10,6 @@ import {
   EyeOff,
   FileText,
   FolderOpen,
-  History,
-  Layers as LayersIcon,
   Loader2,
   Lock,
   LockOpen,
@@ -61,6 +60,7 @@ import {
   STUDIO_FONTS,
   buildPhotoFilter,
   buildRulerTicks,
+  clampAdjustment,
   editorHistorySummary,
   resolveFontStack,
 } from './studioAdjustments';
@@ -87,19 +87,6 @@ const FILTERS: ReadonlyArray<{ id: EditorFilter; label: string }> = [
   { id: 'bw_doc', label: 'B/W document' },
 ];
 const TOUR_STORAGE_KEY = 'alif-shohoj-print-studio-tour';
-
-function useIsDesktop(): boolean {
-  const [isDesktop, setIsDesktop] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
-  );
-  useEffect(() => {
-    const query = window.matchMedia('(min-width: 1024px)');
-    const onChange = () => setIsDesktop(query.matches);
-    query.addEventListener('change', onChange);
-    return () => query.removeEventListener('change', onChange);
-  }, []);
-  return isDesktop;
-}
 
 /* ------------------------------------------------------------------ atoms */
 
@@ -161,6 +148,59 @@ const Slider: React.FC<{
   </label>
 );
 
+/** Single-row adjustment control: label | range | live value. */
+const AdjustmentRow: React.FC<{
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  suffix?: string;
+  onChange: (value: number) => void;
+}> = ({ label, value, min, max, step, suffix = '', onChange }) => (
+  <div className="flex items-center gap-2">
+    <span className="w-16 shrink-0 text-[11px] text-text-secondary">{label}</span>
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onChange={event => onChange(Number(event.target.value))}
+      aria-label={label}
+      className="studio-range h-1 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-bg-tertiary"
+    />
+    <span className="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-brand">
+      {value}
+      {suffix}
+    </span>
+  </div>
+);
+
+/** Swatch row with a custom-colour picker; shared by the options bar and Props tab. */
+const ColorPickerRow: React.FC<{
+  value: string;
+  label: string;
+  onSelect: (color: string) => void;
+}> = ({ value, label, onSelect }) => (
+  <div className="flex items-center gap-2">
+    <Swatches value={value} label={label} onSelect={onSelect} />
+    <label
+      className="relative grid h-6 w-6 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-md border border-border-primary"
+      title="Custom color"
+    >
+      <span className="block h-full w-full" style={{ backgroundColor: value }} />
+      <input
+        type="color"
+        value={value}
+        onChange={event => onSelect(event.target.value)}
+        aria-label="Custom color"
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </label>
+  </div>
+);
+
 const PanelSection: React.FC<{
   title: string;
   icon: React.ReactNode;
@@ -176,7 +216,7 @@ const PanelSection: React.FC<{
       className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left transition-colors hover:bg-surface-hover/60"
     >
       <span className="text-brand">{icon}</span>
-      <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary">{title}</span>
+      <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{title}</span>
       <span className="text-text-tertiary">
         {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
       </span>
@@ -242,12 +282,10 @@ const TextAlignButtons: React.FC<{ value: TextAlign; onSelect: (align: TextAlign
 
 export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialImageUrl, job, onSave, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const navigatorRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const panStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const activeStrokeRef = useRef<Stroke | null>(null);
   const erasingRef = useRef(false);
-  const isDesktop = useIsDesktop();
   // The editor shell follows the app's resolved theme (ThemeContext swaps the
   // class on <html> live), so the whole workspace reacts without a reload.
   const { resolvedTheme } = useTheme();
@@ -325,10 +363,8 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
   const [showAdjustments, setShowAdjustments] = useState<boolean>(true);
   const [showTextOptions, setShowTextOptions] = useState<boolean>(true);
   const [showBackground, setShowBackground] = useState<boolean>(true);
-  const [showLayers, setShowLayers] = useState<boolean>(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
-  const [mobilePanelOpen, setMobilePanelOpen] = useState<boolean>(false);
   const [showToolRail, setShowToolRail] = useState<boolean>(true);
   const [showRightPanel, setShowRightPanel] = useState<boolean>(true);
   const [showOverflowMenu, setShowOverflowMenu] = useState<boolean>(false);
@@ -624,22 +660,6 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     showBgRemoved,
     layerVisible,
   ]);
-
-  // Navigator thumbnail mirrors the committed canvas.
-  useEffect(() => {
-    const nav = navigatorRef.current;
-    const source = canvasRef.current;
-    if (!nav || !source || !imgElement || source.width === 0) return;
-    const maxWidth = 236;
-    const maxHeight = 140;
-    const ratio = Math.min(maxWidth / source.width, maxHeight / source.height, 1);
-    nav.width = Math.max(1, Math.round(source.width * ratio));
-    nav.height = Math.max(1, Math.round(source.height * ratio));
-    const ctx = nav.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, nav.width, nav.height);
-    ctx.drawImage(source, 0, 0, nav.width, nav.height);
-  });
 
   // -------------------------------------------------------------- painting
   const toCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1057,12 +1077,11 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
         if (showOverflowMenu) setShowOverflowMenu(false);
         else if (showSettings) setShowSettings(false);
         else if (showShortcuts) setShowShortcuts(false);
-        else if (mobilePanelOpen) setMobilePanelOpen(false);
         return;
       }
 
-      // F7/F8 toggle the side panels; only on desktop where they exist.
-      if (isDesktop && !isCtrl && !isShift && (event.key === 'F7' || event.key === 'F8')) {
+      // F7/F8 toggle the side panels at every window width.
+      if (!isCtrl && !isShift && (event.key === 'F7' || event.key === 'F8')) {
         event.preventDefault();
         if (event.key === 'F7') setShowRightPanel(value => !value);
         else setShowToolRail(value => !value);
@@ -1139,7 +1158,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showOverflowMenu, showSettings, showShortcuts, mobilePanelOpen, isDesktop, handleUndo, handleRedo, handleSaveCanvas, handleActualSize, selectTool]);
+  }, [showOverflowMenu, showSettings, showShortcuts, handleUndo, handleRedo, handleSaveCanvas, handleActualSize, selectTool]);
 
   // ----------------------------------------------------------- overflow menu
   // The former File/Edit/Image menu bar is gone. The most-used actions live in
@@ -1157,21 +1176,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
   // ------------------------------------------------------------ options bar
   const toolDefinition = getStudioTool(tool);
 
-  const colorRow = (
-    <div className="flex items-center gap-2">
-      <Swatches value={brushColor} label="Color" onSelect={setBrushColor} />
-      <label className="relative grid h-6 w-6 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-md border border-border-primary" title="Custom brush color">
-        <span className="block h-full w-full" style={{ backgroundColor: brushColor }} />
-        <input
-          type="color"
-          value={brushColor}
-          onChange={event => setBrushColor(event.target.value)}
-          aria-label="Custom brush color"
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-        />
-      </label>
-    </div>
-  );
+  const colorRow = <ColorPickerRow value={brushColor} label="Color" onSelect={setBrushColor} />;
 
   let toolOptions: React.ReactNode;
   switch (tool) {
@@ -1274,7 +1279,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
             <Slider label="Font size" value={textSize} min={ADJUSTMENT_RANGES.textSize.min} max={ADJUSTMENT_RANGES.textSize.max} step={1} suffix=" px" onChange={value => commit({ textSize: value }, 'Text size')} />
           </div>
           <TextAlignButtons value={textAlign} onSelect={align => commit({ textAlign: align }, 'Text align')} />
-          <Swatches value={textColor} label="Text color" onSelect={color => commit({ textColor: color }, 'Text color')} />
+          <ColorPickerRow value={textColor} label="Text color" onSelect={color => commit({ textColor: color }, 'Text color')} />
         </div>
       );
       break;
@@ -1290,7 +1295,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
   const rightPanel = (
     <>
-      <div className="flex shrink-0 items-center gap-1 border-b border-border-primary px-2 py-1.5" role="tablist" aria-label="Editor panels">
+      <div className="flex h-10 shrink-0 items-stretch border-b border-border-primary px-2" role="tablist" aria-label="Editor panels">
         {rightTabs.map(tab => (
           <button
             key={tab.id}
@@ -1298,140 +1303,129 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
             role="tab"
             aria-selected={rightTab === tab.id}
             onClick={() => setRightTab(tab.id)}
-            className={`flex-1 rounded-[9px] px-2 py-1.5 text-[11px] font-semibold transition-colors ${
-              rightTab === tab.id ? 'bg-brand-soft text-brand' : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+            className={`relative flex flex-1 items-center justify-center text-[11px] font-semibold transition-colors ${
+              rightTab === tab.id ? 'text-brand' : 'text-text-tertiary hover:bg-surface-hover'
             }`}
           >
             {tab.label}
+            {rightTab === tab.id && <span className="absolute inset-x-3 bottom-0 h-0.5 bg-brand" aria-hidden="true" />}
           </button>
         ))}
-        <button
-          type="button"
-          onClick={() => setMobilePanelOpen(false)}
-          title="Hide panels"
-          aria-label="Hide panels"
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-[9px] text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary lg:hidden"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {rightTab === 'layers' && (
-          <>
-            <div className="border-b border-border-secondary p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary">Navigator</span>
-                <span className="font-mono text-[10px] tabular-nums text-text-tertiary">{Math.round(viewZoom * 100)}%</span>
-              </div>
-              <div className="grid place-items-center rounded-lg border border-border-secondary bg-[#0e0f10] p-2">
-                {imgElement ? (
-                  <canvas ref={navigatorRef} className="block max-h-36 max-w-full" aria-label="Navigator preview" />
-                ) : (
-                  <p className="py-6 text-[11px] text-text-tertiary">No image</p>
-                )}
-              </div>
-            </div>
-
-            <PanelSection title="Layers" icon={<LayersIcon className="h-3.5 w-3.5" />} open={showLayers} onToggle={() => setShowLayers(value => !value)}>
-              <ul className="space-y-1">
-                {layerMeta.map((layer, index) => (
-                  <li
-                    key={layer.id}
-                    onClick={() => {
-                      if (layer.reorderable) setActiveLayerId(layer.id);
-                    }}
-                    className={`flex items-center gap-1.5 rounded-[10px] px-2 py-1.5 transition-colors ${layer.id === activeLayerId ? 'bg-bg-secondary' : ''}`}
-                  >
-                    <span className="text-text-tertiary">{layer.icon}</span>
-                    <span className={`flex-1 truncate text-[11px] ${layer.id === activeLayerId ? 'font-medium text-text-primary' : 'text-text-secondary'}`}>
+          <div className="flex h-full flex-col">
+            <ul className="flex-1 space-y-1 overflow-y-auto p-2">
+              {layerMeta.map((layer, index) => (
+                <li
+                  key={layer.id}
+                  onClick={() => {
+                    if (layer.reorderable) setActiveLayerId(layer.id);
+                  }}
+                  className={`flex items-center gap-2 rounded-[10px] border px-2 py-1.5 transition-colors ${
+                    layer.id === activeLayerId
+                      ? 'cursor-pointer border-brand/40 bg-brand/15'
+                      : `border-transparent ${layer.reorderable ? 'cursor-pointer ' : ''}hover:bg-surface-hover`
+                  }`}
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border-secondary bg-bg-secondary text-text-tertiary">
+                    {layer.icon}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block truncate text-[11px] ${layer.id === activeLayerId ? 'font-medium text-text-primary' : 'text-text-secondary'}`}>
                       {layer.label}
                     </span>
+                    <span className="block text-[10px] text-text-tertiary">Normal • 100%</span>
+                  </span>
 
-                    {layer.reorderable ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => moveLayer(layer.id, -1)}
-                          disabled={index === 0}
-                          title="Move up"
-                          className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary disabled:opacity-30"
-                        >
-                          <ChevronRight className="h-3 w-3 -rotate-90" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveLayer(layer.id, 1)}
-                          disabled={index === contentLayers.length - 1}
-                          title="Move down"
-                          className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary disabled:opacity-30"
-                        >
-                          <ChevronRight className="h-3 w-3 rotate-90" />
-                        </button>
-                      </>
-                    ) : (
-                      <span className="w-[1.5rem]" aria-hidden="true" />
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => toggleLayerVisibility(layer.id)}
-                      title={isLayerVisible(layer.id) ? 'Hide layer' : 'Show layer'}
-                      className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary"
-                    >
-                      {isLayerVisible(layer.id) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 opacity-50" />}
-                    </button>
-
-                    {layer.id === 'photo' || layer.id === 'adjust' ? (
-                      <span className="grid h-6 w-6 place-items-center text-text-tertiary/60" title="Always locked">
-                        <Lock className="h-3 w-3" />
-                      </span>
-                    ) : (
+                  {layer.reorderable ? (
+                    <>
                       <button
                         type="button"
-                        onClick={() => setLayerLocked(previous => ({ ...previous, [layer.id]: !previous[layer.id] }))}
-                        title={isLayerLocked(layer.id) ? 'Unlock layer' : 'Lock layer'}
-                        className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary"
+                        onClick={event => {
+                          event.stopPropagation();
+                          moveLayer(layer.id, -1);
+                        }}
+                        disabled={index === 0}
+                        title="Move up"
+                        aria-label={`Move ${layer.label} up`}
+                        className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary disabled:opacity-30"
                       >
-                        {isLayerLocked(layer.id) ? <Lock className="h-3 w-3 text-brand" /> : <LockOpen className="h-3.5 w-3.5" />}
+                        <ChevronRight className="h-3 w-3 -rotate-90" />
                       </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </PanelSection>
-          </>
+                      <button
+                        type="button"
+                        onClick={event => {
+                          event.stopPropagation();
+                          moveLayer(layer.id, 1);
+                        }}
+                        disabled={index === contentLayers.length - 1}
+                        title="Move down"
+                        aria-label={`Move ${layer.label} down`}
+                        className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary disabled:opacity-30"
+                      >
+                        <ChevronRight className="h-3 w-3 rotate-90" />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="w-[1.5rem]" aria-hidden="true" />
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={event => {
+                      event.stopPropagation();
+                      toggleLayerVisibility(layer.id);
+                    }}
+                    title={isLayerVisible(layer.id) ? 'Hide layer' : 'Show layer'}
+                    aria-label={isLayerVisible(layer.id) ? `Hide ${layer.label}` : `Show ${layer.label}`}
+                    className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary"
+                  >
+                    {isLayerVisible(layer.id) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 opacity-50" />}
+                  </button>
+
+                  {layer.id === 'photo' || layer.id === 'adjust' ? (
+                    <span className="grid h-6 w-6 place-items-center text-text-tertiary/60" title="Always locked">
+                      <Lock className="h-3 w-3" />
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={event => {
+                        event.stopPropagation();
+                        setLayerLocked(previous => ({ ...previous, [layer.id]: !previous[layer.id] }));
+                      }}
+                      title={isLayerLocked(layer.id) ? 'Unlock layer' : 'Lock layer'}
+                      aria-label={isLayerLocked(layer.id) ? `Unlock ${layer.label}` : `Lock ${layer.label}`}
+                      className="grid h-6 w-6 place-items-center rounded-md text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary"
+                    >
+                      {isLayerLocked(layer.id) ? <Lock className="h-3 w-3 text-brand" /> : <LockOpen className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="shrink-0 border-t border-border-primary p-2">
+              <button
+                type="button"
+                onClick={handleCreateLayer}
+                className="flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-border-primary px-2 py-2 text-[11px] font-medium text-text-tertiary transition-colors hover:border-brand hover:text-brand"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>New Layer</span>
+              </button>
+            </div>
+          </div>
         )}
 
         {rightTab === 'props' && (
           <>
-            {tool === 'text' && (
-              <PanelSection title="Text" icon={<Type className="h-3.5 w-3.5" />} open={showTextOptions} onToggle={() => setShowTextOptions(value => !value)}>
-                <label className="block">
-                  <span className="mb-1.5 block text-[11px] text-text-secondary">Font</span>
-                  <FontSelect value={textFont} onChange={font => commit({ textFont: font }, 'Text font')} />
-                </label>
-                <Slider label="Font size" value={textSize} min={ADJUSTMENT_RANGES.textSize.min} max={ADJUSTMENT_RANGES.textSize.max} step={1} suffix=" px" onChange={value => commit({ textSize: value }, 'Text size')} />
-                <div>
-                  <span className="mb-1.5 block text-[11px] text-text-secondary">Color</span>
-                  <Swatches value={textColor} label="Text color" onSelect={color => commit({ textColor: color }, 'Text color')} />
-                </div>
-                <div>
-                  <span className="mb-1.5 block text-[11px] text-text-secondary">Alignment</span>
-                  <TextAlignButtons value={textAlign} onSelect={align => commit({ textAlign: align }, 'Text align')} />
-                </div>
-                <p className="text-[10px] leading-relaxed text-text-tertiary">
-                  Caption text and watermark visibility are edited in the options bar above.
-                </p>
-              </PanelSection>
-            )}
-
             <PanelSection title="Adjustments" icon={<Sun className="h-3.5 w-3.5" />} open={showAdjustments} onToggle={() => setShowAdjustments(value => !value)}>
-              <Slider label="Brightness" value={brightness} min={ADJUSTMENT_RANGES.brightness.min} max={ADJUSTMENT_RANGES.brightness.max} step={1} suffix="%" onChange={value => commit({ brightness: value }, 'Brightness')} />
-              <Slider label="Contrast" value={contrast} min={ADJUSTMENT_RANGES.contrast.min} max={ADJUSTMENT_RANGES.contrast.max} step={1} suffix="%" onChange={value => commit({ contrast: value }, 'Contrast')} />
-              <Slider label="Saturation" value={saturation} min={ADJUSTMENT_RANGES.saturation.min} max={ADJUSTMENT_RANGES.saturation.max} step={1} suffix="%" onChange={value => commit({ saturation: value }, 'Saturation')} />
-              <Slider label="Exposure" value={exposure} min={ADJUSTMENT_RANGES.exposure.min} max={ADJUSTMENT_RANGES.exposure.max} step={ADJUSTMENT_RANGES.exposure.step} suffix={ADJUSTMENT_RANGES.exposure.suffix} onChange={value => commit({ exposure: Number(value.toFixed(1)) }, 'Exposure')} />
-              <Slider label="Scale" value={scale} min={ADJUSTMENT_RANGES.scale.min} max={ADJUSTMENT_RANGES.scale.max} step={0.05} suffix="×" onChange={value => commit({ zoom: value }, 'Scale')} />
+              <AdjustmentRow label="Brightness" value={brightness} min={ADJUSTMENT_RANGES.brightness.min} max={ADJUSTMENT_RANGES.brightness.max} step={ADJUSTMENT_RANGES.brightness.step} suffix={ADJUSTMENT_RANGES.brightness.suffix} onChange={value => commit({ brightness: value }, 'Brightness')} />
+              <AdjustmentRow label="Contrast" value={contrast} min={ADJUSTMENT_RANGES.contrast.min} max={ADJUSTMENT_RANGES.contrast.max} step={ADJUSTMENT_RANGES.contrast.step} suffix={ADJUSTMENT_RANGES.contrast.suffix} onChange={value => commit({ contrast: value }, 'Contrast')} />
+              <AdjustmentRow label="Saturation" value={saturation} min={ADJUSTMENT_RANGES.saturation.min} max={ADJUSTMENT_RANGES.saturation.max} step={ADJUSTMENT_RANGES.saturation.step} suffix={ADJUSTMENT_RANGES.saturation.suffix} onChange={value => commit({ saturation: value }, 'Saturation')} />
+              <AdjustmentRow label="Exposure" value={exposure} min={ADJUSTMENT_RANGES.exposure.min} max={ADJUSTMENT_RANGES.exposure.max} step={ADJUSTMENT_RANGES.exposure.step} suffix={ADJUSTMENT_RANGES.exposure.suffix} onChange={value => commit({ exposure: Number(value.toFixed(1)) }, 'Exposure')} />
               <div className="grid grid-cols-2 gap-1.5 pt-1">
                 {FILTERS.map(filter => (
                   <button
@@ -1456,6 +1450,40 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
                 </button>
               </div>
             </PanelSection>
+
+            {tool === 'text' && (
+              <PanelSection title="Text Options" icon={<Type className="h-3.5 w-3.5" />} open={showTextOptions} onToggle={() => setShowTextOptions(value => !value)}>
+                <label className="block">
+                  <span className="mb-1.5 block text-[11px] text-text-secondary">Font</span>
+                  <FontSelect value={textFont} onChange={font => commit({ textFont: font }, 'Text font')} />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-[11px] text-text-secondary">Font size</span>
+                  <input
+                    type="number"
+                    value={textSize}
+                    min={ADJUSTMENT_RANGES.textSize.min}
+                    max={ADJUSTMENT_RANGES.textSize.max}
+                    step={ADJUSTMENT_RANGES.textSize.step}
+                    onChange={event => setTextSize(Number(event.target.value))}
+                    onBlur={() => commit({ textSize: clampAdjustment(textSize, ADJUSTMENT_RANGES.textSize.min, ADJUSTMENT_RANGES.textSize.max) }, 'Text size')}
+                    aria-label="Font size"
+                    className="w-full rounded-[9px] border border-border-primary bg-bg-secondary px-2 py-1.5 text-xs tabular-nums text-text-primary focus:border-brand focus:outline-none"
+                  />
+                </label>
+                <div>
+                  <span className="mb-1.5 block text-[11px] text-text-secondary">Color</span>
+                  <ColorPickerRow value={textColor} label="Text color" onSelect={color => commit({ textColor: color }, 'Text color')} />
+                </div>
+                <div>
+                  <span className="mb-1.5 block text-[11px] text-text-secondary">Alignment</span>
+                  <TextAlignButtons value={textAlign} onSelect={align => commit({ textAlign: align }, 'Text align')} />
+                </div>
+                <p className="text-[10px] leading-relaxed text-text-tertiary">
+                  Caption text and watermark visibility are edited in the options bar above.
+                </p>
+              </PanelSection>
+            )}
 
             <PanelSection title="Background" icon={<Wand2 className="h-3.5 w-3.5" />} open={showBackground} onToggle={() => setShowBackground(value => !value)}>
               {bgRemovalError && <p role="alert" className="rounded-[10px] bg-error-bg px-2.5 py-1.5 text-[11px] text-error">{bgRemovalError}</p>}
@@ -1500,58 +1528,58 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
         )}
 
         {rightTab === 'history' && (
-          <PanelSection title="History" icon={<History className="h-3.5 w-3.5" />} open onToggle={() => undefined}>
-            {history.length === 0 ? (
-              <p className="py-4 text-center text-[11px] text-text-tertiary">No history yet</p>
-            ) : (
-              <>
-                <ol className="max-h-72 space-y-1 overflow-y-auto">
-                  {history.slice().reverse().map((entry, reverseIndex) => {
-                    const index = history.length - 1 - reverseIndex;
-                    const isCurrent = index === historyIndex;
-                    return (
-                      <li key={index}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            applySnapshot(entry);
-                            setHistoryIndex(index);
-                            historyIndexRef.current = index;
-                          }}
-                          disabled={isCurrent}
-                          className={`flex w-full items-center gap-2 rounded-[10px] px-2 py-1.5 text-left text-[11px] transition-colors ${
-                            isCurrent ? 'bg-brand-soft font-medium text-brand' : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-                          }`}
-                        >
-                          <span className="font-mono tabular-nums opacity-60">{String(index + 1).padStart(2, '0')}</span>
-                          <span className="flex-1 truncate">{editorHistorySummary(entry, index)}</span>
-                          {isCurrent && <Check className="h-3.5 w-3.5 text-brand" />}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ol>
-                <div className="flex gap-1.5 border-t border-border-secondary pt-2">
-                  <button
-                    type="button"
-                    onClick={handleUndo}
-                    disabled={!canUndo}
-                    className="flex-1 rounded-[10px] px-2 py-1.5 text-[11px] font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:opacity-40"
-                  >
-                    Undo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRedo}
-                    disabled={!canRedo}
-                    className="flex-1 rounded-[10px] px-2 py-1.5 text-[11px] font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:opacity-40"
-                  >
-                    Redo
-                  </button>
-                </div>
-              </>
-            )}
-          </PanelSection>
+          <div className="flex h-full flex-col">
+            <ol className="flex-1 space-y-1 overflow-y-auto p-2">
+              {history.length === 0 ? (
+                <li className="py-4 text-center text-[11px] text-text-tertiary">No history yet</li>
+              ) : (
+                history.slice().reverse().map((entry, reverseIndex) => {
+                  const index = history.length - 1 - reverseIndex;
+                  const isCurrent = index === historyIndex;
+                  return (
+                    <li key={index}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          applySnapshot(entry);
+                          setHistoryIndex(index);
+                          historyIndexRef.current = index;
+                        }}
+                        disabled={isCurrent}
+                        className={`flex w-full items-center gap-2 rounded-[10px] px-2 py-1.5 text-left text-[11px] transition-colors ${
+                          isCurrent ? 'bg-brand/15 text-brand' : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+                        }`}
+                      >
+                        <span className="font-mono tabular-nums text-text-tertiary">{String(index + 1).padStart(2, '0')}</span>
+                        <span className="flex-1 truncate">{editorHistorySummary(entry, index)}</span>
+                        {isCurrent && <Check className="h-3.5 w-3.5 text-brand" />}
+                      </button>
+                    </li>
+                  );
+                })
+              )}
+            </ol>
+            <div className="shrink-0 border-t border-border-secondary p-2">
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  className="flex-1 rounded-[10px] px-2 py-1.5 text-[11px] font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:opacity-40"
+                >
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRedo}
+                  disabled={!canRedo}
+                  className="flex-1 rounded-[10px] px-2 py-1.5 text-[11px] font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:opacity-40"
+                >
+                  Redo
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </>
@@ -1608,15 +1636,6 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
             onToggle={() => setShowOverflowMenu(value => !value)}
             onClose={() => setShowOverflowMenu(false)}
           />
-          <button
-            type="button"
-            onClick={() => setMobilePanelOpen(true)}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary lg:hidden"
-            title="Show panels"
-            aria-label="Show panels"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-          </button>
         </div>
       </div>
 
@@ -1744,6 +1763,18 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
             </button>
           )}
 
+          {!showRightPanel && (
+            <button
+              type="button"
+              onClick={() => setShowRightPanel(true)}
+              aria-label="Show side panel (F7)"
+              title="Show side panel (F7)"
+              className="absolute right-0 top-1/2 z-20 flex h-20 w-3.5 -translate-y-1/2 items-center justify-center rounded-l-md border border-r-0 border-border-primary bg-[var(--color-studio-panel)] text-text-tertiary shadow-md transition-colors hover:text-text-primary"
+            >
+              <ChevronLeft className="h-3 w-3" aria-hidden="true" />
+            </button>
+          )}
+
           {imgElement && (
             <div className="pointer-events-none absolute left-3.5 top-3.5 z-10 rounded-lg border border-border-primary bg-[var(--color-studio-panel)]/85 px-2 py-1 font-mono text-[10px] tabular-nums text-text-secondary backdrop-blur-sm">
               {canvasSize.w}×{canvasSize.h} px · {Math.round(viewZoom * 100)}%
@@ -1795,7 +1826,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
           </div>
         </section>
 
-        {isDesktop && showRightPanel && (
+        {showRightPanel && (
           <aside className="flex w-[280px] shrink-0 flex-col border-l border-border-primary bg-[var(--color-studio-panel)]">
             {rightPanel}
           </aside>
@@ -1812,16 +1843,6 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
         themeLabel={themeLabel}
         fileSizeLabel={job?.fileSize}
       />
-
-      {/* mobile slide-in panel drawer */}
-      {!isDesktop && mobilePanelOpen && (
-        <div className="fixed inset-0 z-40 flex justify-end">
-          <div className="flex-1 bg-black/50" onClick={() => setMobilePanelOpen(false)} aria-hidden="true" />
-          <div className="flex h-full w-72 max-w-[85vw] flex-col border-l border-border-primary bg-[var(--color-studio-panel)] shadow-2xl">
-            {rightPanel}
-          </div>
-        </div>
-      )}
 
       {/* settings popover */}
       {showSettings && (
