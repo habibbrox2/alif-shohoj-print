@@ -385,3 +385,39 @@ git commit -m "docs: reflect Studio editor workspace behavior"
 ## Definition of Done
 
 The workspace is visually organized, all visible primary controls are functional, original files remain safe, print dimensions are explicit, order/walk-in behavior is predictable, the new focused tests pass, relevant checks pass, and the final report lists changed files and actual validation results.
+
+---
+
+## Addendum (2026-10-12): Photoshop-style workspace layout v2
+
+This addendum expands Task 5 into the fuller desktop-editor layout requested by the shop owner. It was implemented after the original five tasks.
+
+**Goal:** Give the operator a familiar photo-editor workspace — a menu bar, a context-sensitive options bar, a grouped left tool palette with foreground/background colors, a centre canvas with view aids, a tabbed right panel (Layers / Adjust / History) with a Navigator, and a bottom status bar — while remaining responsive on narrow windows.
+
+**Delivered files:**
+- Create `src/features/studio-editor/studioTypes.ts` — shared `ToolId`, `EditorFilter`, `TextAlign`, `OverlayLayerId`, `StudioCanvasAdjustments` types.
+- Create `src/features/studio-editor/studioAdjustments.ts` — `ADJUSTMENT_RANGES`, `clampAdjustment`, `buildPhotoFilter`, `editorHistorySummary`, `buildRulerTicks`.
+- Create `src/features/studio-editor/StudioWorkspaceChrome.tsx` — `StudioMenuBar`, `StudioToolRail` (+ `STUDIO_TOOL_GROUPS`), `StudioStatusBar`.
+- Modify `src/features/studio-editor/StudioEditorCanvas.tsx` — full layout rewrite.
+- Modify `src/features/studio-editor/strokeModel.ts` — `EditorSnapshot` gains `saturation`, `textSize`, `textAlign`, `backgroundColor`; `activeFilter` now uses the shared `EditorFilter` type.
+- Create `src/shared/services/__tests__/studio-adjustments.test.ts`; modify `package.json` to run it.
+- Modify `README.md` — Studio workspace description.
+
+**Layout regions (verified in code):**
+- Menu bar: File, Edit, Image, Layer, Filter, View, Help — every item maps to an existing action.
+- Options bar: context-sensitive per tool (crop presets + rotate, brush size/opacity/colour, shape kind, eraser size, watermark text/size/align/colour).
+- Left tool palette: grouped (Navigate, Transform, Paint, Draw) with shortcut badges, plus foreground/background colour control (foreground = brush/stroke colour, background = canvas fill, swap supported).
+- Canvas: zoom/pan, transparency checkerboard, toggleable pixel grid and rulers, Navigator preview, zoom pill / fit controls.
+- Right panel: Layers (with Navigator), Adjust (brightness, contrast, saturation, scale, filters, grayscale, background removal), History (clickable list + undo/redo).
+- Status bar: tool, zoom %, canvas size, cursor X/Y, rotation, file size, document label.
+- Responsive: below `lg`, the tool palette becomes a bottom toolbar and the right panel becomes a slide-in drawer; a first-open tips card is stored in `localStorage`.
+
+**Not implemented (deliberately):** a Channels panel (no channel data model exists) — showing a non-functional Channels tab would violate the "no dead controls" constraint.
+
+- [x] Pure helpers + tests (`buildPhotoFilter`, `clampAdjustment`, `buildRulerTicks`, `editorHistorySummary`)
+- [x] `npm run lint` (tsc) passes
+- [x] `npm run test:renderer` passes (86 tests, +6 new)
+- [x] `npm run build` passes
+- [ ] Manual desktop + narrow-window inspection in the running shell (not performed in this session)
+- [ ] Electron file-dialog / export path re-check (unchanged code path)
+

@@ -37,13 +37,15 @@ export const StudioPage: React.FC = () => {
     clearPendingStudioOrder,
   } = useStudio();
 
-  const [activeTab, setActiveTab] = useState<'picker' | 'editor'>('picker');
   const [selectedSource, setSelectedSource] = useState<StudioImageSource | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOrderPicker, setShowOrderPicker] = useState(false);
   const [editorJobId, setEditorJobId] = useState<string | null>(null);
   const [isWalkInJob, setIsWalkInJob] = useState(false);
+  // Bumps on every source selection so the always-mounted editor reloads even
+  // when the newly picked image matches the previous props.
+  const [sourceNonce, setSourceNonce] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const jobsRef = useRef(jobs);
   useEffect(() => { jobsRef.current = jobs; }, [jobs]);
@@ -76,7 +78,7 @@ export const StudioPage: React.FC = () => {
     });
     setIsWalkInJob(false);
     setShowOrderPicker(false);
-    setActiveTab('editor');
+    setSourceNonce(value => value + 1);
     setEditorJobId(job.id);
   }, []);
 
@@ -120,7 +122,7 @@ export const StudioPage: React.FC = () => {
         fileName: file.name,
       });
       setIsWalkInJob(true);
-      setActiveTab('editor');
+      setSourceNonce(value => value + 1);
       setEditorJobId(null);
     } catch (err) {
       setError('ফাইল পড়তে সমস্যা হয়েছে।');
@@ -157,7 +159,7 @@ export const StudioPage: React.FC = () => {
           filePath: result.filePath,
         });
         setIsWalkInJob(true);
-        setActiveTab('editor');
+        setSourceNonce(value => value + 1);
         setEditorJobId(null);
       }
     } catch (err) {
@@ -173,14 +175,12 @@ export const StudioPage: React.FC = () => {
     if (selectedSource.type === 'order' && selectedSource.job) {
       // For order images, save back to the job via editJob
       // This is handled by StudioEditorCanvas via onSave -> OrderCardModal.editJob
-      // Here we just close the editor
-      setActiveTab('picker');
+      // Here we just clear the canvas and stay in the editor
       setSelectedSource(null);
       setEditorJobId(null);
     } else if (selectedSource.type === 'local') {
       // For walk-in jobs, create a print job and send to queue
       await createWalkInJob(editedImageUrl, adjustments);
-      setActiveTab('picker');
       setSelectedSource(null);
       setEditorJobId(null);
     }
@@ -271,7 +271,6 @@ export const StudioPage: React.FC = () => {
   };
 
   const handleEditorClose = useCallback(() => {
-    setActiveTab('picker');
     setSelectedSource(null);
     setEditorJobId(null);
   }, []);
@@ -290,15 +289,31 @@ export const StudioPage: React.FC = () => {
           </div>
         </div>
 
-        {activeTab === 'editor' && (
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={handleEditorClose}
+            onClick={() => setShowOrderPicker(true)}
             className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors flex items-center gap-1.5"
           >
-            <X className="w-3.5 h-3.5" />
-            <span>পিকারে ফিরুন</span>
+            <FileText className="w-3.5 h-3.5 text-emerald-400" />
+            <span>অর্ডারের ছবি ({imageJobs.length})</span>
           </button>
-        )}
+          <button
+            onClick={handleLocalFileSelect}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors flex items-center gap-1.5"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>আপলোড</span>
+          </button>
+          <button
+            onClick={handleDesktopFileSelect}
+            disabled={isLoading}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            <span>ফাইল খুলুন</span>
+          </button>
+          {isLoading && <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />}
+        </div>
       </div>
 
       {error && (
@@ -311,118 +326,24 @@ export const StudioPage: React.FC = () => {
         </div>
       )}
 
-      {/* Main Content */}
+      {/* Main Content: editor is always visible, Photoshop-style */}
       <div className="flex-1 overflow-hidden">
-        {/* Tab 1: Image Picker */}
-        {activeTab === 'picker' && (
-          <div className="flex h-full flex-col p-5">
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-white mb-3">ছবির উৎস নির্বাচন করুন</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Order Images Card */}
-                <button
-                  onClick={() => setShowOrderPicker(true)}
-                  className="relative p-5 rounded-xl border-2 border-slate-700 bg-slate-950/80 hover:border-emerald-500/50 hover:bg-slate-900 transition-all group"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-emerald-600/20 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-white">অর্ডারের ছবি (Order Images)</h4>
-                      <p className="text-xs text-slate-400">{imageJobs.length} টি অর্ডারের ছবি উপলব্ধ</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                    {imageJobs.slice(0, 6).map((job: PrintJob) => (
-                      <div
-                        key={job.id}
-                        onClick={(e) => { e.stopPropagation(); handleOrderSelect(job); }}
-                        className="relative aspect-square rounded-lg overflow-hidden border border-slate-700 bg-slate-900 cursor-pointer group-hover:ring-2 group-hover:ring-emerald-500 transition-all"
-                      >
-                        <img
-                          src={job.fileUrl}
-                          alt={job.fileName}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/parent:opacity-100 transition-opacity">
-                          <span className="text-xs text-white px-2 py-1 bg-emerald-600 rounded">নির্বাচন</span>
-                        </div>
-                        <div className="absolute bottom-1 left-1 right-1 text-[10px] text-white bg-black/60 px-1.5 py-0.5 rounded truncate">
-                          #{job.tokenCode}
-                        </div>
-                      </div>
-                    ))}
-                    {imageJobs.length > 6 && (
-                      <div className="col-span-full md:col-span-2 flex items-center justify-center p-4 text-slate-400 text-xs border-t border-slate-800">
-                        আরো {imageJobs.length - 6} টি ছবি... ক্লিক করুন দেখতে
-                      </div>
-                    )}
-                  </div>
-                </button>
+        <StudioEditorCanvas
+          key={`${selectedSource?.type ?? 'empty'}-${selectedSource?.job?.id ?? selectedSource?.fileName ?? 'none'}-${sourceNonce}`}
+          initialImageUrl={selectedSource?.dataUrl}
+          job={selectedSource?.job}
+          onSave={handleEditorSave}
+          onClose={handleEditorClose}
+        />
 
-                {/* Local File Card */}
-                <button
-                  onClick={handleDesktopFileSelect}
-                  disabled={isLoading}
-                  className="relative p-5 rounded-xl border-2 border-slate-700 bg-slate-950/80 hover:border-emerald-500/50 hover:bg-slate-900 transition-all flex flex-col items-center justify-center min-h-[280px] gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="w-16 h-16 rounded-full bg-slate-800/50 flex items-center justify-center border border-slate-700 group-hover:border-emerald-500 transition-colors">
-                    <FolderOpen className="w-7 h-7 text-emerald-400" />
-                  </div>
-                  <div className="text-center">
-                    <h4 className="font-semibold text-white">লোকাল ফাইল থেকে (Local File)</h4>
-                    <p className="text-xs text-slate-400 mt-1">কম্পিউটার থেকে ছবি নির্বাচন করুন</p>
-                    <p className="text-[10px] text-slate-500 mt-2">JPG, PNG, WebP, BMP, TIFF · সর্বোচ্চ ৫০ MB</p>
-                  </div>
-                  {isLoading && <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="border-t border-slate-800 pt-4">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">দ্রুত অ্যাকশন</h4>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={handleLocalFileSelect}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors flex items-center gap-1.5"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>ব্রাউজার থেকে ফাইল আপলোড</span>
-                </button>
-                <button
-                  onClick={handleDesktopFileSelect}
-                  disabled={isLoading}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors flex items-center gap-1.5"
-                >
-                  <FolderOpen className="w-3.5 h-3.5" />
-                  <span>Windows ফাইল ডায়ালগ খুলুন</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Hidden file input for browser upload */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/bmp,image/tiff"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-          </div>
-        )}
-
-        {/* Tab 2: Editor */}
-        {activeTab === 'editor' && selectedSource && (
-          <StudioEditorCanvas
-            initialImageUrl={selectedSource.dataUrl}
-            job={selectedSource.job}
-            onSave={handleEditorSave}
-            onClose={handleEditorClose}
-          />
-        )}
+        {/* Hidden file input for browser upload */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/bmp,image/tiff"
+          onChange={handleFileChange}
+          className="hidden"
+        />
 
         {/* Order Picker Modal */}
         {showOrderPicker && (

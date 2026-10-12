@@ -1,4 +1,5 @@
 import type { CropPreset } from './cropPresets.js';
+import type { EditorFilter, TextAlign } from './studioTypes.js';
 
 /**
  * A drawn overlay stroke. Coordinates are normalised (0..1) so marks survive a crop resize.
@@ -128,12 +129,21 @@ export interface EditorSnapshot {
   zoom: number;
   brightness: number;
   contrast: number;
+  saturation: number;
   grayscale: boolean;
-  activeFilter: 'none' | 'clean_white' | 'passport_blue' | 'high_sharp' | 'bw_doc';
+  activeFilter: EditorFilter;
   cropPreset: CropPreset;
   annotationText: string;
   showWatermark: boolean;
   textColor: string;
+  textSize: number;
+  textAlign: TextAlign;
+  backgroundColor: string;
   strokes: Stroke[];
   showBgRemoved: boolean;
+  /**
+   * Optional human-readable label for the history step that produced this
+   * snapshot. Not part of the restored state; it only drives the History list.
+   */
+  label?: string;
 }

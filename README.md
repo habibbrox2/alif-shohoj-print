@@ -203,11 +203,13 @@ The desktop app now includes a **Studio** tab for image editing and walk-in prin
 - The UI clearly shows which order/file is being edited to avoid mistakes.
 - Edit history with undo/redo/reset is available in the editor.
 
-### Image editing tools
-- **Crop, rotate, resize** with aspect-ratio and custom print dimensions.
-- **Brightness, contrast** and basic adjustments.
-- **Preview** before saving/exporting.
-- **Undo / Redo / Reset** to original.
+### Image editing workspace
+- The editor follows a desktop photo-editor layout: a **menu bar** (File, Edit, Image, Layer, Filter, View, Help), a context-sensitive **options bar** for the active tool, a left **tool palette** with foreground/background colors, the centre **canvas**, a right **panel** with **Layers / Adjust / History** tabs, and a bottom **status bar** (zoom, size, cursor position, rotation, document).
+- **Tools**: move/pan, crop & rotate, brush, eraser, shapes, and text, with keyboard shortcuts (`V`, `C`, `B`, `E`, `S`, `T`). Tooltips show each shortcut.
+- **Adjustments**: brightness, contrast, saturation, scale, grayscale, and quick filters (passport blue, clean white, sharpen, B/W document).
+- **View aids**: transparency checkerboard, canvas pixel grid, rulers, zoom/pan controls, and a Navigator preview thumbnail.
+- **Collapsible panels** with a first-open tips card; on narrow windows the right panel becomes a slide-in drawer and the tool palette moves to a bottom toolbar.
+- **Undo / Redo / Reset** to original, with a clickable history list.
 - Output dimensions and print size are validated before sending to the print queue.
 - Edited output is exported safely and linked to the originating order.
 
