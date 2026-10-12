@@ -8,6 +8,8 @@
 
 **Tech Stack:** React 18 + TypeScript + Vite, Tailwind v4 utility classes backed by CSS custom-property theme tokens in `resources/assets/index.css`, `node:test` unit tests via `npm run test:renderer`.
 
+**Extension (2026-10-12):** Tasks 5–6 add the Print Settings sub-window per the follow-up "Add Print Dialog / Print Settings Sub-Window" spec, in this same workspace so both features' edits to `StudioEditorCanvas.tsx` stay serialized. Research findings that shape them: the only print backend is the desktop PrintJob queue (`StudioContext.approveJob` → `desktop.saveJob` + `desktop.printJob` → `electron/services/print-service.ts`, pdf-to-printer, `scale: 'fit'`); `PrintService` honours `job.paperSize` but never orientation or margins; Electron exposes no native OS page-setup dialog; `StudioEditorCanvasProps.onPrint`/`onPrintPreview` are dead props no caller passes; `cropPresets.ts` establishes 300 DPI as the repo's document-resolution convention; paper dimensions come from `STANDARD_PAPER_SPECS`.
+
 **Spec:** Left Tool Bar and Right Sidebar specifications supplied verbatim in the task prompt (reproduced in Appendix A). User decisions recorded in Appendix B.
 
 ## Global Constraints
@@ -120,6 +122,118 @@
 - [ ] **Step 5: README** — update the Studio section: grouped 56 px palette, tabbed 280 px sidebar with edge handles, real "+ New Layer"; delete the narrow-window drawer/bottom-toolbar sentence.
 - [ ] **Step 6: Verify**
   Run: `npm run lint`, `npm run test:renderer`, `npm run build` → all PASS; visual pass (light + dark, 900 px width) with screenshots in `tmp/`.
+
+---
+
+### Task 5: Print settings model + layout math (pure)
+
+Create the tested, UI-free foundation for the Print Settings dialog. No visual work in this task.
+
+**Files:**
+- Create: `src/features/studio-editor/printSettings.ts`
+- Create: `src/shared/services/__tests__/studio-print-settings.test.ts`
+- Modify: `package.json` — append the new test file to the `test:renderer` script list (deliberate, task-related, reported; no dependency changes)
+
+**Interfaces:**
+- Consumes: `PaperSize` union (`src/shared/types.ts`); paper dimensions from `STANDARD_PAPER_SPECS` (`src/features/printers/drivers/PrinterCapabilitiesRegistry.ts`) — verify the exact export shape first; derive inches as `mm ÷ 25.4` if inch fields are absent; exclude `'Custom'` from any paper-choice list (the print service throws on it).
+- Produces (Task 6 consumes verbatim):
+  - `interface PrintSettings { paperSize: PaperSize; orientation: 'portrait' | 'landscape'; marginIn: number; centerImage: boolean; topIn: number; leftIn: number; scalePercent: number; scaleToFit: boolean; showBoundingBox: boolean }`
+  - `DEFAULT_PRINT_SETTINGS = { paperSize: 'A4', orientation: 'portrait', marginIn: 0.25, centerImage: true, topIn: 0, leftIn: 0, scalePercent: 100, scaleToFit: false, showBoundingBox: true }`
+  - `PRINT_SETTINGS_STORAGE_KEY = 'alif-shohoj-print-studio-print-settings'`
+  - `loadPrintSettings(): PrintSettings` — merge stored JSON over defaults, clamp every numeric field, return defaults when storage is unavailable or corrupt; must be node-test safe (guard on `globalThis.localStorage`, no DOM import)
+  - `savePrintSettings(settings): void` — best-effort, try/catch, never throws
+  - `getPaperDimensions(paperSize, orientation): { widthIn: number; heightIn: number }` — A4 portrait = `8.268 × 11.693` in; landscape swaps the two
+  - `computePrintLayout(settings, docPx: { w: number; h: number }): PrintLayout` where `interface PrintLayout { paper: { widthIn: number; heightIn: number }; printable: { widthIn: number; heightIn: number }; docWidthIn: number; docHeightIn: number; scalePercent: number; topIn: number; leftIn: number }`
+    - natural document size at 100 % = `docPx ÷ 300 DPI` (repo's 300-DPI convention, `cropPresets.ts`); displayed size = natural × effectiveScale / 100
+    - `printable = paper − 2 × marginIn` per axis
+    - `scaleToFit: true` → effective scale = `min(printableW / naturalW, printableH / naturalH) × 100` (derived, overrides stored `scalePercent`)
+    - `centerImage: true` → effective `topIn`/`leftIn` = `(paper − displayed) ÷ 2`; otherwise the stored values
+  - `settingsFromScale(settings, percent): PrintSettings`, `settingsFromHeight(settings, docPx, inches): PrintSettings`, `settingsFromWidth(settings, docPx, inches): PrintSettings` — each sets `scalePercent = clamp(value, 1, 640)` (Height/Width are never stored, so aspect ratio is preserved structurally); soft-clamp only, no hard rejections
+- Ruling: the spec's example values (Top/Left `-0.117`, Height `11.692`, Width `8.267`) are illustrative — defaults are the values above (centered image, 100 %, A4).
+
+**Step 1 — Write the failing tests first.** File `src/shared/services/__tests__/studio-print-settings.test.ts` with exactly these test names:
+- `getPaperDimensions returns A4 portrait inches and swaps for landscape`
+- `computePrintLayout derives document size from 300 DPI pixels and scale`
+- `computePrintLayout centers the document when centerImage is set`
+- `computePrintLayout honors explicit top and left when not centered`
+- `computePrintLayout fits to the printable area when scaleToFit is set`
+- `settingsFromHeight and settingsFromWidth rescale keeping aspect ratio`
+- `loadPrintSettings falls back to defaults for missing or invalid stored values`
+
+**Step 2 — Confirm RED:** `npx tsx --test src/shared/services/__tests__/studio-print-settings.test.ts` fails (module does not exist).
+
+**Step 3 — Implement** `printSettings.ts` per the interface, and append the test path to the `test:renderer` script in `package.json`.
+
+**Step 4 — Confirm GREEN:** `npm run test:renderer` passes (previous 94 + new tests).
+
+**Commit:** `feat(studio): add print settings model and layout math` — stage only the three files.
+
+**Quality Checklist:**
+- [ ] Every `PrintSettings` field with defaults as specified; Task 6 can consume them verbatim
+- [ ] `computePrintLayout` honors all three sync rules (scale→size, center→position, fit→scale)
+- [ ] No DOM-only APIs at module top level (node test must not crash)
+- [ ] No UI, no new dependencies, no changes to other components (pre-existing lint debt elsewhere is out of scope — do not "fix" it here)
+
+---
+
+### Task 6: Print dialog UI, entry point and backend seam
+
+Build the dialog itself and wire it to the Options Bar. Runs after Task 4 so it edits the post-refactor `StudioEditorCanvas.tsx`.
+
+**Files:**
+- Create: `src/features/studio-editor/PrintDialog.tsx`
+- Create: `src/features/studio-editor/printBackend.ts`
+- Modify: `src/features/studio-editor/StudioEditorCanvas.tsx`
+- Modify: `resources/assets/index.css` — add only the paper-colour token
+- Modify: `README.md`
+
+**Interfaces:**
+- Consumes (Task 5): `PrintSettings`, `DEFAULT_PRINT_SETTINGS`, `loadPrintSettings`, `savePrintSettings`, `getPaperDimensions`, `computePrintLayout`, `settingsFromScale/Height/Width`.
+- Consumes (existing): `PrintJob` type; `desktop.saveJob` / `desktop.printJob` via `src/shared/desktop-api.ts` / `window.alifShohojPrintDesktop` (renderer bridge use only — no Node/Electron imports); `Printer`, `X` from `lucide-react`.
+- Produces: `PrintDialogProps = { job?: PrintJob; docPx: { w: number; h: number }; docDataUrl: string; onClose: () => void }`.
+
+**Dialog shell:** modal overlay `fixed inset-0 z-50 grid place-items-center bg-black/60 p-4` (same pattern as the keyboard-shortcuts dialog); panel `w-[780px] max-w-[95vw] h-[520px] max-h-[92vh] rounded-xl border border-border-primary bg-surface shadow-2xl flex flex-col`; header row with title **Print** and a lucide `X` close button (discard semantics); body `flex min-h-0 flex-1`.
+
+**Left — preview (`w-[57%]`, `bg-[var(--color-studio-canvas)]`, `tabIndex={0}` and first in DOM so tab order starts here):**
+- Paper sheet: div with `aspect-ratio` from `layout.paper`, `background: var(--color-studio-paper)`, `shadow-xl`, centred with padding; token added in `resources/assets/index.css`: `.studio-shell { --color-studio-paper: #fdfdfc; }` and `.theme-dark .studio-shell { --color-studio-paper: #c9c9c3; }` (realistic paper-white in light, off-white in dark — component must not hardcode colours).
+- Document: `<img src={docDataUrl}>` (captured once by the parent when the dialog opens) positioned absolutely with `left/top/width/height` percentages derived from `layout` (`topIn ÷ paper.heightIn`, `docWidthIn ÷ paper.widthIn`, …) so every settings change refreshes the preview live via a single `useMemo` over `settings`.
+- `showBoundingBox` → dashed `border border-dashed border-brand/70` wrapper around the image; unchecked → none. `centerImage` handled entirely by the layout math.
+- Preview background one step different from the panel (canvas token satisfies this in both themes).
+
+**Right — controls (`w-[300px] shrink-0 border-l border-border-primary overflow-y-auto p-3 space-y-3`), DOM order = required tab order (action buttons → Position → Scaled Print Size):**
+1. Action buttons, stacked, full-width: **Print…** (primary `bg-brand text-on-brand`, most prominent), **Cancel** (closes, discards), **Done** (saves via `savePrintSettings` then closes), **Page Setup…** (toggles the PAGE SETUP section below). Match the editor's existing quick-action button classes.
+2. Divider `border-t border-border-primary`, then optional **PAGE SETUP** section (visible when toggled): Paper Size `<select>` (all `PaperSize` values except `'Custom'`), Orientation `<select>` (portrait/landscape), Margins number input (in). Changing paper re-derives the preview and re-runs fit-to-media automatically. Comment: native OS page-setup is unavailable in Electron; orientation/margins are preview-only today.
+3. **POSITION** section: `text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary`; rows label + `type="number"` input (`step="0.001"`, `text-right`, `w-20`, suffix label `in`) for **Top** and **Left**; checkbox **Center Image** — when checked, Top/Left get `disabled` + `opacity-60` (`cursor-not-allowed`) and are forced from layout math.
+4. **SCALED PRINT SIZE** section: **Scale** number input + `%` suffix; checkbox **Scale to Fit Media** — when checked, Scale/Height/Width are `disabled` + `opacity-60` and show derived values; **Height** and **Width** number inputs (in) — when unchecked, each edit calls `settingsFromHeight/Width` and the other two fields follow; checkbox **Show Bounding Box**. Soft clamping only (1–640 %).
+
+Input styling: `border border-border-primary bg-bg-secondary text-text-primary focus:border-brand focus:outline-none`, `title` tooltips on each control, `aria-label`s on the numeric inputs, native keyboard accessibility (no custom focus traps).
+
+**State:** local `const [settings, setSettings] = useState(loadPrintSettings())` inside `Dialog`; parent captures the preview image once at open: `openPrintDialog = () => { setPrintPreviewDataUrl(canvasRef.current?.toDataURL('image/jpeg', 0.92) ?? ''); setShowPrintDialog(true); }`. Done persists; Cancel/`×`/Escape discard. Print… does **not** persist (Done is the save action).
+
+**Backend seam — `src/features/studio-editor/printBackend.ts`:**
+- `interface PrintResult { ok: boolean; message: string }`; `async function printWithSettings(request: { settings: PrintSettings; dataUrl: string; job?: PrintJob }): Promise<PrintResult>`.
+- No `job` or bridge unavailable → `{ ok: false, message: 'Print backend not yet connected' }` with `// TODO` comments (standalone canvas printing has no queue job to attach to).
+- Job path (mirrors `StudioContext.approveJob`): `await desktop.saveJob({ ...job, fileUrl: dataUrl, paperSize: settings.paperSize })`, then `await desktop.printJob(job.id)`; catch → `{ ok: false, message }`. Surface the message in the dialog's `role="status"` line; disable Print… while pending.
+- `// TODO` comment block in this file: `electron/services/print-service.ts` does not consume position/scale/center/fit/orientation/margins yet (`scale: 'fit'`, no orientation, no margin handling) — wire these settings there later. Never log job payloads, tokens, or data URLs.
+
+**StudioEditorCanvas wiring:** `showPrintDialog` state; **Print…** quick-action button (lucide `Printer`) in the Options Bar cluster after Export JPG with `title="Print (Ctrl+P)"`; keyboard handler: before `if (isCtrl) return`, add `Ctrl/Cmd+P` → `event.preventDefault()` + open dialog; Escape closes it (place in the existing Escape chain alongside `showShortcuts`); add the state to the effect dependency array. Render `<PrintDialog job={job} docPx={canvasSize} docDataUrl={…} onClose={…} />` conditionally. Do not touch `onSave`, export, or the dead `onPrint`/`onPrintPreview` props.
+
+**README:** add a bullet in the Studio section: Print button / `Ctrl+P` opens the Print dialog (live paper preview, position, scale, page setup, persisted on Done) and note the backend gap (position/scale not yet honoured by the print service).
+
+**Verification:** `npm run lint`, `npm run test:renderer`, `npm run build` all pass. Visual: `npm run dev` → Studio tab → open the Print dialog; toggle every checkbox, edit Top/Left/Scale/Height/Width, switch paper size; confirm light and dark themes; save a screenshot to `tmp/` (create it if absent); close with Cancel and reopen to confirm values discarded.
+
+**Known deviations to note in the report:** no native OS page-setup (in-dialog PAGE SETUP section instead); `Print…` on a non-job image reports "Print backend not yet connected"; position/scale/fit settings are preview-only until `print-service.ts` consumes them (TODO comments in code).
+
+**Commit:** `feat(studio): add studio print settings dialog` — stage only the files above.
+
+**Quality Checklist:**
+- [ ] Dialog matches the spec layout (57 % preview left; stacked Print/Cancel/Done/Page Setup…; POSITION and SCALED PRINT SIZE sections with the exact checkboxes)
+- [ ] Live preview: every setting change moves the document on the paper immediately; bounding box and centering obey their checkboxes
+- [ ] Sync rules: Scale↔Height↔Width keep aspect; Center Image locks Top/Left; Scale to Fit Media locks and derives Scale/Height/Width
+- [ ] Done persists, Cancel/×/Escape discard, Print… calls `printWithSettings` and shows its message
+- [ ] Entry points: Options Bar **Print…** button + `Ctrl+P` (browser print suppressed)
+- [ ] Theme tokens only, paper token in `index.css`, works in both light and dark
+- [ ] `npm run lint` + `npm run test:renderer` + `npm run build` pass; README updated
 
 ---
 
