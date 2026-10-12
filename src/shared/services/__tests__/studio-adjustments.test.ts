@@ -10,6 +10,7 @@ import {
   resolveFontStack,
 } from '../../../features/studio-editor/studioAdjustments.js';
 import type { EditorSnapshot } from '../../../features/studio-editor/editorHistory.js';
+import { createPaintLayer, defaultContentLayerStack } from '../../../features/studio-editor/strokeModel.js';
 
 const snapshot = (overrides: Partial<EditorSnapshot> = {}): EditorSnapshot => ({
   rotation: 0,
@@ -28,7 +29,7 @@ const snapshot = (overrides: Partial<EditorSnapshot> = {}): EditorSnapshot => ({
   textAlign: 'center',
   textFont: DEFAULT_TEXT_FONT,
   backgroundColor: '#0f172a',
-  strokes: [],
+  contentLayers: defaultContentLayerStack(),
   showBgRemoved: false,
   ...overrides,
 });
@@ -157,11 +158,16 @@ test('editorHistorySummary labels the active step', () => {
   assert.equal(editorHistorySummary(snapshot(), 0), 'Opened');
   assert.equal(editorHistorySummary(snapshot({ cropPreset: 'passport' }), 2), 'Crop · passport');
   assert.equal(editorHistorySummary(snapshot({ label: 'Brightness', cropPreset: 'passport' }), 3), 'Brightness');
+  const marksLayer = createPaintLayer('marks', 'Marks');
+  if (marksLayer.kind !== 'paint') assert.fail('createPaintLayer must return a paint layer');
   assert.equal(
     editorHistorySummary(
       snapshot({
-        strokes: [
-          { id: 's1', kind: 'brush', points: [{ x: 0.1, y: 0.1 }], color: '#fff', size: 8, opacity: 100 },
+        contentLayers: [
+          {
+            ...marksLayer,
+            strokes: [{ id: 's1', kind: 'brush', points: [{ x: 0.1, y: 0.1 }], color: '#fff', size: 8, opacity: 100 }],
+          },
         ],
       }),
       1,

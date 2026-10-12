@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { HISTORY_LIMIT, pushHistory, redo, undo } from '../../../features/studio-editor/editorHistory.js';
 import type { EditorSnapshot } from '../../../features/studio-editor/editorHistory.js';
+import { defaultContentLayerStack } from '../../../features/studio-editor/strokeModel.js';
 
 const snap = (n: number): EditorSnapshot => ({
   rotation: n,
@@ -20,7 +21,7 @@ const snap = (n: number): EditorSnapshot => ({
   textAlign: 'center',
   textFont: 'hind',
   backgroundColor: '#0f172a',
-  strokes: [],
+  contentLayers: defaultContentLayerStack(),
   showBgRemoved: false,
 });
 

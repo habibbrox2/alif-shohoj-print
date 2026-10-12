@@ -86,7 +86,7 @@ export function buildPhotoFilter(input: PhotoFilterInput): string {
 export function editorHistorySummary(entry: EditorSnapshot, index: number): string {
   if (index === 0) return 'Opened';
   if (entry.label) return entry.label;
-  if (entry.strokes.length > 0) return 'Marks';
+  if (entry.contentLayers.some((layer) => layer.kind === 'paint' && layer.strokes.length > 0)) return 'Marks';
   if (entry.showWatermark || entry.annotationText.trim().length > 0) return 'Watermark';
   if (entry.cropPreset !== 'free') return `Crop · ${entry.cropPreset}`;
   if (entry.rotation !== 0) return 'Rotate';

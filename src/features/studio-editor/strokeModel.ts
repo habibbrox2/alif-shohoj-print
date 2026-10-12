@@ -122,6 +122,79 @@ export function getStrokeBounds(stroke: Stroke): { minX: number; minY: number; m
 }
 
 /**
+ * A content layer in the editor stack. Paint layers own the strokes drawn on
+ * the canvas; the single text layer holds the watermark/annotation text.
+ * The stack is ordered bottom-first: index 0 renders below later entries.
+ */
+export type ContentLayer =
+  | { id: string; kind: 'paint'; name: string; strokes: Stroke[] }
+  | { id: 'text'; kind: 'text'; name: string };
+
+/** Id of the default paint layer seeded under the text layer. */
+export const DEFAULT_PAINT_LAYER_ID = 'marks';
+/** The text layer id is fixed; it always exists exactly once in the stack. */
+export const TEXT_LAYER_ID = 'text';
+
+/**
+ * Create an empty paint layer with the given id and name.
+ */
+export function createPaintLayer(id: string, name: string): ContentLayer {
+  return { id, kind: 'paint', name, strokes: [] };
+}
+
+/**
+ * The starting stack: Marks below the Watermark text layer.
+ */
+export function defaultContentLayerStack(): ContentLayer[] {
+  return [
+    createPaintLayer(DEFAULT_PAINT_LAYER_ID, 'Marks'),
+    { id: TEXT_LAYER_ID, kind: 'text', name: 'Watermark' },
+  ];
+}
+
+/**
+ * Insert a layer at `index`, returning a new stack (immutable).
+ */
+export function insertContentLayer(stack: ContentLayer[], index: number, layer: ContentLayer): ContentLayer[] {
+  const next = [...stack];
+  next.splice(index, 0, layer);
+  return next;
+}
+
+/**
+ * Swap a layer with its neighbour in `direction`; no-op at the ends or for unknown ids.
+ */
+export function moveContentLayer(stack: ContentLayer[], id: string, direction: -1 | 1): ContentLayer[] {
+  const index = stack.findIndex((layer) => layer.id === id);
+  const target = index + direction;
+  if (index === -1 || target < 0 || target >= stack.length) return stack;
+  const next = [...stack];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
+/**
+ * Rewrite the addressed paint layer's strokes; every other layer keeps its identity.
+ */
+export function updatePaintLayerStrokes(
+  stack: ContentLayer[],
+  layerId: string,
+  update: (strokes: Stroke[]) => Stroke[]
+): ContentLayer[] {
+  return stack.map((layer) =>
+    layer.id === layerId && layer.kind === 'paint' ? { ...layer, strokes: update(layer.strokes) } : layer
+  );
+}
+
+/**
+ * Default name for the next paint layer: `Layer N`, N = paint-layer count + 1.
+ */
+export function nextPaintLayerName(stack: ContentLayer[]): string {
+  const paintCount = stack.filter((layer) => layer.kind === 'paint').length;
+  return `Layer ${paintCount + 1}`;
+}
+
+/**
  * Everything a user can change. Snapshots of this drive undo/redo.
  */
 export interface EditorSnapshot {
@@ -143,7 +216,7 @@ export interface EditorSnapshot {
   /** Font id from `STUDIO_FONTS`; resolved to a CSS stack when rendering. */
   textFont: string;
   backgroundColor: string;
-  strokes: Stroke[];
+  contentLayers: ContentLayer[];
   showBgRemoved: boolean;
   /**
    * Optional human-readable label for the history step that produced this

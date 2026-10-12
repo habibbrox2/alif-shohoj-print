@@ -1,6 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addPoint, createBrushStroke, createShapeStroke, distanceToStroke, eraseStrokes, getStrokeBounds } from '../../../features/studio-editor/strokeModel.js';
+import {
+  addPoint,
+  createBrushStroke,
+  createPaintLayer,
+  createShapeStroke,
+  defaultContentLayerStack,
+  distanceToStroke,
+  eraseStrokes,
+  getStrokeBounds,
+  insertContentLayer,
+  moveContentLayer,
+  nextPaintLayerName,
+  updatePaintLayerStrokes,
+} from '../../../features/studio-editor/strokeModel.js';
+import type { ContentLayer, Stroke } from '../../../features/studio-editor/strokeModel.js';
 
 function makeStroke(points: Array<{ x: number; y: number }> = [], kind: 'brush' | 'shape' = 'brush'): import('../../../features/studio-editor/strokeModel.js').Stroke {
   return {
@@ -12,6 +26,11 @@ function makeStroke(points: Array<{ x: number; y: number }> = [], kind: 'brush' 
     size: 8,
     opacity: 100,
   };
+}
+
+function paintStrokes(stack: ContentLayer[], id: string): Stroke[] | null {
+  const layer = stack.find((candidate) => candidate.id === id);
+  return layer && layer.kind === 'paint' ? layer.strokes : null;
 }
 
 test('addPoint returns a new stroke with the point appended (immutable)', () => {
@@ -84,4 +103,65 @@ test('getStrokeBounds returns bounds for non-empty stroke', () => {
 test('getStrokeBounds returns null for empty stroke', () => {
   const stroke = makeStroke([]);
   assert.equal(getStrokeBounds(stroke), null);
+});
+
+test('createPaintLayer builds an empty paint layer with the given id and name', () => {
+  const layer = createPaintLayer('custom', 'Custom');
+  assert.deepEqual(layer, { id: 'custom', kind: 'paint', name: 'Custom', strokes: [] });
+});
+
+test('defaultContentLayerStack seeds Marks below the Watermark text layer', () => {
+  const stack = defaultContentLayerStack();
+  assert.equal(stack.length, 2);
+  assert.deepEqual(stack[0], { id: 'marks', kind: 'paint', name: 'Marks', strokes: [] });
+  assert.deepEqual(stack[1], { id: 'text', kind: 'text', name: 'Watermark' });
+});
+
+test('insertContentLayer splices without mutating the input stack', () => {
+  const stack = defaultContentLayerStack();
+  const layer = createPaintLayer('extra', 'Extra');
+  const next = insertContentLayer(stack, 1, layer);
+  assert.notEqual(next, stack);
+  assert.equal(next[1], layer);
+  assert.deepEqual(next.map((l) => l.id), ['marks', 'extra', 'text']);
+  assert.deepEqual(stack.map((l) => l.id), ['marks', 'text']); // original unchanged
+});
+
+test('moveContentLayer swaps adjacent layers and no-ops at the ends or for unknown ids', () => {
+  const stack = defaultContentLayerStack();
+  const swapped = moveContentLayer(stack, 'text', -1);
+  assert.deepEqual(swapped.map((l) => l.id), ['text', 'marks']);
+  assert.deepEqual(stack.map((l) => l.id), ['marks', 'text']); // original unchanged
+  assert.deepEqual(moveContentLayer(stack, 'marks', -1).map((l) => l.id), ['marks', 'text']); // bottom end
+  assert.deepEqual(moveContentLayer(stack, 'text', 1).map((l) => l.id), ['marks', 'text']); // top end
+  assert.deepEqual(moveContentLayer(stack, 'unknown', 1).map((l) => l.id), ['marks', 'text']); // unknown id
+});
+
+test('updatePaintLayerStrokes rewrites only the addressed paint layer', () => {
+  const stack: ContentLayer[] = [
+    createPaintLayer('a', 'Layer A'),
+    createPaintLayer('b', 'Layer B'),
+    { id: 'text', kind: 'text', name: 'Watermark' },
+  ];
+  const stroke = makeStroke([{ x: 0.1, y: 0.1 }]);
+  const next = updatePaintLayerStrokes(stack, 'a', (strokes) => [...strokes, stroke]);
+  assert.notEqual(next, stack);
+  assert.equal(paintStrokes(next, 'a')?.length, 1);
+  assert.equal(paintStrokes(next, 'b')?.length, 0);
+  assert.equal(next[1], stack[1]); // untouched paint layer keeps its identity
+  assert.equal(next[2], stack[2]); // text layer untouched
+  assert.equal(paintStrokes(stack, 'a')?.length, 0); // original unchanged
+});
+
+test('nextPaintLayerName counts existing paint layers', () => {
+  assert.equal(nextPaintLayerName([]), 'Layer 1');
+  assert.equal(nextPaintLayerName(defaultContentLayerStack()), 'Layer 2');
+  assert.equal(
+    nextPaintLayerName([
+      createPaintLayer('a', 'Layer A'),
+      createPaintLayer('b', 'Layer B'),
+      { id: 'text', kind: 'text', name: 'Watermark' },
+    ]),
+    'Layer 3',
+  );
 });
