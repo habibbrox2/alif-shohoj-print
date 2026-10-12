@@ -23,26 +23,26 @@ export interface StudioToolGroup {
 export const STUDIO_TOOL_GROUPS: StudioToolGroup[] = [
   {
     id: 'selection',
-    label: 'Selection',
+    label: 'Selection / Transform',
     tools: [
-      { id: 'move', label: 'Move', hint: 'Drag to pan the canvas', shortcut: 'V', icon: <MousePointer className="h-4 w-4" /> },
-      { id: 'crop', label: 'Crop & Rotate', hint: 'Choose a print size and rotate', shortcut: 'C', icon: <Crop className="h-4 w-4" /> },
+      { id: 'move', label: 'Move', hint: 'Drag to pan the canvas', shortcut: 'V', icon: <MousePointer className="h-[17px] w-[17px]" /> },
+      { id: 'crop', label: 'Crop & Rotate', hint: 'Choose a print size and rotate', shortcut: 'C', icon: <Crop className="h-[17px] w-[17px]" /> },
     ],
   },
   {
     id: 'painting',
     label: 'Painting',
     tools: [
-      { id: 'brush', label: 'Brush', hint: 'Paint freehand marks', shortcut: 'B', icon: <PenTool className="h-4 w-4" /> },
-      { id: 'eraser', label: 'Eraser', hint: 'Drag to remove marks', shortcut: 'E', icon: <Eraser className="h-4 w-4" /> },
+      { id: 'brush', label: 'Brush', hint: 'Paint freehand marks', shortcut: 'B', icon: <PenTool className="h-[17px] w-[17px]" /> },
+      { id: 'eraser', label: 'Eraser', hint: 'Drag to remove marks', shortcut: 'E', icon: <Eraser className="h-[17px] w-[17px]" /> },
     ],
   },
   {
     id: 'object',
-    label: 'Object',
+    label: 'Objects',
     tools: [
-      { id: 'shape', label: 'Shape', hint: 'Draw a rectangle or oval', shortcut: 'S', icon: <Shapes className="h-4 w-4" /> },
-      { id: 'text', label: 'Text', hint: 'Add a watermark caption', shortcut: 'T', icon: <Type className="h-4 w-4" /> },
+      { id: 'text', label: 'Text', hint: 'Add a watermark caption', shortcut: 'T', icon: <Type className="h-[17px] w-[17px]" /> },
+      { id: 'shape', label: 'Shape', hint: 'Draw a rectangle or oval', shortcut: 'S', icon: <Shapes className="h-[17px] w-[17px]" /> },
     ],
   },
 ];
@@ -70,10 +70,10 @@ const ColorControl: React.FC<ColorControlProps> = ({
   onBackgroundChange,
   onSwap,
 }) => (
-  <div className="flex items-center gap-1.5">
-    <div className="relative h-7 w-7 shrink-0" title="Foreground and background colors">
+  <div className="mt-auto flex flex-col items-center gap-1.5 pt-2">
+    <div className="relative h-8 w-8 shrink-0" title="Foreground and background colors">
       <label
-        className="absolute bottom-0 right-0 z-0 block h-[18px] w-[18px] cursor-pointer overflow-hidden rounded-[5px] border border-border-primary shadow-sm"
+        className="absolute bottom-0 right-0 z-0 block h-5 w-5 cursor-pointer overflow-hidden rounded-[5px] border border-border-primary shadow-sm"
         title="Canvas background color"
       >
         <span className="block h-full w-full" style={{ backgroundColor: background }} />
@@ -86,7 +86,7 @@ const ColorControl: React.FC<ColorControlProps> = ({
         />
       </label>
       <label
-        className="absolute left-0 top-0 z-10 block h-[18px] w-[18px] cursor-pointer overflow-hidden rounded-[5px] border border-border-primary shadow-sm"
+        className="absolute left-0 top-0 z-10 block h-5 w-5 cursor-pointer overflow-hidden rounded-[5px] border border-border-primary shadow-sm"
         title="Foreground (brush) color"
       >
         <span className="block h-full w-full" style={{ backgroundColor: foreground }} />
@@ -112,7 +112,6 @@ const ColorControl: React.FC<ColorControlProps> = ({
 );
 
 interface ToolRailProps {
-  orientation: 'vertical' | 'horizontal';
   activeTool: ToolId;
   onSelectTool: (tool: ToolId) => void;
   foreground: string;
@@ -124,7 +123,6 @@ interface ToolRailProps {
 }
 
 export const StudioToolRail: React.FC<ToolRailProps> = ({
-  orientation,
   activeTool,
   onSelectTool,
   foreground,
@@ -133,63 +131,45 @@ export const StudioToolRail: React.FC<ToolRailProps> = ({
   onBackgroundChange,
   onSwapColors,
   className = '',
-}) => {
-  const vertical = orientation === 'vertical';
-  return (
-    <nav
-      aria-label="Editor tools"
-      className={[
-        // Display is supplied by `className` so responsive `hidden`/`flex`
-        // variants are not overridden by a base display utility.
-        'shrink-0 border-border-primary bg-[var(--color-studio-panel)]',
-        vertical
-          ? 'w-14 flex-col items-center gap-0.5 border-r py-2'
-          : 'flex-row items-center gap-1 overflow-x-auto border-t px-2 py-1.5',
-        className,
-      ].join(' ')}
-    >
-      {STUDIO_TOOL_GROUPS.map((group, groupIndex) => (
-        <Fragment key={group.id}>
-          {vertical && groupIndex > 0 && <span className="my-1 h-px w-6 bg-border-secondary" aria-hidden="true" />}
-          {group.tools.map(tool => (
-            <button
-              key={tool.id}
-              type="button"
-              onClick={() => onSelectTool(tool.id)}
-              title={`${tool.label} — ${tool.hint}${tool.shortcut ? ` [${tool.shortcut}]` : ''}`}
-              aria-label={tool.label}
-              aria-pressed={activeTool === tool.id}
-              className={`relative grid place-items-center rounded-[10px] transition-all duration-150 ${
-                vertical ? 'h-9 w-9' : 'h-9 w-9 shrink-0'
-              } ${
-                activeTool === tool.id
-                  ? 'bg-brand-soft text-brand shadow-[inset_0_0_0_1px_rgba(91,141,239,0.35)]'
-                  : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-              }`}
-            >
-              {tool.icon}
-              {vertical && tool.shortcut && (
-                <span className="absolute bottom-0.5 right-0.5 rounded bg-surface-elevated/90 px-0.5 font-mono text-[9px] text-text-tertiary/70 backdrop-blur-sm">
-                  {tool.shortcut}
-                </span>
-              )}
-            </button>
-          ))}
-        </Fragment>
-      ))}
+}) => (
+  <nav
+    aria-label="Editor tools"
+    className={`flex w-14 shrink-0 flex-col items-center gap-0.5 border-r border-border-primary bg-[var(--color-studio-panel)] py-2 ${className}`}
+  >
+    {STUDIO_TOOL_GROUPS.map((group, groupIndex) => (
+      <Fragment key={group.id}>
+        {groupIndex > 0 && <span className="my-1 h-1 w-7 shrink-0 bg-border-secondary" aria-hidden="true" />}
+        {group.tools.map(tool => (
+          <button
+            key={tool.id}
+            type="button"
+            onClick={() => onSelectTool(tool.id)}
+            aria-label={tool.shortcut ? `${tool.label} (${tool.shortcut})` : tool.label}
+            aria-pressed={activeTool === tool.id}
+            className={`group/btn relative grid h-10 w-10 shrink-0 place-items-center rounded-lg transition-colors ${
+              activeTool === tool.id
+                ? 'bg-brand/25 text-brand'
+                : 'text-text-tertiary hover:bg-surface-hover hover:text-text-primary'
+            }`}
+          >
+            {tool.icon}
+            <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md border border-border-primary bg-[var(--color-studio-panel)] px-2 py-1 text-[11px] text-text-secondary opacity-0 shadow-md transition-opacity duration-150 group-hover/btn:opacity-100">
+              {tool.shortcut ? `${tool.label} (${tool.shortcut})` : tool.label}
+            </span>
+          </button>
+        ))}
+      </Fragment>
+    ))}
 
-      <div className={vertical ? 'mt-auto flex flex-col items-center gap-2 pt-2' : 'ml-auto shrink-0 pl-2'}>
-        <ColorControl
-          foreground={foreground}
-          background={background}
-          onForegroundChange={onForegroundChange}
-          onBackgroundChange={onBackgroundChange}
-          onSwap={onSwapColors}
-        />
-      </div>
-    </nav>
-  );
-};
+    <ColorControl
+      foreground={foreground}
+      background={background}
+      onForegroundChange={onForegroundChange}
+      onBackgroundChange={onBackgroundChange}
+      onSwap={onSwapColors}
+    />
+  </nav>
+);
 
 /* ------------------------------------------------------- overflow menu */
 

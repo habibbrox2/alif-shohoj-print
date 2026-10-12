@@ -1624,8 +1624,6 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
       <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row">
         {showToolRail && (
           <StudioToolRail
-            orientation="vertical"
-            className="hidden lg:flex"
             activeTool={tool}
             onSelectTool={selectTool}
             foreground={brushColor}
@@ -1734,6 +1732,18 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
             </div>
           </div>
 
+          {!showToolRail && (
+            <button
+              type="button"
+              onClick={() => setShowToolRail(true)}
+              aria-label="Show tool palette (F8)"
+              title="Show tool palette (F8)"
+              className="absolute left-0 top-1/2 z-20 flex h-20 w-3.5 -translate-y-1/2 items-center justify-center rounded-r-md border border-l-0 border-border-primary bg-[var(--color-studio-panel)] text-text-tertiary shadow-md transition-colors hover:text-text-primary"
+            >
+              <ChevronRight className="h-3 w-3" aria-hidden="true" />
+            </button>
+          )}
+
           {imgElement && (
             <div className="pointer-events-none absolute left-3.5 top-3.5 z-10 rounded-lg border border-border-primary bg-[var(--color-studio-panel)]/85 px-2 py-1 font-mono text-[10px] tabular-nums text-text-secondary backdrop-blur-sm">
               {canvasSize.w}×{canvasSize.h} px · {Math.round(viewZoom * 100)}%
@@ -1784,18 +1794,6 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
             </button>
           </div>
         </section>
-
-        <StudioToolRail
-          orientation="horizontal"
-          className="lg:hidden"
-          activeTool={tool}
-          onSelectTool={selectTool}
-          foreground={brushColor}
-          background={backgroundColor}
-          onForegroundChange={setBrushColor}
-          onBackgroundChange={setBackgroundColor}
-          onSwapColors={swapColors}
-        />
 
         {isDesktop && showRightPanel && (
           <aside className="flex w-[280px] shrink-0 flex-col border-l border-border-primary bg-[var(--color-studio-panel)]">
