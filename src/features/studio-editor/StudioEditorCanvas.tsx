@@ -733,7 +733,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     if (!point) return;
     updateCursor(point);
 
-    if (tool === 'eraser' && event.buttons === 1) {
+    if (tool === 'eraser' && event.buttons === 1 && canPaint(tool)) {
       erasingRef.current = true;
       eraseAt(point);
       return;
@@ -921,13 +921,13 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
   const moveLayer = (id: string, direction: -1 | 1) => {
     const next = moveContentLayer(contentLayers, id, direction);
     if (next === contentLayers) return;
-    // Reordering stays outside history, like the visibility and lock flags.
-    contentLayersRef.current = next;
-    setContentLayers(next);
+    commit({ contentLayers: next }, 'Reorder');
   };
 
+  // `?? true` keeps the first click on a layer absent from the record (every
+  // created layer) in sync with the `isLayerVisible` read default.
   const toggleLayerVisibility = (id: string) =>
-    setLayerVisible(previous => ({ ...previous, [id]: !previous[id] }));
+    setLayerVisible(previous => ({ ...previous, [id]: !(previous[id] ?? true) }));
 
   const handleCreateLayer = () => {
     const activeLayerIndex = contentLayers.findIndex(layer => layer.id === activeLayerId);
