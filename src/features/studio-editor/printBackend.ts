@@ -68,6 +68,21 @@ export async function printWithSettings(request: {
       fileName: `${job.fileName.replace(/\.[^/.]+$/, '')}-print${dataUrlExtension(dataUrl)}`,
       fileSize: formatDataUrlSize(dataUrl),
       paperSize: settings.paperSize,
+      // The dialog's output settings travel with the job so the desktop print
+      // agent can compose the page the preview showed instead of centring,
+      // unscaled and portrait. `showBoundingBox` is preview-only and the agent
+      // draws no box, so it is recorded but never applied.
+      printLayout: {
+        paperSize: settings.paperSize,
+        orientation: settings.orientation,
+        marginIn: settings.marginIn,
+        centerImage: settings.centerImage,
+        topIn: settings.topIn,
+        leftIn: settings.leftIn,
+        scalePercent: settings.scalePercent,
+        scaleToFit: settings.scaleToFit,
+        showBoundingBox: settings.showBoundingBox,
+      },
       auditLogs: [
         ...job.auditLogs,
         {
@@ -88,8 +103,8 @@ export async function printWithSettings(request: {
   }
 }
 
-// TODO: electron/services/print-service.ts still prints with `scale: 'fit'` and
-// ignores the dialog's position (top/left), scale percentage, center image,
-// fit-to-media, orientation and paper margins. Persist them on the job (or a
-// sibling record keyed by job id) and honour them when the PDF page is composed
-// so the printed page agrees with the preview.
+// TODO: satisfied — the dialog settings are persisted as `printLayout` above and
+// honoured by electron/services/print-service.ts when it composes the page. Two
+// gaps remain there: a customer PDF job only receives the spooler orientation,
+// and a passport grid only receives the sheet orientation, because re-composing
+// those pages would change the operator's document and the photo copy sizes.

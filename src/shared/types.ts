@@ -89,6 +89,26 @@ export interface StudioService {
   isCustom?: boolean; // স্বত্বাধিকারী তৈরি করা কাস্টম সার্ভিস
 }
 
+/**
+ * Output settings chosen in the Studio print dialog.
+ *
+ * Persisted on the job so the desktop print agent can compose the page the way
+ * the preview showed it. Offsets are inches from the top-left of the sheet and
+ * every field is re-validated by the print agent before it is applied, because
+ * the record crosses the network and can hold hostile values.
+ */
+export interface PrintJobLayout {
+  orientation?: 'portrait' | 'landscape';
+  marginIn?: number; // printable-area inset on every side
+  topIn?: number; // inches from the top edge to the top of the document
+  leftIn?: number; // inches from the left edge to the left of the document
+  scalePercent?: number; // print-dialog scale; multiplies the studio crop zoom
+  scaleToFit?: boolean; // derive the size from the printable area instead of scalePercent
+  centerImage?: boolean; // ignore topIn/leftIn and centre the document
+  showBoundingBox?: boolean; // preview-only hint; the print agent draws no box
+  paperSize?: PaperSize; // dialog selection; PrintJob.paperSize sizes the sheet
+}
+
 export interface PrintJob {
   id: string;
   tokenCode: string; // e.g. "127"
@@ -124,6 +144,7 @@ export interface PrintJob {
     aspectRatio: string;
   };
   printingPreferences?: ServicePrintingPreferences;
+  printLayout?: PrintJobLayout; // Studio print dialog output settings
   gridCount?: number; // e.g. 4-in-1, 8-in-1
   rejectReason?: RejectReason;
   rejectNote?: string;
