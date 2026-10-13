@@ -4,7 +4,16 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { degrees, PDFDocument, PageSizes } from 'pdf-lib';
 import type { PrintJob } from '../../src/shared/types.js';
-import { fitScaleFactor, getPrintableArea, resolveDocumentBox, sanitizePrintLayout } from './print-layout.js';
+import type { SanitizedPrintLayout } from './print-layout.js';
+import {
+  fitScaleFactor,
+  getNaturalSize,
+  getPrintableArea,
+  resolveDocumentBox,
+  sanitizeCropRotation,
+  sanitizeCropZoom,
+  sanitizePrintLayout,
+} from './print-layout.js';
 
 const require = createRequire(import.meta.url);
 const { print: printPdf } = require('pdf-to-printer') as typeof import('pdf-to-printer');
@@ -27,15 +36,7 @@ const getDataUrlBytes = (dataUrl: string): { mimeType: string; bytes: Buffer } =
 const isPassportGrid = (job: PrintJob): boolean =>
   job.serviceType === 'passport_photo' && job.paperSize.startsWith('Passport Grid');
 
-const getPageSize = (job: PrintJob, orientation: 'portrait' | 'landscape'): [number, number] => {
-  const portrait = getPortraitPageSize(job);
-  // A landscape request transposes the sheet; the spooler is told as well, and
-  // SumatraPDF only rotates a page whose long edge is not already on the left,
-  // so the two together cannot rotate the content twice.
-  return orientation === 'landscape' ? [portrait[1], portrait[0]] : portrait;
-};
-
-const getPortraitPageSize = (job: PrintJob): [number, number] => {
+const getPageSize = (job: PrintJob): [number, number] => {
   if (isPassportGrid(job)) return job.gridCount === 8 ? PageSizes.A4 : [288, 432];
   if (job.paperSize === 'Legal') return [612, 1008];
   if (job.paperSize === '4R (4x6 in)') return [288, 432];
@@ -61,13 +62,15 @@ export class PrintService {
   async print(job: PrintJob): Promise<void> {
     if (!job.targetPrinterName.trim()) throw new Error('Select a Windows printer before printing this job.');
     const { mimeType, bytes } = getDataUrlBytes(job.fileUrl);
+    // Sanitized once, so the composed page and the spooler option cannot disagree.
+    const layout = sanitizePrintLayout(job.printLayout);
     const outputDirectory = join(this.options.userDataPath, 'print-jobs');
     await mkdir(outputDirectory, { recursive: true });
     const fileName = `${createHash('sha256').update(job.id).digest('hex')}.pdf`;
     const pdfPath = join(outputDirectory, fileName);
 
     try {
-      const pdfBytes = await this.makePdf(mimeType, bytes, job);
+      const pdfBytes = await this.makePdf(mimeType, bytes, job, layout);
       await writeFile(pdfPath, pdfBytes, { flag: 'wx' }).catch(async error => {
         if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') throw error;
         await rm(pdfPath, { force: true });
@@ -84,7 +87,10 @@ export class PrintService {
       };
       // The option is omitted unless the dialog asked for landscape, so a job
       // saved before the dialog existed is spooled with exactly today's options.
-      if (sanitizePrintLayout(job.printLayout)?.orientation === 'landscape') {
+      // SumatraPDF rotates the page content 90 degrees and leaves the paper to
+      // the printer driver; a genuinely landscape sheet would also need its
+      // auto-rotation suppressed, which pdf-to-printer does not expose.
+      if (layout?.orientation === 'landscape') {
         options.orientation = 'landscape';
       }
       await this.options.print(pdfPath, options);
@@ -93,10 +99,14 @@ export class PrintService {
     }
   }
 
-  private async makePdf(mimeType: string, bytes: Buffer, job: PrintJob): Promise<Uint8Array> {
+  private async makePdf(
+    mimeType: string,
+    bytes: Buffer,
+    job: PrintJob,
+    layout: SanitizedPrintLayout | null
+  ): Promise<Uint8Array> {
     const document = await PDFDocument.create();
-    const layout = sanitizePrintLayout(job.printLayout);
-    const pageSize = getPageSize(job, layout?.orientation ?? 'portrait');
+    const pageSize = getPageSize(job);
     const page = document.addPage(pageSize);
 
     if (mimeType === 'application/pdf') {
@@ -110,12 +120,10 @@ export class PrintService {
       const image = mimeType === 'image/jpeg'
         ? await document.embedJpg(bytes)
         : await document.embedPng(bytes);
-      const rotation = degrees(job.cropSettings?.rotation || 0);
-      const zoom = Math.max(0.25, Math.min(3, job.cropSettings?.zoom || 1));
+      const rotation = degrees(sanitizeCropRotation(job.cropSettings?.rotation));
+      const zoom = sanitizeCropZoom(job.cropSettings?.zoom);
 
       if (isPassportGrid(job)) {
-        // The sheet may be landscape, but the copy sizes stay exact 35x45 mm so a
-        // passport photo never changes shape.
         const count = job.gridCount === 8 ? 8 : 4;
         const columns = count === 8 ? 4 : 2;
         const rows = count / columns;
@@ -150,25 +158,25 @@ export class PrintService {
           rotate: rotation,
         });
       } else {
-        // The dialog scale and the studio crop zoom multiply: the zoom frames the
-        // content on the canvas, the percentage sizes it on the sheet. Scale to fit
-        // instead derives the size from the printable area and ignores the
-        // percentage, mirroring computePrintLayout in the dialog. Margins only
-        // define that fit target, so they never move the document themselves.
-        const target = layout.scaleToFit
-          ? getPrintableArea(pageSize[0], pageSize[1], layout.marginIn)
-          : { width: pageSize[0], height: pageSize[1] };
-        const scaled = image.scaleToFit(target.width, target.height);
+        // The dialog sizes a document from the canvas pixels at 300 DPI, so the
+        // printed size starts from the image's natural size rather than the page,
+        // and the crop zoom and the dialog percentage multiply on top of it. Scale
+        // to fit fits that zoomed size into the printable area — fitting the
+        // natural size and zooming afterwards overflows the margin — and ignores
+        // the percentage. The margin is only that fit target, so it never moves
+        // the document itself.
+        const natural = getNaturalSize(image.width, image.height);
+        const zoomed = { width: natural.width * zoom, height: natural.height * zoom };
         const factor = layout.scaleToFit
-          ? fitScaleFactor(scaled.width, scaled.height, target)
+          ? fitScaleFactor(zoomed.width, zoomed.height, getPrintableArea(pageSize[0], pageSize[1], layout.marginIn))
           : layout.scalePercent / 100;
 
         page.drawImage(image, {
           ...resolveDocumentBox({
             pageWidth: pageSize[0],
             pageHeight: pageSize[1],
-            docWidth: scaled.width * zoom * factor,
-            docHeight: scaled.height * zoom * factor,
+            docWidth: zoomed.width * factor,
+            docHeight: zoomed.height * factor,
             layout,
           }),
           rotate: rotation,

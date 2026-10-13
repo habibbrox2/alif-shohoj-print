@@ -105,8 +105,6 @@ export interface PrintJobLayout {
   scalePercent?: number; // print-dialog scale; multiplies the studio crop zoom
   scaleToFit?: boolean; // derive the size from the printable area instead of scalePercent
   centerImage?: boolean; // ignore topIn/leftIn and centre the document
-  showBoundingBox?: boolean; // preview-only hint; the print agent draws no box
-  paperSize?: PaperSize; // dialog selection; PrintJob.paperSize sizes the sheet
 }
 
 export interface PrintJob {

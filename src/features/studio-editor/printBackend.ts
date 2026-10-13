@@ -70,10 +70,9 @@ export async function printWithSettings(request: {
       paperSize: settings.paperSize,
       // The dialog's output settings travel with the job so the desktop print
       // agent can compose the page the preview showed instead of centring,
-      // unscaled and portrait. `showBoundingBox` is preview-only and the agent
-      // draws no box, so it is recorded but never applied.
+      // unscaled and portrait. Preview-only choices such as the bounding box are
+      // deliberately absent: the agent has nothing to apply them to.
       printLayout: {
-        paperSize: settings.paperSize,
         orientation: settings.orientation,
         marginIn: settings.marginIn,
         centerImage: settings.centerImage,
@@ -81,7 +80,6 @@ export async function printWithSettings(request: {
         leftIn: settings.leftIn,
         scalePercent: settings.scalePercent,
         scaleToFit: settings.scaleToFit,
-        showBoundingBox: settings.showBoundingBox,
       },
       auditLogs: [
         ...job.auditLogs,
@@ -103,8 +101,11 @@ export async function printWithSettings(request: {
   }
 }
 
-// TODO: satisfied — the dialog settings are persisted as `printLayout` above and
-// honoured by electron/services/print-service.ts when it composes the page. Two
-// gaps remain there: a customer PDF job only receives the spooler orientation,
-// and a passport grid only receives the sheet orientation, because re-composing
-// those pages would change the operator's document and the photo copy sizes.
+// Known limits of the desktop print agent, recorded here so the dialog does not
+// promise more than a silent spooler can deliver:
+// - Landscape rotates the page content only; the paper orientation belongs to
+//   the printer driver, and pdf-to-printer cannot suppress SumatraPDF's
+//   auto-rotation of a wide page.
+// - A customer PDF job and a passport grid keep their own pages; only the
+//   spooler orientation reaches them, because re-composing them would change the
+//   operator's document and the exact photo copy sizes.

@@ -3,13 +3,21 @@ import type { PrintJobLayout } from '../../src/shared/types.js';
 /**
  * Sanitisation and page geometry for a Studio print-dialog layout.
  *
- * `PrintJob.printLayout` is persisted on a job that reaches the print agent
- * from the renderer, so every field is treated as untrusted: values are clamped
- * here and the resulting geometry is guaranteed to stay on the sheet, because a
- * degenerate box prints a blank page that looks like a successful print.
+ * `PrintJob.printLayout` and `PrintJob.cropSettings` are persisted on a job that
+ * reaches the print agent from the renderer, so every field is treated as
+ * untrusted: values are clamped here, and a geometry that cannot be drawn is
+ * reported instead of producing a blank page that looks like a successful print.
  */
 
 const POINTS_PER_INCH = 72;
+
+/**
+ * The repository crops and prints at 300 DPI, so an image's pixel size is read
+ * as inches at that resolution. Must stay equal to COMPUTE_DPI in
+ * src/features/studio-editor/printSettings.ts, or the printed size stops
+ * matching the dialog preview.
+ */
+const COMPUTE_DPI = 300;
 
 // Bounds mirror the dialog (src/features/studio-editor/printSettings.ts) so a
 // legal dialog choice is never rewritten, while anything beyond it is contained.
@@ -17,10 +25,16 @@ const MIN_SCALE_PERCENT = 1;
 const MAX_SCALE_PERCENT = 640;
 const MAX_MARGIN_IN = 4;
 const MAX_POSITION_IN = 24;
+const MIN_CROP_ZOOM = 0.25;
+const MAX_CROP_ZOOM = 3;
+const MAX_CROP_ROTATION_DEGREES = 360;
 
-/** Smallest printable area and smallest document, in points. */
-const MIN_PRINTABLE_POINTS = POINTS_PER_INCH;
-const MIN_DOCUMENT_POINTS = 1;
+/**
+ * Smallest printable area, in points. A margin wider than the sheet would give a
+ * zero-width box and therefore a zero-width document; the dialog preview
+ * collapses the same way.
+ */
+const MIN_PRINTABLE_POINTS = 1;
 
 export interface SanitizedPrintLayout {
   orientation: 'portrait' | 'landscape';
@@ -78,33 +92,58 @@ export const sanitizePrintLayout = (value: unknown): SanitizedPrintLayout | null
 };
 
 /**
- * Printable area of a portrait sheet: the page inset by `marginIn` on every
- * side. The inset is capped so a margin as wide as the sheet cannot collapse
- * the area to nothing, which would fit the document to zero points.
+ * Canvas zoom from the crop settings. The record crosses the network, so a
+ * string or a missing value falls back to 1 rather than reaching the geometry
+ * as NaN.
+ */
+export const sanitizeCropZoom = (value: unknown): number =>
+  clampNumber(value, MIN_CROP_ZOOM, MAX_CROP_ZOOM, 1);
+
+/** Crop rotation in degrees, reduced to a single turn; anything else reads as 0. */
+export const sanitizeCropRotation = (value: unknown): number =>
+  clampNumber(value, -MAX_CROP_ROTATION_DEGREES, MAX_CROP_ROTATION_DEGREES, 0);
+
+/**
+ * Natural size of an embedded image in points, read at the repository's 300 DPI
+ * the same way `computePrintLayout` reads the dialog's canvas. This is what
+ * makes the printed document the same size the dialog previewed.
+ */
+export const getNaturalSize = (widthPx: number, heightPx: number): DocumentBox => {
+  const toPoints = (pixels: unknown): number =>
+    (isFiniteNumber(pixels) ? Math.max(pixels, 0) : 0) / COMPUTE_DPI * POINTS_PER_INCH;
+
+  return { x: 0, y: 0, width: toPoints(widthPx), height: toPoints(heightPx) };
+};
+
+/**
+ * Printable area of the sheet: the page inset by `marginIn` on every side. The
+ * margin is only a fit target, so it never moves the document itself.
  */
 export const getPrintableArea = (pageWidth: number, pageHeight: number, marginIn: number): PrintableArea => {
-  const requested = clampNumber(marginIn, 0, MAX_MARGIN_IN, 0) * POINTS_PER_INCH;
-  const margin = Math.min(
-    requested,
-    Math.max((pageWidth - MIN_PRINTABLE_POINTS) / 2, 0),
-    Math.max((pageHeight - MIN_PRINTABLE_POINTS) / 2, 0)
-  );
+  const margin = clampNumber(marginIn, 0, MAX_MARGIN_IN, 0) * POINTS_PER_INCH;
 
   return {
-    width: Math.min(Math.max(pageWidth - 2 * margin, MIN_PRINTABLE_POINTS), pageWidth),
-    height: Math.min(Math.max(pageHeight - 2 * margin, MIN_PRINTABLE_POINTS), pageHeight),
+    width: Math.max(pageWidth - 2 * margin, MIN_PRINTABLE_POINTS),
+    height: Math.max(pageHeight - 2 * margin, MIN_PRINTABLE_POINTS),
   };
 };
 
 /**
  * Uniform factor that fits a document of the given point size inside an area.
- * A document with an unknown size is left at its own size rather than scaled
- * to nothing.
+ * A document of unknown size is left alone rather than scaled to nothing, which
+ * `resolveDocumentBox` would then have to reject.
  */
 export const fitScaleFactor = (width: number, height: number, area: PrintableArea): number => {
   if (!isFiniteNumber(width) || !isFiniteNumber(height) || width <= 0 || height <= 0) return 1;
-  if (area.width <= 0 || area.height <= 0) return 1;
+  if (!(area.width > 0) || !(area.height > 0)) return 1;
   return Math.min(area.width / width, area.height / height);
+};
+
+const requireDrawableSize = (value: number, axis: string): number => {
+  if (!isFiniteNumber(value) || value <= 0) {
+    throw new Error(`Print settings produced an invalid document ${axis}; check the image and the print dialog values.`);
+  }
+  return value;
 };
 
 /**
@@ -117,7 +156,8 @@ export const fitScaleFactor = (width: number, height: number, area: PrintableAre
  * The result is then anchored inside the sheet: a document wider or taller than
  * the page is placed at the top-left corner, and any other box is kept fully on
  * the page, so a hostile offset cannot push the whole document off the paper and
- * print a blank sheet.
+ * print a blank sheet. The anchor uses the un-rotated size, so a 90 degree crop
+ * rotation can still leave the rotated corners over the edge.
  */
 export const resolveDocumentBox = (args: {
   pageWidth: number;
@@ -127,8 +167,10 @@ export const resolveDocumentBox = (args: {
   layout: SanitizedPrintLayout;
 }): DocumentBox => {
   const { pageWidth, pageHeight, layout } = args;
-  const width = isFiniteNumber(args.docWidth) ? Math.max(args.docWidth, MIN_DOCUMENT_POINTS) : MIN_DOCUMENT_POINTS;
-  const height = isFiniteNumber(args.docHeight) ? Math.max(args.docHeight, MIN_DOCUMENT_POINTS) : MIN_DOCUMENT_POINTS;
+  // A zero or non-finite box is not a document: it would print a blank sheet
+  // and report success, so the job fails with a visible reason instead.
+  const width = requireDrawableSize(args.docWidth, 'width');
+  const height = requireDrawableSize(args.docHeight, 'height');
 
   const maxX = Math.max(pageWidth - width, 0);
   const maxY = Math.max(pageHeight - height, 0);

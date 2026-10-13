@@ -13,7 +13,15 @@ import {
   type PDFRef,
 } from 'pdf-lib';
 import type { PrintJob, PrintJobLayout } from '../../../src/shared/types.js';
-import { sanitizePrintLayout } from '../print-layout.js';
+import {
+  fitScaleFactor,
+  getNaturalSize,
+  getPrintableArea,
+  resolveDocumentBox,
+  sanitizeCropRotation,
+  sanitizeCropZoom,
+  sanitizePrintLayout,
+} from '../print-layout.js';
 import { PrintService } from '../print-service.js';
 
 const createPdfDataUrl = async (): Promise<string> => {
@@ -219,13 +227,20 @@ interface CapturedPrint {
   pageSize: { width: number; height: number };
   pageCount: number;
   draws: Draw[];
+  content: string;
   options: Record<string, unknown>;
 }
 
 /** Print a job and report what the spooler would have sent to the printer. */
 const capturePrint = async (job: PrintJob): Promise<CapturedPrint> => {
   const directory = mkdtempSync(join(tmpdir(), 'alif-shohoj-print-layout-'));
-  const captured: CapturedPrint = { pageSize: { width: 0, height: 0 }, pageCount: 0, draws: [], options: {} };
+  const captured: CapturedPrint = {
+    pageSize: { width: 0, height: 0 },
+    pageCount: 0,
+    draws: [],
+    content: '',
+    options: {},
+  };
 
   const service = new PrintService({
     userDataPath: directory,
@@ -235,8 +250,9 @@ const capturePrint = async (job: PrintJob): Promise<CapturedPrint> => {
       captured.pageSize = page.getSize();
       captured.pageCount = document.getPageCount();
       captured.options = { ...options };
+      captured.content = readContentStream(document, page);
 
-      const matrices = [...readContentStream(document, page).matchAll(MATRIX_PATTERN)].map(match =>
+      const matrices = [...captured.content.matchAll(MATRIX_PATTERN)].map(match =>
         match.slice(1).map(Number)
       );
       captured.draws = [];
@@ -271,9 +287,19 @@ const assertDraw = (draw: Draw, expected: Draw): void => {
   assertClose(draw.height, expected.height, 'height');
 };
 
-test('keeps a job without a saved layout on the legacy centred placement', async () => {
+test('keeps a job without a saved layout on the legacy page-fitted placement', async () => {
   const legacy = await capturePrint(createImageJob());
-  const defaults = await capturePrint(withLayout({
+
+  assert.deepEqual(legacy.pageSize, A4_POINTS);
+  assert.equal(legacy.options.orientation, undefined);
+  assert.equal(legacy.draws.length, 1);
+  // Legacy behaviour stretches the source to the page first: a 2:1 image fills
+  // the page width, so it is centred across the short edge only.
+  assertDraw(legacy.draws[0], { x: 0, y: 272.125, width: 595.28, height: 297.64 });
+});
+
+test('sizes a default layout from the canvas pixels, as the dialog previewed it', async () => {
+  const captured = await capturePrint(withLayout({
     orientation: 'portrait',
     marginIn: 0,
     topIn: 0,
@@ -281,44 +307,41 @@ test('keeps a job without a saved layout on the legacy centred placement', async
     scalePercent: 100,
     scaleToFit: false,
     centerImage: true,
-    showBoundingBox: true,
   }));
 
-  assert.deepEqual(legacy.pageSize, A4_POINTS);
-  assert.equal(legacy.options.orientation, undefined);
-  assert.equal(legacy.draws.length, 1);
-  // The 2:1 source fills the page width, so it is centred vertically only.
-  assertDraw(legacy.draws[0], { x: 0, y: 272.125, width: 595.28, height: 297.64 });
-
-  assert.deepEqual(defaults.pageSize, legacy.pageSize);
-  assert.equal(defaults.options.orientation, undefined);
-  assertDraw(defaults.draws[0], legacy.draws[0]);
+  // 60x30 px at the repository's 300 DPI is 0.2x0.1 in, which is exactly the
+  // 14.4x7.2 pt box computePrintLayout previews for the same canvas.
+  assert.deepEqual(captured.pageSize, A4_POINTS);
+  assert.equal(captured.options.orientation, undefined);
+  assertDraw(captured.draws[0], { x: 290.44, y: 417.345, width: 14.4, height: 7.2 });
 });
 
-test('transposes the sheet and asks the spooler for landscape', async () => {
+test('keeps the portrait sheet and rotates the content through the spooler', async () => {
   const captured = await capturePrint(withLayout({ orientation: 'landscape' }));
 
-  assert.deepEqual(captured.pageSize, { width: A4_POINTS.height, height: A4_POINTS.width });
+  // The page box stays portrait: SumatraPDF rotates the content 90 degrees and
+  // leaves the paper to the printer driver, and pdf-to-printer cannot suppress
+  // the auto-rotation of a transposed page.
+  assert.deepEqual(captured.pageSize, A4_POINTS);
   assert.equal(captured.options.orientation, 'landscape');
   assert.equal(captured.options.paperSize, 'A4');
   assert.equal(captured.options.scale, 'fit');
-  // The 2:1 source is width-bound on the wider sheet, so it spans it completely
-  // and is centred across the short edge instead.
-  assertDraw(captured.draws[0], { x: 0, y: 87.1675, width: 841.89, height: 420.945 });
+  assertDraw(captured.draws[0], { x: 290.44, y: 417.345, width: 14.4, height: 7.2 });
 });
 
 test('centres the document when the dialog asks to centre it', async () => {
   const captured = await capturePrint(withLayout({ centerImage: true, scalePercent: 100, topIn: 3, leftIn: 3 }));
 
   // Centre wins over the three inch offsets, which would have printed elsewhere.
-  assertDraw(captured.draws[0], { x: 0, y: 272.125, width: 595.28, height: 297.64 });
+  assertDraw(captured.draws[0], { x: 290.44, y: 417.345, width: 14.4, height: 7.2 });
 });
 
 test('scales the document by the dialog percentage and preserves its aspect ratio', async () => {
   const full = await capturePrint(withLayout({ centerImage: true, scalePercent: 100 }));
   const half = await capturePrint(withLayout({ centerImage: true, scalePercent: 50 }));
 
-  assertDraw(half.draws[0], { x: 148.82, y: 346.535, width: 297.64, height: 148.82 });
+  assertDraw(full.draws[0], { x: 290.44, y: 417.345, width: 14.4, height: 7.2 });
+  assertDraw(half.draws[0], { x: 294.04, y: 419.145, width: 7.2, height: 3.6 });
   assertClose(half.draws[0].width / full.draws[0].width, 0.5, 'width ratio');
   assertClose(half.draws[0].height / full.draws[0].height, 0.5, 'height ratio');
   assertClose(half.draws[0].width / half.draws[0].height, 2, 'aspect ratio');
@@ -334,13 +357,27 @@ test('multiplies the dialog percentage by the studio crop zoom', async () => {
   assertDraw(zoomed.draws[0], plain.draws[0]);
 });
 
+test('falls back to no crop when the saved zoom or rotation is not a number', async () => {
+  const clean = await capturePrint(withLayout({ centerImage: true, scalePercent: 100 }));
+  const hostile = await capturePrint(withLayout({ centerImage: true, scalePercent: 100 }, {
+    // Reachable from a persisted record, unlike a NaN literal.
+    cropSettings: { zoom: 'abc', rotation: 'xyz', brightness: 0, contrast: 0, aspectRatio: 'free' },
+  } as unknown as Partial<PrintJob>));
+
+  // A truthy string zoom used to become NaN and draw a one point speck instead
+  // of failing, which prints a blank sheet and reports success.
+  assertDraw(hostile.draws[0], clean.draws[0]);
+  assert.equal(hostile.content.includes('NaN'), false);
+  assert.equal(hostile.content.includes('nan'), false);
+});
+
 test('converts the dialog top-left offsets into PDF coordinates', async () => {
   const fromTop = await capturePrint(withLayout({ centerImage: false, scalePercent: 50, topIn: 0, leftIn: 2 }));
   const offset = await capturePrint(withLayout({ centerImage: false, scalePercent: 50, topIn: 1, leftIn: 2 }));
 
   // topIn is measured from the top edge, PDF `y` from the bottom: pageHeight - topIn - height.
-  assertDraw(fromTop.draws[0], { x: 144, y: 693.07, width: 297.64, height: 148.82 });
-  assertDraw(offset.draws[0], { x: 144, y: 621.07, width: 297.64, height: 148.82 });
+  assertDraw(fromTop.draws[0], { x: 144, y: 838.29, width: 7.2, height: 3.6 });
+  assertDraw(offset.draws[0], { x: 144, y: 766.29, width: 7.2, height: 3.6 });
 });
 
 test('keeps a document on the sheet when the position is hostile', async () => {
@@ -357,7 +394,7 @@ test('keeps a document on the sheet when the position is hostile', async () => {
   assert.ok(draw.x >= 0 && draw.x < captured.pageSize.width, 'left edge stays on the sheet');
   assert.ok(draw.y >= 0 && draw.y < captured.pageSize.height, 'bottom edge stays on the sheet');
   assert.ok(draw.width > 0 && draw.height > 0, 'the document still has a printable size');
-  assertDraw(draw, { x: 0, y: 0, width: 595.28, height: 297.64 });
+  assertDraw(draw, { x: 0, y: 0, width: 14.4, height: 7.2 });
 });
 
 test('fits the document inside the printable area defined by the margin', async () => {
@@ -371,11 +408,27 @@ test('fits the document inside the printable area defined by the margin', async 
 
   // The 640 % percentage is ignored in favour of the printable area, which is the
   // A4 page inset by two inches on every side and therefore 307.28 x 553.89 pt.
-  assert.ok(area.width < captured.draws[0].width + TOLERANCE);
   assert.ok(captured.draws[0].width <= area.width + TOLERANCE, 'fits the printable width');
   assert.ok(captured.draws[0].height <= area.height + TOLERANCE, 'fits the printable height');
   assertDraw(captured.draws[0], { x: 144, y: 344.125, width: 307.28, height: 153.64 });
   assertClose(captured.draws[0].width / captured.draws[0].height, 2, 'aspect ratio');
+});
+
+test('still fits the printable area at the highest crop zoom', async () => {
+  const captured = await capturePrint(withLayout({
+    centerImage: true,
+    scaleToFit: true,
+    marginIn: 2,
+  }, {
+    cropSettings: { zoom: 3, rotation: 0, brightness: 0, contrast: 0, aspectRatio: 'free' },
+  }));
+  const area = { width: A4_POINTS.width - 4 * 72, height: A4_POINTS.height - 4 * 72 };
+
+  // The zoom scales the document, so the fit has to be computed from the zoomed
+  // size; fitting the natural size and zooming afterwards overflowed the area.
+  assert.ok(captured.draws[0].width <= area.width + TOLERANCE, 'fits the printable width');
+  assert.ok(captured.draws[0].height <= area.height + TOLERANCE, 'fits the printable height');
+  assertDraw(captured.draws[0], { x: 144, y: 344.125, width: 307.28, height: 153.64 });
 });
 
 test('ignores the margin when scale to fit is off', async () => {
@@ -397,7 +450,7 @@ test('ignores the margin when scale to fit is off', async () => {
   }));
 
   assertDraw(withMargin.draws[0], withoutMargin.draws[0]);
-  assertDraw(withoutMargin.draws[0], { x: 72, y: 621.07, width: 297.64, height: 148.82 });
+  assertDraw(withoutMargin.draws[0], { x: 72, y: 766.29, width: 7.2, height: 3.6 });
 });
 
 test('normalises a hostile layout record instead of composing an empty page', async () => {
@@ -428,8 +481,8 @@ test('normalises a hostile layout record instead of composing an empty page', as
   assert.equal(captured.options.orientation, undefined);
   assert.ok(draw.width > 0 && draw.height > 0, 'the document still has a printable size');
   assert.ok(draw.x >= 0 && draw.y >= 0);
-  // 595.28 pt page-fitted source at the clamped 640 % ceiling.
-  assertClose(draw.width, 595.28 * 6.4, 'clamped width');
+  // The natural 14.4 pt source at the clamped 640 % ceiling.
+  assertDraw(draw, { x: 251.56, y: 397.905, width: 92.16, height: 46.08 });
 });
 
 test('rejects a layout record that is not an object', async () => {
@@ -440,22 +493,22 @@ test('rejects a layout record that is not an object', async () => {
   assert.equal(sanitizePrintLayout(42), null);
 });
 
-test('transposes a passport grid sheet without changing the copy geometry', async () => {
+test('keeps a passport grid on the portrait sheet and rotates it through the spooler', async () => {
   const captured = await capturePrint(withLayout({ orientation: 'landscape' }, {
     serviceType: 'passport_photo',
     paperSize: 'Passport Grid (4-in-1)',
     gridCount: 4,
   }));
 
-  assert.deepEqual(captured.pageSize, { width: 432, height: 288 });
+  assert.deepEqual(captured.pageSize, { width: 288, height: 432 });
   assert.equal(captured.options.paperSize, '4x6');
   assert.equal(captured.options.orientation, 'landscape');
   assert.equal(captured.draws.length, 4);
   for (const draw of captured.draws) {
     assertClose(draw.width, (35 / 25.4) * 72, 'copy width');
     assertClose(draw.height, (45 / 25.4) * 72, 'copy height');
-    assert.ok(draw.x >= 0 && draw.x + draw.width <= 432 + TOLERANCE, 'copy stays on the sheet');
-    assert.ok(draw.y >= 0 && draw.y + draw.height <= 288 + TOLERANCE, 'copy stays on the sheet');
+    assert.ok(draw.x >= 0 && draw.x + draw.width <= 288 + TOLERANCE, 'copy stays on the sheet');
+    assert.ok(draw.y >= 0 && draw.y + draw.height <= 432 + TOLERANCE, 'copy stays on the sheet');
   }
 });
 
@@ -498,4 +551,64 @@ test('still validates the uploaded file before honouring a layout', async () => 
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test('reads a natural image size at the repository print resolution', () => {
+  // The dialog computes inches as pixels / COMPUTE_DPI and points as inches * 72.
+  assert.deepEqual(getNaturalSize(60, 30), { x: 0, y: 0, width: 14.4, height: 7.2 });
+  assert.deepEqual(getNaturalSize(3000, 1500), { x: 0, y: 0, width: 720, height: 360 });
+  assert.deepEqual(getNaturalSize(-10, Number.NaN), { x: 0, y: 0, width: 0, height: 0 });
+});
+
+test('bounds the crop zoom and rotation read from the job', () => {
+  assert.equal(sanitizeCropZoom(undefined), 1);
+  assert.equal(sanitizeCropZoom('abc'), 1);
+  assert.equal(sanitizeCropZoom(Number.NaN), 1);
+  assert.equal(sanitizeCropZoom(null), 1);
+  assert.equal(sanitizeCropZoom(0), 0.25);
+  assert.equal(sanitizeCropZoom(9), 3);
+  assert.equal(sanitizeCropZoom(1.5), 1.5);
+
+  assert.equal(sanitizeCropRotation(undefined), 0);
+  assert.equal(sanitizeCropRotation('abc'), 0);
+  assert.equal(sanitizeCropRotation(Number.NaN), 0);
+  assert.equal(sanitizeCropRotation(90), 90);
+  assert.equal(sanitizeCropRotation(1e9), 360);
+});
+
+test('insets the printable area by the margin without collapsing it', () => {
+  assert.deepEqual(getPrintableArea(A4_POINTS.width, A4_POINTS.height, 0), A4_POINTS);
+  assert.deepEqual(getPrintableArea(A4_POINTS.width, A4_POINTS.height, 2), { width: 307.28, height: 553.89 });
+  assert.deepEqual(getPrintableArea(A4_POINTS.width, A4_POINTS.height, 9e9), {
+    width: A4_POINTS.width - 8 * 72,
+    height: A4_POINTS.height - 8 * 72,
+  });
+  // A margin as wide as the sheet still leaves a drawable box.
+  const collapsed = getPrintableArea(288, 432, 4);
+  assert.ok(collapsed.width > 0 && collapsed.height > 0);
+});
+
+test('fits a document into an area with one aspect-preserving factor', () => {
+  const area = { width: 100, height: 100 };
+  assert.equal(fitScaleFactor(50, 50, area), 2);
+  assert.equal(fitScaleFactor(200, 100, area), 0.5);
+  assert.equal(fitScaleFactor(100, 400, area), 0.25);
+  // An unusable size or area leaves the document alone instead of scaling to 0.
+  assert.equal(fitScaleFactor(0, 0, area), 1);
+  assert.equal(fitScaleFactor(Number.NaN, 10, area), 1);
+  assert.equal(fitScaleFactor(10, 10, { width: 0, height: 0 }), 1);
+});
+
+test('fails loudly on a document box that cannot be drawn', () => {
+  const layout = sanitizePrintLayout({ centerImage: true });
+  assert.ok(layout);
+
+  assert.throws(
+    () => resolveDocumentBox({ pageWidth: 595.28, pageHeight: 841.89, docWidth: Number.NaN, docHeight: 10, layout }),
+    /invalid document width/
+  );
+  assert.throws(
+    () => resolveDocumentBox({ pageWidth: 595.28, pageHeight: 841.89, docWidth: 10, docHeight: 0, layout }),
+    /invalid document height/
+  );
 });
