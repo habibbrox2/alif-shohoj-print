@@ -109,3 +109,6 @@ export async function printWithSettings(request: {
 // - A customer PDF job and a passport grid keep their own pages; only the
 //   spooler orientation reaches them, because re-composing them would change the
 //   operator's document and the exact photo copy sizes.
+// - The layout above is applied only to jobs that carry it. A job printed without
+//   a dialog layout keeps the legacy centred layout: no position, no scale and no
+//   orientation from these settings.

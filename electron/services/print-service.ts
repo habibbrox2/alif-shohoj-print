@@ -147,6 +147,8 @@ export class PrintService {
           });
         }
       } else if (!layout) {
+        // Pre-dialog behaviour, unchanged: fit to page, centre, and still apply
+        // the crop zoom and rotation. Deliberately different from the path below.
         const scaled = image.scaleToFit(pageSize[0], pageSize[1]);
         const width = scaled.width * zoom;
         const height = scaled.height * zoom;
@@ -158,28 +160,25 @@ export class PrintService {
           rotate: rotation,
         });
       } else {
-        // The dialog sizes a document from the canvas pixels at 300 DPI, so the
-        // printed size starts from the image's natural size rather than the page,
-        // and the crop zoom and the dialog percentage multiply on top of it. Scale
-        // to fit fits that zoomed size into the printable area — fitting the
-        // natural size and zooming afterwards overflows the margin — and ignores
-        // the percentage. The margin is only that fit target, so it never moves
-        // the document itself.
+        // The dialog sends a canvas snapshot: cropSettings.zoom and
+        // cropSettings.rotation are already baked into its pixels, which the
+        // dialog also models as canvasSize ÷ 300 DPI. Applying either again would
+        // print something other than the preview the operator approved, so the
+        // legacy branch above is deliberately the only path that re-applies them.
+        // Scale to fit therefore fits the snapshot's own size into the margin.
         const natural = getNaturalSize(image.width, image.height);
-        const zoomed = { width: natural.width * zoom, height: natural.height * zoom };
         const factor = layout.scaleToFit
-          ? fitScaleFactor(zoomed.width, zoomed.height, getPrintableArea(pageSize[0], pageSize[1], layout.marginIn))
+          ? fitScaleFactor(natural.width, natural.height, getPrintableArea(pageSize[0], pageSize[1], layout.marginIn))
           : layout.scalePercent / 100;
 
         page.drawImage(image, {
           ...resolveDocumentBox({
             pageWidth: pageSize[0],
             pageHeight: pageSize[1],
-            docWidth: zoomed.width * factor,
-            docHeight: zoomed.height * factor,
+            docWidth: natural.width * factor,
+            docHeight: natural.height * factor,
             layout,
           }),
-          rotate: rotation,
         });
       }
     }

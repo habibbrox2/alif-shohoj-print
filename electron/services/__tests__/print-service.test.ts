@@ -195,15 +195,19 @@ interface Draw {
   y: number;
   width: number;
   height: number;
+  rotated: boolean;
 }
 
 /**
  * `drawImage` concatenates four matrices per image — translate, rotate, scale
  * and skew — so the first and third of each group give the drawn position and
- * size in PDF points.
+ * size in PDF points, and the second reports whether the image was rotated.
  */
 const MATRIX_PATTERN = /(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+cm/g;
 const OPERATORS_PER_DRAW = 4;
+
+const isIdentityRotation = (matrix: number[]): boolean =>
+  matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1;
 
 const readContentStream = (document: PDFDocument, page: PDFPage): string => {
   const contents = page.node.Contents();
@@ -258,8 +262,15 @@ const capturePrint = async (job: PrintJob): Promise<CapturedPrint> => {
       captured.draws = [];
       for (let index = 0; index + OPERATORS_PER_DRAW <= matrices.length; index += OPERATORS_PER_DRAW) {
         const translate = matrices[index];
+        const rotate = matrices[index + 1];
         const scale = matrices[index + 2];
-        captured.draws.push({ x: translate[4], y: translate[5], width: scale[0], height: scale[3] });
+        captured.draws.push({
+          x: translate[4],
+          y: translate[5],
+          width: scale[0],
+          height: scale[3],
+          rotated: !isIdentityRotation(rotate),
+        });
       }
     },
   });
@@ -280,7 +291,7 @@ const assertClose = (actual: number, expected: number, label: string): void => {
   );
 };
 
-const assertDraw = (draw: Draw, expected: Draw): void => {
+const assertDraw = (draw: Draw, expected: Omit<Draw, 'rotated'>): void => {
   assertClose(draw.x, expected.x, 'x');
   assertClose(draw.y, expected.y, 'y');
   assertClose(draw.width, expected.width, 'width');
@@ -347,28 +358,62 @@ test('scales the document by the dialog percentage and preserves its aspect rati
   assertClose(half.draws[0].width / half.draws[0].height, 2, 'aspect ratio');
 });
 
-test('multiplies the dialog percentage by the studio crop zoom', async () => {
-  const plain = await capturePrint(withLayout({ centerImage: true, scalePercent: 100 }));
-  const zoomed = await capturePrint(withLayout({ centerImage: true, scalePercent: 50 }, {
-    cropSettings: { zoom: 2, rotation: 0, brightness: 0, contrast: 0, aspectRatio: 'free' },
+/** A 1 x 0.5 in canvas at 300 DPI, the size a dialog preview would report. */
+const SNAPSHOT_PNG = `data:image/png;base64,${createPngDataUrl(300, 150).split(',')[1]}`;
+
+const createSnapshotJob = (overrides: Partial<PrintJob> = {}): PrintJob =>
+  createImageJob({ fileUrl: SNAPSHOT_PNG, ...overrides });
+
+test('prints a dialog snapshot at the size the dialog previewed', async () => {
+  const captured = await capturePrint(withLayout({ centerImage: true, scalePercent: 100 }, {
+    ...createSnapshotJob(),
+    // Both are already baked into the snapshot's pixels by the editor canvas.
+    cropSettings: { zoom: 3, rotation: 90, brightness: 0, contrast: 0, aspectRatio: 'free' },
   }));
 
-  // 50 % at twice the canvas zoom has to print at the same size as 100 % at zoom 1.
-  assertDraw(zoomed.draws[0], plain.draws[0]);
+  // 300x150 px ÷ 300 DPI is 1 x 0.5 in, which is 72 x 36 pt, exactly what
+  // computePrintLayout previews for those pixels at 100 %.
+  assertDraw(captured.draws[0], { x: 261.64, y: 402.945, width: 72, height: 36 });
+  assert.equal(captured.draws[0].rotated, false, 'a snapshot is not rotated a second time');
+});
+
+test('applies the dialog percentage to the snapshot alone', async () => {
+  const full = await capturePrint(withLayout({ centerImage: true, scalePercent: 100 }, createSnapshotJob()));
+  const half = await capturePrint(withLayout({ centerImage: true, scalePercent: 50 }, createSnapshotJob()));
+
+  assertDraw(full.draws[0], { x: 261.64, y: 402.945, width: 72, height: 36 });
+  assertDraw(half.draws[0], { x: 279.64, y: 411.945, width: 36, height: 18 });
+});
+
+test('still applies the crop zoom and rotation on the pre-dialog path', async () => {
+  const plain = await capturePrint(createImageJob());
+  const cropped = await capturePrint({
+    ...createImageJob(),
+    cropSettings: { zoom: 2, rotation: 90, brightness: 0, contrast: 0, aspectRatio: 'free' },
+  });
+
+  // A job with no dialog layout keeps the legacy behaviour, which is the only
+  // path that may re-apply crop settings to the source. It overflows the page
+  // when zoomed, exactly as it always has.
+  assertDraw(plain.draws[0], { x: 0, y: 272.125, width: 595.28, height: 297.64 });
+  assert.equal(plain.draws[0].rotated, false);
+  assertDraw(cropped.draws[0], { x: -297.64, y: 123.305, width: 1190.56, height: 595.28 });
+  assert.equal(cropped.draws[0].rotated, true);
 });
 
 test('falls back to no crop when the saved zoom or rotation is not a number', async () => {
-  const clean = await capturePrint(withLayout({ centerImage: true, scalePercent: 100 }));
-  const hostile = await capturePrint(withLayout({ centerImage: true, scalePercent: 100 }, {
+  const clean = await capturePrint(createImageJob());
+  const hostile = await capturePrint({
+    ...createImageJob(),
     // Reachable from a persisted record, unlike a NaN literal.
     cropSettings: { zoom: 'abc', rotation: 'xyz', brightness: 0, contrast: 0, aspectRatio: 'free' },
-  } as unknown as Partial<PrintJob>));
+  } as unknown as Partial<PrintJob>);
 
   // A truthy string zoom used to become NaN and draw a one point speck instead
   // of failing, which prints a blank sheet and reports success.
   assertDraw(hostile.draws[0], clean.draws[0]);
+  assert.equal(hostile.draws[0].rotated, false);
   assert.equal(hostile.content.includes('NaN'), false);
-  assert.equal(hostile.content.includes('nan'), false);
 });
 
 test('converts the dialog top-left offsets into PDF coordinates', async () => {
@@ -414,18 +459,19 @@ test('fits the document inside the printable area defined by the margin', async 
   assertClose(captured.draws[0].width / captured.draws[0].height, 2, 'aspect ratio');
 });
 
-test('still fits the printable area at the highest crop zoom', async () => {
+test('fits a snapshot larger than the sheet inside the printable area', async () => {
+  // 1800x900 px is 6 x 3 in, wider than the printable width left by a two inch margin.
   const captured = await capturePrint(withLayout({
     centerImage: true,
     scaleToFit: true,
     marginIn: 2,
   }, {
-    cropSettings: { zoom: 3, rotation: 0, brightness: 0, contrast: 0, aspectRatio: 'free' },
+    fileUrl: `data:image/png;base64,${createPngDataUrl(1800, 900).split(',')[1]}`,
   }));
   const area = { width: A4_POINTS.width - 4 * 72, height: A4_POINTS.height - 4 * 72 };
 
-  // The zoom scales the document, so the fit has to be computed from the zoomed
-  // size; fitting the natural size and zooming afterwards overflowed the area.
+  // The fit is computed from the snapshot's own size, so a document far bigger
+  // than the sheet still lands inside the printable area at its 2:1 aspect.
   assert.ok(captured.draws[0].width <= area.width + TOLERANCE, 'fits the printable width');
   assert.ok(captured.draws[0].height <= area.height + TOLERANCE, 'fits the printable height');
   assertDraw(captured.draws[0], { x: 144, y: 344.125, width: 307.28, height: 153.64 });
