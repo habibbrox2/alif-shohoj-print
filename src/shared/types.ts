@@ -102,7 +102,7 @@ export interface PrintJobLayout {
   marginIn?: number; // printable-area inset on every side
   topIn?: number; // inches from the top edge to the top of the document
   leftIn?: number; // inches from the left edge to the left of the document
-  scalePercent?: number; // print-dialog scale; multiplies the studio crop zoom
+  scalePercent?: number; // print-dialog scale of the snapshot's own 300-DPI size
   scaleToFit?: boolean; // derive the size from the printable area instead of scalePercent
   centerImage?: boolean; // ignore topIn/leftIn and centre the document
 }

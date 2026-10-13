@@ -105,7 +105,9 @@ export async function printWithSettings(request: {
 // promise more than a silent spooler can deliver:
 // - Landscape rotates the page content only; the paper orientation belongs to
 //   the printer driver, and pdf-to-printer cannot suppress SumatraPDF's
-//   auto-rotation of a wide page.
+//   auto-rotation of a wide page. Because the sheet stays portrait, landscape
+//   placement and fit-to-media are computed against the portrait page, so they
+//   differ from the landscape preview when those two are combined.
 // - A customer PDF job and a passport grid keep their own pages; only the
 //   spooler orientation reaches them, because re-composing them would change the
 //   operator's document and the exact photo copy sizes.

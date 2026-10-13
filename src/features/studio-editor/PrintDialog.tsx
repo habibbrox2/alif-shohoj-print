@@ -339,7 +339,7 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
                   onCommit={value => setSettings(current => ({ ...current, marginIn: clampPrintMargin(value) }))}
                 />
                 <p className="text-[10px] leading-relaxed text-text-tertiary">
-                  Electron offers no native page-setup sheet, and the print service does not read orientation or margins yet — they shape the preview only.
+                  Electron offers no native page-setup sheet. Orientation is applied as a content rotation by the print service; the paper itself stays in the driver&apos;s orientation.
                 </p>
               </section>
             )}

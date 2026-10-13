@@ -153,8 +153,9 @@ const requireDrawableSize = (value: number, axis: string): number => {
  * while PDF user space has its origin at the bottom-left corner with `y` growing
  * upwards, so a top offset becomes `pageHeight - topIn - docHeight`.
  *
- * The result is then anchored inside the sheet: a document wider or taller than
- * the page is placed at the top-left corner, and any other box is kept fully on
+ * The result is then anchored inside the sheet: a box that overflows the page is
+ * clamped to the page origin (PDF `y = 0` is the bottom edge, so an oversized
+ * document keeps its bottom-left region), and any other box is kept fully on
  * the page, so a hostile offset cannot push the whole document off the paper and
  * print a blank sheet. The anchor uses the un-rotated size, so a 90 degree crop
  * rotation can still leave the rotated corners over the edge.
