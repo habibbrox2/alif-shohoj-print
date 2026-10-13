@@ -42,5 +42,5 @@ contextBridge.exposeInMainWorld('alifShohojPrintDesktop', {
   onIncomingJob: callback => subscribe('desktop:job:incoming', callback),
   onQueueChanged: callback => subscribe('desktop:queue:changed', callback),
   onTrayAction: callback => subscribe('desktop:tray:action', callback),
-  openFileDialog: (options?: { filters?: Array<{ name: string; extensions: string[] }>; properties?: string[] }) => ipcRenderer.invoke('desktop:dialog:open-file', options),
+  openFileDialog: (options = {}) => ipcRenderer.invoke('desktop:dialog:open-file', options),
 });
