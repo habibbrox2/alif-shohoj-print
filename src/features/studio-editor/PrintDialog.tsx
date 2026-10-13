@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { PrintJob } from '../../shared/types';
 import {
   PAPER_SIZE_CHOICES,
   clampPrintMargin,
+  clampPrintPosition,
   clampPrintScale,
   computePrintLayout,
   loadPrintSettings,
@@ -129,10 +130,20 @@ const ActionButton: React.FC<{
 );
 
 export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl, onClose }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const [settings, setSettings] = useState<PrintSettings>(loadPrintSettings);
   const [showPageSetup, setShowPageSetup] = useState<boolean>(false);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const [printStatus, setPrintStatus] = useState<PrintResult | null>(null);
+
+  // Focus enters the panel on open so Tab walks the dialog instead of the
+  // editor chrome hidden behind the overlay, and goes back to the opener on close.
+  useEffect(() => {
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panelRef.current?.focus();
+    return () => returnFocusRef.current?.focus();
+  }, []);
 
   const layout = useMemo(() => computePrintLayout(settings, docPx), [settings, docPx]);
 
@@ -179,12 +190,14 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
   };
 
   // Escape is handled here rather than in the editor's window listener, which
-  // bails out for input targets; while printing nothing dismisses the dialog so
-  // the in-flight saveJob/printJob pair cannot lose its component.
+  // bails out for input targets. Propagation is stopped before the printing
+  // check: the window chain would unmount the dialog mid saveJob/printJob and
+  // lose the result message.
   const handleDialogKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key !== 'Escape' || isPrinting) return;
-    event.preventDefault();
+    if (event.key !== 'Escape') return;
     event.stopPropagation();
+    if (isPrinting) return;
+    event.preventDefault();
     onClose();
   };
 
@@ -195,12 +208,17 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={dismiss}>
       <div
-        className="flex h-[520px] max-h-[92vh] w-[780px] max-w-[95vw] flex-col overflow-hidden rounded-xl border border-border-primary bg-surface shadow-2xl"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="print-dialog-title"
+        tabIndex={-1}
+        className="flex h-[520px] max-h-[92vh] w-[780px] max-w-[95vw] flex-col overflow-hidden rounded-xl border border-border-primary bg-surface shadow-2xl focus:outline-none"
         onClick={event => event.stopPropagation()}
         onKeyDown={handleDialogKeyDown}
       >
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-border-primary px-4">
-          <h2 className="text-sm font-semibold text-text-primary">Print</h2>
+          <h2 id="print-dialog-title" className="text-sm font-semibold text-text-primary">Print</h2>
           <button
             type="button"
             onClick={dismiss}
@@ -335,7 +353,7 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
                 step="0.001"
                 suffix="in"
                 disabled={positionLocked}
-                onCommit={value => setSettings(current => ({ ...current, topIn: value }))}
+                onCommit={value => setSettings(current => ({ ...current, topIn: clampPrintPosition(value) }))}
               />
               <NumberField
                 label="Left"
@@ -344,7 +362,7 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
                 step="0.001"
                 suffix="in"
                 disabled={positionLocked}
-                onCommit={value => setSettings(current => ({ ...current, leftIn: value }))}
+                onCommit={value => setSettings(current => ({ ...current, leftIn: clampPrintPosition(value) }))}
               />
               <CheckboxField
                 label="Center Image"

@@ -189,14 +189,14 @@ const ColorPickerRow: React.FC<{
     <Swatches value={value} label={label} onSelect={onSelect} />
     <label
       className="relative grid h-6 w-6 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-md border border-border-primary"
-      title="Custom color"
+      title={`Custom ${label.toLowerCase()}`}
     >
       <span className="block h-full w-full" style={{ backgroundColor: value }} />
       <input
         type="color"
         value={value}
         onChange={event => onSelect(event.target.value)}
-        aria-label="Custom color"
+        aria-label={`Custom ${label.toLowerCase()}`}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
       />
     </label>
@@ -1105,6 +1105,10 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
         return;
       }
 
+      // The print dialog owns the keyboard while it is open: every other
+      // shortcut would mutate the canvas hidden behind the modal.
+      if (showPrintDialog) return;
+
       // F7/F8 toggle the side panels at every window width.
       if (!isCtrl && !isShift && (event.key === 'F7' || event.key === 'F8')) {
         event.preventDefault();
@@ -1351,13 +1355,24 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
               {layerMeta.map((layer, index) => (
                 <li
                   key={layer.id}
+                  role={layer.reorderable ? 'button' : undefined}
+                  tabIndex={layer.reorderable ? 0 : undefined}
+                  aria-label={layer.reorderable ? `${layer.label} layer` : undefined}
+                  aria-pressed={layer.reorderable ? layer.id === activeLayerId : undefined}
                   onClick={() => {
                     if (layer.reorderable) setActiveLayerId(layer.id);
+                  }}
+                  onKeyDown={event => {
+                    // Keys pressed on the row's own action buttons are theirs.
+                    if (!layer.reorderable || event.target !== event.currentTarget) return;
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    setActiveLayerId(layer.id);
                   }}
                   className={`flex items-center gap-2 rounded-[10px] border px-2 py-1.5 transition-colors ${
                     layer.id === activeLayerId
                       ? 'cursor-pointer border-brand/40 bg-brand/15'
-                      : `border-transparent ${layer.reorderable ? 'cursor-pointer ' : ''}hover:bg-surface-hover`
+                      : `border-transparent ${layer.reorderable ? 'cursor-pointer hover:bg-surface-hover' : ''}`
                   }`}
                 >
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border-secondary bg-bg-secondary text-text-tertiary">
@@ -1496,8 +1511,21 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
                     min={ADJUSTMENT_RANGES.textSize.min}
                     max={ADJUSTMENT_RANGES.textSize.max}
                     step={ADJUSTMENT_RANGES.textSize.step}
-                    onChange={event => setTextSize(Number(event.target.value))}
-                    onBlur={() => commit({ textSize: clampAdjustment(textSize, ADJUSTMENT_RANGES.textSize.min, ADJUSTMENT_RANGES.textSize.max) }, 'Text size')}
+                    onChange={event => {
+                      // An emptied field parses as 0 and would drag the text to
+                      // the minimum, so the draft is ignored while typing.
+                      if (event.target.value === '') return;
+                      const parsed = Number(event.target.value);
+                      if (Number.isFinite(parsed)) setTextSize(parsed);
+                    }}
+                    onBlur={() => {
+                      const clamped = clampAdjustment(textSize, ADJUSTMENT_RANGES.textSize.min, ADJUSTMENT_RANGES.textSize.max);
+                      // Compared against the history head rather than the live
+                      // draft: a size typed in range still needs an undo entry,
+                      // a blur that changed nothing must not add one.
+                      const committed = historyRef.current[historyIndexRef.current]?.textSize;
+                      if (clamped !== committed) commit({ textSize: clamped }, 'Text size');
+                    }}
                     aria-label="Font size"
                     className="w-full rounded-[9px] border border-border-primary bg-bg-secondary px-2 py-1.5 text-xs tabular-nums text-text-primary focus:border-brand focus:outline-none"
                   />
@@ -1674,7 +1702,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
       </div>
 
       {/* ------------------------------------------------------------- body */}
-      <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div className="relative flex min-h-0 flex-1 flex-row">
         {showToolRail && (
           <StudioToolRail
             activeTool={tool}

@@ -8,6 +8,27 @@ export interface PrintResult {
 
 const NOT_CONNECTED = 'Print backend not yet connected';
 
+/** MIME subtypes of a canvas snapshot that map to a different file extension. */
+const DATA_URL_EXTENSION_PATTERN = /^data:image\/(png|webp|bmp|avif)(?:;[^,]*)?,/i;
+
+/** JPEG keeps the `.jpg` extension every other studio export writes. */
+function dataUrlExtension(dataUrl: string): string {
+  const match = DATA_URL_EXTENSION_PATTERN.exec(dataUrl);
+  return match ? `.${match[1].toLowerCase()}` : '.jpg';
+}
+
+/** Byte size of the base64 payload, formatted the way the order card and status bar show it. */
+function formatDataUrlSize(dataUrl: string): string {
+  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+  const fileBytes = Math.max(
+    0,
+    Math.floor((base64.length * 3) / 4) - (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0)
+  );
+  return fileBytes >= 1024 * 1024
+    ? `${(fileBytes / (1024 * 1024)).toFixed(2)} MB`
+    : `${Math.max(1, Math.round(fileBytes / 1024))} KB`;
+}
+
 /**
  * Seam between the Studio print dialog and the desktop print queue.
  *
@@ -37,7 +58,29 @@ export async function printWithSettings(request: {
   if (!bridge) return { ok: false, message: NOT_CONNECTED };
 
   try {
-    await bridge.saveJob({ ...job, fileUrl: dataUrl, paperSize: settings.paperSize });
+    // The snapshot replaces the bytes behind the job, so the record is updated
+    // with it: the order card and the editor status bar read `fileName` and
+    // `fileSize`, and both would otherwise describe the previous file.
+    const now = Date.now();
+    const printedJob: PrintJob = {
+      ...job,
+      fileUrl: dataUrl,
+      fileName: `${job.fileName.replace(/\.[^/.]+$/, '')}-print${dataUrlExtension(dataUrl)}`,
+      fileSize: formatDataUrlSize(dataUrl),
+      paperSize: settings.paperSize,
+      auditLogs: [
+        ...job.auditLogs,
+        {
+          id: `log_${now}_print`,
+          timestamp: now,
+          actor: 'shopkeeper',
+          action: 'studio_print',
+          details: `Printed from the Studio editor: paper=${settings.paperSize}, orientation=${settings.orientation}; the job file was replaced with the print snapshot.`,
+        },
+      ],
+    };
+
+    await bridge.saveJob(printedJob);
     await bridge.printJob(job.id);
     return { ok: true, message: 'Job sent to the print queue.' };
   } catch (error) {

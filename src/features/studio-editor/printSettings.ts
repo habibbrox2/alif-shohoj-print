@@ -94,6 +94,16 @@ export function clampPrintMargin(marginIn: number): number {
   return clampNumber(marginIn, MIN_PRINT_MARGIN_IN, MAX_PRINT_MARGIN_IN);
 }
 
+/**
+ * Top/left offsets are stored in inches and clamped two feet either way, so a
+ * value committed by the dialog is exactly what a later load returns.
+ */
+export function clampPrintPosition(inches: number): number {
+  // Both offsets default to 0 in DEFAULT_PRINT_SETTINGS.
+  if (!isFiniteNumber(inches)) return DEFAULT_PRINT_SETTINGS.topIn;
+  return clampNumber(inches, -MAX_PRINT_POSITION_IN, MAX_PRINT_POSITION_IN);
+}
+
 function roundInches(value: number): number {
   return Math.round(value * INCH_PRECISION) / INCH_PRECISION;
 }
@@ -183,21 +193,17 @@ function isOrientation(value: unknown): value is PrintSettings['orientation'] {
   return value === 'portrait' || value === 'landscape';
 }
 
-function coerceStoredNumber(value: unknown, fallback: number, min: number, max: number): number {
-  if (!isFiniteNumber(value)) return fallback;
-  return clampNumber(value, min, max);
-}
-
 function coerceStoredBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
 /**
  * Merge stored JSON over the defaults, clamping every field.
- * Returns the defaults when storage is unavailable, unreadable, or corrupt.
+ * Returns a fresh copy of the defaults when storage is unavailable, unreadable,
+ * or corrupt, so a caller can never mutate the shared default.
  */
 export function loadPrintSettings(): PrintSettings {
-  const defaults = DEFAULT_PRINT_SETTINGS;
+  const defaults: PrintSettings = { ...DEFAULT_PRINT_SETTINGS };
 
   let raw: string | null = null;
   try {
@@ -231,18 +237,8 @@ export function loadPrintSettings(): PrintSettings {
   const scalePercent = isFiniteNumber(record.scalePercent)
     ? clampPrintScale(record.scalePercent)
     : defaults.scalePercent;
-  const topIn = coerceStoredNumber(
-    record.topIn,
-    defaults.topIn,
-    -MAX_PRINT_POSITION_IN,
-    MAX_PRINT_POSITION_IN
-  );
-  const leftIn = coerceStoredNumber(
-    record.leftIn,
-    defaults.leftIn,
-    -MAX_PRINT_POSITION_IN,
-    MAX_PRINT_POSITION_IN
-  );
+  const topIn = isFiniteNumber(record.topIn) ? clampPrintPosition(record.topIn) : defaults.topIn;
+  const leftIn = isFiniteNumber(record.leftIn) ? clampPrintPosition(record.leftIn) : defaults.leftIn;
 
   return {
     paperSize,
