@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import type { PrintJob } from '../../shared/types';
 import {
@@ -30,18 +30,16 @@ const SELECT_CLASS =
 
 const SECTION_TITLE_CLASS = 'text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary';
 
-/** Returns null for empty or unparsable input, so a cleared field keeps its value. */
-function parseNumber(raw: string): number | null {
-  if (raw.trim() === '') return null;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : null;
-}
-
 /** Position and size of a length on the sheet, expressed against the sheet itself. */
 function axisPercent(valueIn: number, paperIn: number): number {
   return paperIn > 0 ? (valueIn / paperIn) * 100 : 0;
 }
 
+/**
+ * Numeric field with a string draft. The committed number is written back on
+ * blur or Enter only: re-rendering on every keystroke resets the DOM value, which
+ * turns "0." into "0" and multiplies sub-inch decimals by ten.
+ */
 const NumberField: React.FC<{
   label: string;
   title?: string;
@@ -49,35 +47,57 @@ const NumberField: React.FC<{
   step: string;
   suffix?: string;
   disabled?: boolean;
-  onChange: (value: number) => void;
-}> = ({ label, title, value, step, suffix, disabled = false, onChange }) => (
-  <div className="flex items-center justify-between gap-2">
-    <span className="text-[11px] text-text-secondary">{label}</span>
-    <span className="flex items-center gap-1">
-      <input
-        type="number"
-        value={value}
-        step={step}
-        disabled={disabled}
-        aria-label={label}
-        title={title ?? label}
-        onChange={event => {
-          const next = parseNumber(event.target.value);
-          if (next !== null) onChange(next);
-        }}
-        className={INPUT_CLASS}
-      />
-      {suffix && <span className="w-3 text-[11px] text-text-tertiary">{suffix}</span>}
-    </span>
-  </div>
-);
+  onCommit: (value: number) => void;
+}> = ({ label, title, value, step, suffix, disabled = false, onCommit }) => {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  // A disabled field shows the derived value and never resurrects an old draft.
+  useEffect(() => {
+    if (disabled) setDraft(null);
+  }, [disabled]);
+
+  const commit = () => {
+    const current = draft;
+    setDraft(null);
+    if (current === null || disabled) return;
+    const parsed = Number(current);
+    if (current.trim() !== '' && Number.isFinite(parsed)) onCommit(parsed);
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[11px] text-text-secondary">{label}</span>
+      <span className="flex items-center gap-1">
+        <input
+          type="number"
+          value={disabled ? String(value) : draft ?? String(value)}
+          step={step}
+          disabled={disabled}
+          aria-label={label}
+          title={title ?? label}
+          onChange={event => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={event => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commit();
+            }
+          }}
+          className={INPUT_CLASS}
+        />
+        {suffix && <span className="w-3 text-[11px] text-text-tertiary">{suffix}</span>}
+      </span>
+    </div>
+  );
+};
 
 const CheckboxField: React.FC<{
   label: string;
+  title: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
-}> = ({ label, checked, onChange }) => (
-  <label className="flex cursor-pointer items-center gap-2 text-[11px] text-text-secondary">
+}> = ({ label, title, checked, onChange }) => (
+  <label className="flex cursor-pointer items-center gap-2 text-[11px] text-text-secondary" title={title}>
     <input
       type="checkbox"
       checked={checked}
@@ -151,20 +171,43 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
     }
   };
 
+  const handlePrintClick = () => {
+    void handlePrint().catch(error => setPrintStatus({
+      ok: false,
+      message: error instanceof Error ? error.message : 'Print request failed.',
+    }));
+  };
+
+  // Escape is handled here rather than in the editor's window listener, which
+  // bails out for input targets; while printing nothing dismisses the dialog so
+  // the in-flight saveJob/printJob pair cannot lose its component.
+  const handleDialogKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== 'Escape' || isPrinting) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onClose();
+  };
+
+  const dismiss = () => {
+    if (!isPrinting) onClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={dismiss}>
       <div
         className="flex h-[520px] max-h-[92vh] w-[780px] max-w-[95vw] flex-col overflow-hidden rounded-xl border border-border-primary bg-surface shadow-2xl"
         onClick={event => event.stopPropagation()}
+        onKeyDown={handleDialogKeyDown}
       >
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-border-primary px-4">
           <h2 className="text-sm font-semibold text-text-primary">Print</h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={dismiss}
+            disabled={isPrinting}
             aria-label="Close print dialog"
             title="Close (discard changes)"
-            className="grid h-7 w-7 place-items-center rounded-lg text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary"
+            className="grid h-7 w-7 place-items-center rounded-lg text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
           >
             <X className="h-4 w-4" />
           </button>
@@ -211,11 +254,12 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
 
           <div className="w-[300px] shrink-0 space-y-3 overflow-y-auto border-l border-border-primary p-3">
             <div className="space-y-1.5">
-              <ActionButton label={isPrinting ? 'Printing…' : 'Print…'} tone="primary" disabled={isPrinting} onClick={() => void handlePrint()} />
-              <ActionButton label="Cancel" tone="default" onClick={onClose} />
+              <ActionButton label={isPrinting ? 'Printing…' : 'Print…'} tone="primary" disabled={isPrinting} onClick={handlePrintClick} />
+              <ActionButton label="Cancel" tone="default" disabled={isPrinting} onClick={dismiss} />
               <ActionButton
                 label="Done"
                 tone="default"
+                disabled={isPrinting}
                 onClick={() => {
                   savePrintSettings(settings);
                   onClose();
@@ -274,7 +318,7 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
                   value={marginIn}
                   step="0.01"
                   suffix="in"
-                  onChange={value => setSettings(current => ({ ...current, marginIn: clampPrintMargin(value) }))}
+                  onCommit={value => setSettings(current => ({ ...current, marginIn: clampPrintMargin(value) }))}
                 />
                 <p className="text-[10px] leading-relaxed text-text-tertiary">
                   Electron offers no native page-setup sheet, and the print service does not read orientation or margins yet — they shape the preview only.
@@ -291,7 +335,7 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
                 step="0.001"
                 suffix="in"
                 disabled={positionLocked}
-                onChange={value => setSettings(current => ({ ...current, topIn: value }))}
+                onCommit={value => setSettings(current => ({ ...current, topIn: value }))}
               />
               <NumberField
                 label="Left"
@@ -300,10 +344,11 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
                 step="0.001"
                 suffix="in"
                 disabled={positionLocked}
-                onChange={value => setSettings(current => ({ ...current, leftIn: value }))}
+                onCommit={value => setSettings(current => ({ ...current, leftIn: value }))}
               />
               <CheckboxField
                 label="Center Image"
+                title="Centre the document on the sheet and ignore the top and left offsets"
                 checked={settings.centerImage}
                 onChange={checked => setSettings(current => ({ ...current, centerImage: checked }))}
               />
@@ -318,9 +363,14 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
                 step="0.1"
                 suffix="%"
                 disabled={sizeLocked}
-                onChange={value => setSettings(current => settingsFromScale(current, value))}
+                onCommit={value => setSettings(current => settingsFromScale(current, value))}
               />
-              <CheckboxField label="Scale to Fit Media" checked={settings.scaleToFit} onChange={handleScaleToFitChange} />
+              <CheckboxField
+                label="Scale to Fit Media"
+                title="Scale the document to fill the printable area, ignoring the scale percentage"
+                checked={settings.scaleToFit}
+                onChange={handleScaleToFitChange}
+              />
               <NumberField
                 label="Height"
                 title="Printed height; width follows the aspect ratio"
@@ -328,7 +378,7 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
                 step="0.001"
                 suffix="in"
                 disabled={sizeLocked}
-                onChange={value => setSettings(current => settingsFromHeight(current, docPx, value))}
+                onCommit={value => setSettings(current => settingsFromHeight(current, docPx, value))}
               />
               <NumberField
                 label="Width"
@@ -337,10 +387,11 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
                 step="0.001"
                 suffix="in"
                 disabled={sizeLocked}
-                onChange={value => setSettings(current => settingsFromWidth(current, docPx, value))}
+                onCommit={value => setSettings(current => settingsFromWidth(current, docPx, value))}
               />
               <CheckboxField
                 label="Show Bounding Box"
+                title="Outline the document on the paper preview"
                 checked={settings.showBoundingBox}
                 onChange={checked => setSettings(current => ({ ...current, showBoundingBox: checked }))}
               />

@@ -22,6 +22,11 @@ export async function printWithSettings(request: {
 }): Promise<PrintResult> {
   const { settings, dataUrl, job } = request;
 
+  // TODO: an empty snapshot has no pixels to print, and saving it would replace
+  // the file attached to the queue job with an empty string, so the job path is
+  // refused until the canvas can hand over a real image.
+  if (!dataUrl) return { ok: false, message: 'No image snapshot to print.' };
+
   // TODO: a canvas opened from a local file has no queue job to attach to, so
   // standalone printing cannot reach the desktop queue yet.
   if (!job) return { ok: false, message: NOT_CONNECTED };

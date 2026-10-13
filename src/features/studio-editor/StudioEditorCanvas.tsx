@@ -891,10 +891,22 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
     link.click();
   };
 
-  /** Snapshot the canvas once: the preview must not shift under the dialog. */
+  /**
+   * Snapshot the canvas once: the preview must not shift under the dialog.
+   * The canvas element only exists while an image is open, so this doubles as
+   * the guard for the Ctrl+P entry point, which has no button to disable.
+   */
   const openPrintDialog = useCallback(() => {
-    setPrintPreviewDataUrl(canvasRef.current?.toDataURL('image/jpeg', 0.92) ?? '');
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setPrintPreviewDataUrl(canvas.toDataURL('image/jpeg', 0.92));
     setShowPrintDialog(true);
+  }, []);
+
+  /** Drops the full-resolution snapshot with the dialog instead of holding it. */
+  const closePrintDialog = useCallback(() => {
+    setShowPrintDialog(false);
+    setPrintPreviewDataUrl('');
   }, []);
 
   const handleFitToWidth = useCallback(() => {
@@ -1086,7 +1098,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
       const isShift = event.shiftKey;
 
       if (event.key === 'Escape') {
-        if (showPrintDialog) setShowPrintDialog(false);
+        if (showPrintDialog) closePrintDialog();
         else if (showOverflowMenu) setShowOverflowMenu(false);
         else if (showSettings) setShowSettings(false);
         else if (showShortcuts) setShowShortcuts(false);
@@ -1137,9 +1149,8 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
         setViewZoom(value => Math.max(0.25, Number((value - 0.25).toFixed(2))));
         return;
       }
-      // Kept above the generic Ctrl bail-out so the browser print dialog never
-      // opens over the studio print dialog.
-      if (isCtrl && (event.key === 'p' || event.key === 'P')) {
+      // Shift is left alone: Ctrl+Shift+P is the DevTools command palette.
+      if (!isShift && isCtrl && (event.key === 'p' || event.key === 'P')) {
         event.preventDefault();
         openPrintDialog();
         return;
@@ -1178,7 +1189,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showOverflowMenu, showSettings, showShortcuts, showPrintDialog, openPrintDialog, handleUndo, handleRedo, handleSaveCanvas, handleActualSize, selectTool]);
+  }, [showOverflowMenu, showSettings, showShortcuts, showPrintDialog, openPrintDialog, closePrintDialog, handleUndo, handleRedo, handleSaveCanvas, handleActualSize, selectTool]);
 
   // ----------------------------------------------------------- overflow menu
   // The former File/Edit/Image menu bar is gone. The most-used actions live in
@@ -1945,7 +1956,7 @@ export const StudioEditorCanvas: React.FC<StudioEditorCanvasProps> = ({ initialI
 
       {/* print settings dialog */}
       {showPrintDialog && (
-        <PrintDialog job={job} docPx={canvasSize} docDataUrl={printPreviewDataUrl} onClose={() => setShowPrintDialog(false)} />
+        <PrintDialog job={job} docPx={canvasSize} docDataUrl={printPreviewDataUrl} onClose={closePrintDialog} />
       )}
 
       <input
