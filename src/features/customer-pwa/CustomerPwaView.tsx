@@ -66,7 +66,16 @@ const PRESET_SAMPLES = [
 ];
 
 export const CustomerPwaView: React.FC = () => {
-  const { shopProfile, pricing, createCustomerJob, counters, activeCounterId, services } = useStudio();
+  const { shopProfile, pricing, createCustomerJob, counters, activeCounterId, services, installationConfig } = useStudio();
+
+  // A counter PC is a customer-order relay: every order submitted through its
+  // customer QR must be forwarded to the master PC's LAN gateway so the master
+  // owns the token, queue and print lifecycle. A counter PC has no local order
+  // endpoint of its own.
+  const isCounterPc = installationConfig?.mode === 'counter';
+  const masterOrderEndpoint = isCounterPc && installationConfig?.masterUrl
+    ? new URL('/api/customer-orders', installationConfig.masterUrl).toString()
+    : '/api/customer-orders';
 
   // Read counter code from URL (e.g. ?counter=CTR-2) or fallback to activeCounterId
   const initialCounterId = (() => {
@@ -381,10 +390,11 @@ export const CustomerPwaView: React.FC = () => {
         gridCount,
         });
 
-        const isRemoteCustomerPortal = !window.alifShohojPrintDesktop &&
-          new URLSearchParams(window.location.search).get('view') === 'customer_pwa';
+        const isRemoteCustomerPortal = isCounterPc ||
+          (!window.alifShohojPrintDesktop &&
+            new URLSearchParams(window.location.search).get('view') === 'customer_pwa');
         if (isRemoteCustomerPortal) {
-          const response = await fetch('/api/customer-orders', {
+          const response = await fetch(masterOrderEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(createdJob),

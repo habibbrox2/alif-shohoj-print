@@ -182,16 +182,16 @@ interface StudioContextType {
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
 const INITIAL_SHOP_PROFILE: ShopProfile = {
-  id: 'shop_demo_001',
-  name: 'Demo Print Shop',
-  nameBn: 'ডেমো প্রিন্ট শপ',
-  code: 'DEMO-0001',
-  owner: 'Demo Shop Owner',
-  phone: '01XXXXXXXXX',
-  address: 'Demo address, Bangladesh',
-  token: 'demo-token-change-before-use',
-  bkashNumber: '01XXXXXXXXX',
-  nagadNumber: '01XXXXXXXXX',
+  id: 'shop_default',
+  name: 'My Print Shop',
+  nameBn: 'আমার প্রিন্ট শপ',
+  code: 'SHOP-0001',
+  owner: '',
+  phone: '',
+  address: '',
+  token: 'change-me',
+  bkashNumber: '',
+  nagadNumber: '',
   soundAlertEnabled: true,
   isDndMode: false,
   dndMessage: 'দোকান সাময়িকভাবে বিরতিতে আছে। কিছুক্ষণ পর পুনরায় চেষ্টা করুন।',
@@ -203,20 +203,21 @@ const INITIAL_SHOP_PROFILE: ShopProfile = {
   localServer: {
     status: 'running',
     port: 3000,
-    localIp: '192.168.1.105',
-    connectedClients: 4,
-    uptimeSeconds: 14820,
+    localIp: '127.0.0.1',
+    connectedClients: 0,
+    uptimeSeconds: 0,
   },
 };
 
-// Preset initial LAN Shop Counters
+// Initial counter: only the master host placeholder, kept neutral so the
+// first-run setup flow and the Settings page create the real counters.
 export const INITIAL_COUNTERS: ShopCounter[] = [
   {
     id: 'CTR-01',
     code: 'CTR-1',
-    name: 'কাউন্টার ১ - মূল সার্ভার ও ক্যাশ ডেস্ক (Master Host)',
-    operator: 'মো: আতিকুর রহমান (স্বত্বাধিকারী)',
-    ipAddress: '192.168.1.105',
+    name: 'কাউন্টার ১ (Master Host)',
+    operator: '',
+    ipAddress: '',
     status: 'active',
     isMasterHost: true,
     assignedServices: ['passport_photo', 'stamp_photo', 'nid_card', 'photo_4r', 'doc_a4'],
@@ -224,201 +225,13 @@ export const INITIAL_COUNTERS: ShopCounter[] = [
     todayOrdersCount: 0,
     todayEarningsBDT: 0,
   },
-  {
-    id: 'CTR-02',
-    code: 'CTR-2',
-    name: 'কাউন্টার ২ - ফটোকপি ও অনলাইন আবেদন (LAN Terminal)',
-    operator: 'মো: শাকিল আহমেদ (অপারেটর)',
-    ipAddress: '192.168.1.112',
-    status: 'active',
-    isMasterHost: false,
-    assignedServices: ['doc_a4', 'nid_card'],
-    defaultPrinterId: 'printer_hp_laserjet',
-    todayOrdersCount: 0,
-    todayEarningsBDT: 0,
-  },
-  {
-    id: 'CTR-03',
-    code: 'CTR-3',
-    name: 'কাউন্টার ৩ - ডিজিটাল ফটো ও পাসপোর্ট স্টুডিও (LAN Studio)',
-    operator: 'রাকিবুল হাসান (ফটোগ্রাফার)',
-    ipAddress: '192.168.1.118',
-    status: 'active',
-    isMasterHost: false,
-    assignedServices: ['passport_photo', 'stamp_photo', 'photo_4r'],
-    defaultPrinterId: 'printer_epson_l805',
-    todayOrdersCount: 0,
-    todayEarningsBDT: 0,
-  },
 ];
 
-// Preset initial Shared Hardware Scanners connected to Master Host
-export const INITIAL_SHARED_SCANNERS: SharedScannerDevice[] = [
-  {
-    id: 'scanner_epson_v39',
-    name: 'Epson Perfection V39 II Flatbed Scanner',
-    brand: 'Epson',
-    model: 'Perfection V39 II (USB 2.0 High-Speed)',
-    status: 'ready',
-    connectedToHost: 'কাউন্টার ১ - মূল সার্ভার (192.168.1.105)',
-    maxDpi: 1200,
-    scanModes: ['color', 'grayscale', 'bw'],
-    lastScannedAt: Date.now() - 8 * 60 * 1000,
-  },
-  {
-    id: 'scanner_canon_lide300',
-    name: 'Canon CanoScan LiDE 300 Studio Scanner',
-    brand: 'Canon',
-    model: 'LiDE 300 Flatbed CIS Sensor',
-    status: 'ready',
-    connectedToHost: 'কাউন্টার ১ - মূল সার্ভার (192.168.1.105)',
-    maxDpi: 2400,
-    scanModes: ['color', 'grayscale'],
-    lastScannedAt: Date.now() - 32 * 60 * 1000,
-  },
-];
+// Fake scanner entries removed; detected hardware on the master host fills
+// this list at runtime instead of pretending devices exist.
+export const INITIAL_SHARED_SCANNERS: SharedScannerDevice[] = [];
 
-// Preset demo jobs matching user's spec
-const INITIAL_JOBS: PrintJob[] = [
-  {
-    id: 'JOB-20261008-00127',
-    tokenCode: '127',
-    customerPhone: '01799-887766',
-    customerName: 'Shakil Ahmed',
-    serviceType: 'nid_card',
-    serviceLabel: 'NID Photo Copy (Smart Card)',
-    serviceLabelBn: 'এনআইডি ফটো কপি',
-    paperSize: '4R (4x6 in)',
-    paperFinish: 'glossy',
-    copies: 4,
-    colorMode: 'color',
-    status: 'queued',
-    targetPrinterId: 'printer_epson_l805',
-    targetPrinterName: 'Epson EcoTank L805',
-    routingReason: 'Capability Match: 6-Color Photo Inkjet for photo paper (4R)',
-    priceBDT: 80,
-    paymentMethod: 'bkash',
-    paymentStatus: 'paid_mfs',
-    fileUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
-    fileName: 'nid_shakil_photo.jpg',
-    fileSize: '1.4 MB',
-    createdAt: Date.now() - 2 * 60 * 1000, // 2 minutes ago
-    autoDeleteCountdownSeconds: 840,
-    counterId: 'CTR-02',
-    counterName: 'কাউন্টার ২ - ফটোকপি ও অনলাইন আবেদন',
-    cropSettings: {
-      zoom: 1,
-      rotation: 0,
-      brightness: 100,
-      contrast: 100,
-      aspectRatio: '4R',
-    },
-    gridCount: 4,
-    auditLogs: [
-      {
-        id: 'log_1',
-        timestamp: Date.now() - 2 * 60 * 1000,
-        actor: 'customer',
-        action: 'order_created',
-        details: 'Order placed via Counter 2 QR PWA with bKash payment',
-      },
-      {
-        id: 'log_2',
-        timestamp: Date.now() - 2 * 60 * 1000,
-        actor: 'system',
-        action: 'auto_routed',
-        details: 'Auto-routed to Epson EcoTank L805 on Master Server Host',
-      },
-    ],
-  },
-  {
-    id: 'JOB-20261008-00126',
-    tokenCode: '126',
-    customerPhone: '01811-223344',
-    customerName: 'Kazi Farhana',
-    serviceType: 'doc_a4',
-    serviceLabel: 'University Registration Form',
-    serviceLabelBn: 'বিশ্ববিদ্যালয় ফরম ও চালান',
-    paperSize: 'A4 (8.27x11.69 in)',
-    paperFinish: 'normal',
-    copies: 2,
-    colorMode: 'bw',
-    status: 'queued',
-    targetPrinterId: 'printer_hp_laserjet',
-    targetPrinterName: 'HP LaserJet Pro M404dn',
-    routingReason: 'Capability Match: High-speed monochrome laser for A4 document',
-    priceBDT: 10,
-    paymentMethod: 'counter_cash',
-    paymentStatus: 'unpaid',
-    fileUrl: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=600&auto=format&fit=crop&q=80',
-    fileName: 'admission_form.pdf',
-    fileSize: '420 KB',
-    createdAt: Date.now() - 6 * 60 * 1000,
-    autoDeleteCountdownSeconds: 540,
-    counterId: 'CTR-01',
-    counterName: 'কাউন্টার ১ - মূল সার্ভার ও ক্যাশ ডেস্ক',
-    auditLogs: [
-      {
-        id: 'log_3',
-        timestamp: Date.now() - 6 * 60 * 1000,
-        actor: 'customer',
-        action: 'order_created',
-        details: 'Order placed at Counter 1 with Pay at Counter option',
-      },
-    ],
-  },
-  {
-    id: 'JOB-20261008-00125',
-    tokenCode: '125',
-    customerPhone: '01555-667788',
-    customerName: 'Tanvir Hossain',
-    serviceType: 'passport_photo',
-    serviceLabel: 'Passport Photo (4-in-1)',
-    serviceLabelBn: 'পাসপোর্ট ছবি (৪ কপি)',
-    paperSize: 'Passport Grid (4-in-1)',
-    paperFinish: 'glossy',
-    copies: 1,
-    colorMode: 'color',
-    status: 'completed',
-    targetPrinterId: 'printer_epson_l805',
-    targetPrinterName: 'Epson EcoTank L805',
-    routingReason: 'Capability Match: 6-Color Photo Inkjet',
-    priceBDT: 50,
-    paymentMethod: 'bkash',
-    paymentStatus: 'paid_mfs',
-    fileUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
-    fileName: 'passport_tanvir.png',
-    fileSize: '2.1 MB',
-    createdAt: Date.now() - 25 * 60 * 1000,
-    completedAt: Date.now() - 22 * 60 * 1000,
-    autoDeleteCountdownSeconds: 200,
-    counterId: 'CTR-03',
-    counterName: 'কাউন্টার ৩ - ডিজিটাল ফটো ও পাসপোর্ট স্টুডিও',
-    auditLogs: [
-      {
-        id: 'log_4',
-        timestamp: Date.now() - 25 * 60 * 1000,
-        actor: 'customer',
-        action: 'order_created',
-        details: 'Order placed via Counter 3 QR PWA',
-      },
-      {
-        id: 'log_5',
-        timestamp: Date.now() - 24 * 60 * 1000,
-        actor: 'shopkeeper',
-        action: 'order_approved',
-        details: 'Manual approval by shopkeeper',
-      },
-      {
-        id: 'log_6',
-        timestamp: Date.now() - 22 * 60 * 1000,
-        actor: 'system',
-        action: 'print_spooled',
-        details: 'Physical print completed on shared Epson EcoTank L805',
-      },
-    ],
-  },
-];
+// Demo seed data removed; the job queue starts empty on every fresh install.
 
 const INSTALLATION_STORAGE_KEY = 'alif-shohoj-print-installation';
 const SERVICES_STORAGE_KEY = 'alif-shohoj-print-studio-services';
@@ -531,7 +344,7 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
   const [printers, setPrinters] = useState<PrinterDevice[]>(() =>
     loadPersisted(PRINTERS_STORAGE_KEY, validators.printers, INITIAL_PRINTERS)
   );
-  const [jobs, setJobs] = useState<PrintJob[]>(() => (import.meta.env.DEV ? INITIAL_JOBS : []));
+  const [jobs, setJobs] = useState<PrintJob[]>([]);
   // Monotonic pickup-code sequence: seeded from loaded jobs so codes are never reused.
   const tokenSequenceRef = useRef<number>(0);
   // Always-fresh snapshot of jobs for callbacks that fire on timers (BUG-005).
@@ -1167,7 +980,13 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
   const createCustomerJob = (
     newJobData: Omit<PrintJob, 'id' | 'createdAt' | 'status' | 'auditLogs' | 'autoDeleteCountdownSeconds' | 'targetPrinterId' | 'targetPrinterName' | 'routingReason'>
   ): PrintJob => {
-    const isRemoteCustomerPwa = !window.alifShohojPrintDesktop && activeView === 'customer_pwa';
+    // A counter PC is a customer-order *relay*, not a print authority: every
+    // customer order submitted here must flow through the master PC's LAN
+    // gateway so the master owns the token, queue and print lifecycle. Without
+    // this a counter PC with its own customer QR would silently swallow orders
+    // that the master never sees (see the "separate counter/master QR" case).
+    const isRemoteCustomerPwa = activeView === 'customer_pwa' &&
+      (!window.alifShohojPrintDesktop || isCounterPc);
     const limitsError = validateCustomerOrderLimits(newJobData, appSettings.orderLimits);
     if (limitsError) throw new Error(limitsError);
     const studioService = services.find(service => service.id === newJobData.serviceType);
@@ -1289,7 +1108,7 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({ children, initia
     }
 
     // If auto-approved, trigger print simulation
-    if (window.alifShohojPrintDesktop) {
+    if (window.alifShohojPrintDesktop && !isRemoteCustomerPwa) {
       const desktop = window.alifShohojPrintDesktop;
       void desktop.listPrinters().then(async windowsPrinters => {
         const printerName = windowsPrinters.includes(newJob.targetPrinterName)

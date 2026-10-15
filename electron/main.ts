@@ -2,7 +2,6 @@ import { app, BrowserWindow, crashReporter, Menu, nativeImage, Notification, saf
 import { randomBytes } from 'node:crypto';
 import { cpSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { networkInterfaces } from 'node:os';
 import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppLogger } from './services/app-logger.js';
@@ -16,6 +15,7 @@ import { CounterFeedStore } from './services/counter-feed-store.js';
 import { CounterFeedSecretStore, pullCounterFeed } from './services/counter-feed-client.js';
 import { CounterFeedWsClient } from './services/counter-feed-ws-client.js';
 import { readCloseToTrayPreference, writeCloseToTrayPreference } from './services/window-settings.js';
+import { resolveLanIpv4Address } from './services/network-utils.js';
 import { createJobId, nextTokenNumber } from '../src/shared/services/jobIdentity.js';
 import type { CustomerAppConfig, DesktopQueueJob, DesktopTrayAction } from '../src/shared/desktop-api.js';
 import { isAppSettings } from '../src/shared/settings.js';
@@ -139,22 +139,12 @@ const getToken = (userDataPath: string): string => {
   return token;
 };
 
-const getConnectionHost = (): string => {
-  if (websocketHost !== '0.0.0.0' && websocketHost !== '::') return websocketHost;
-  for (const interfaces of Object.values(networkInterfaces())) {
-    const address = interfaces?.find(item => item.family === 'IPv4' && !item.internal);
-    if (address) return address.address;
-  }
-  return '127.0.0.1';
-};
+const getConnectionHost = (): string =>
+  websocketHost !== '0.0.0.0' && websocketHost !== '::'
+    ? websocketHost
+    : resolveLanIpv4Address();
 
-const getLanIpv4Address = (): string => {
-  for (const interfaces of Object.values(networkInterfaces())) {
-    const address = interfaces?.find(item => item.family === 'IPv4' && !item.internal);
-    if (address) return address.address;
-  }
-  return '127.0.0.1';
-};
+const getLanIpv4Address = (): string => resolveLanIpv4Address();
 
 const createTrayImage = (badgeCount: number) => {
   const badge = badgeCount > 0
