@@ -85,9 +85,9 @@ Compiles Electron main process TypeScript and copies preload script.
 
 ### 11. Package Windows NSIS Installer
 ```bash
-npx electron-builder --win nsis
+npx electron-builder --win nsis --publish never
 ```
-Creates the NSIS installer executable for both `x64` and `ia32` architectures.
+Creates the NSIS installer executable for both `x64` and `ia32` architectures. The `--publish never` flag prevents electron-builder from attempting to publish to GitHub releases during the build process.
 
 ### 12. Upload Artifacts
 Stores the built `.exe` files as GitHub Actions artifacts for 60 days.
