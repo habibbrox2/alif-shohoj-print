@@ -93,6 +93,49 @@ $certificatePath = 'C:\secure\path\publisher-certificate.pfx'
 
 The workflow restores the certificate to the temporary GitHub Actions runner, runs `npm run app:dist:signed`, and uploads the installer as a workflow artifact. The runner is Windows-based and the signing secrets are used only by this manually triggered workflow. Builds without a certificate are unsigned and can trigger Windows SmartScreen warnings. This project does not include an OV/EV certificate or an Azure Trusted Signing account.
 
+### GitHub Actions Windows Build
+
+A GitHub Actions workflow (`.github/workflows/windows-build.yml`) automatically builds the Windows NSIS installer on every push to `main`, `master`, or `develop` branches, on pull requests, and can be triggered manually from the **Actions** tab.
+
+**Automatic triggers:**
+- Push to `main`, `master`, or `develop` branches
+- Push of tags starting with `v` (e.g., `v1.0.0`)
+- Pull requests to `main` or `master`
+
+**Manual trigger:**
+1. Go to **Actions** → **Windows Build**
+2. Click **Run workflow**
+3. Select branch and optional parameters:
+   - **skip_tests**: Skip tests for faster builds (default: `false`)
+
+**Build process:**
+1. Checkout repository
+2. Setup Python 3.x (for native module builds)
+3. Setup Node.js v22
+4. Install dependencies (`npm ci`)
+5. Verify native modules (`better-sqlite3`, `pdf-to-printer`)
+6. Run linting (`npm run lint`)
+7. Run desktop tests (`npm run test:desktop`)
+8. Run renderer tests (`npm run test:renderer`)
+9. Build renderer (`npm run build`)
+10. Build Electron main process (`npm run build:electron`)
+11. Package Windows NSIS installer (`npx electron-builder --win nsis --x64 --ia32 --publish never`)
+12. Upload artifacts (stored for 60 days)
+
+**Artifacts:**
+- `Alif-Shohoj-Print-{arch}-setup` — contains the `.exe` installer files
+
+**Release workflow:**
+When you push a tag starting with `v`, the workflow automatically creates a GitHub Release with the installer files attached.
+
+```bash
+# Create and push a version tag
+git tag -a v1.0.0 -m "Release version 1.0.0"
+git push origin v1.0.0
+```
+
+For detailed documentation, see [docs/GITHUB_ACTIONS_BUILD.md](docs/GITHUB_ACTIONS_BUILD.md).
+
 ## Print agent setup
 
 ### Authentication
@@ -207,6 +250,7 @@ The desktop app now includes a **Studio** tab for image editing and walk-in prin
 - The editor follows a desktop photo-editor layout with **no menu bar**: a topmost context-sensitive **options bar** (tool options on the left; a fixed quick-actions group on the right — Undo/Redo, Save/Export, left/right sidebar toggles, and a compact "More" menu for open/close, reset, canvas settings and help), a grouped 56 px left **tool palette** with foreground/background colors, the centre **canvas**, a tabbed 280 px right **sidebar** with **Layers / Props / History** tabs, and a bottom **status bar** (zoom, size, cursor, tool, rotation, theme mode).
 - **Theme-aware workspace**: the editor follows the app's light/dark/system theme with dedicated editor surfaces (light mode is a comfortable gray designed for photo work, dark mode is near-black); the status bar shows the active theme mode and updates live when the system theme changes.
 - **Tools**: move/pan, crop & rotate, brush, eraser, shape, and text, grouped into Selection / Transform, Painting and Objects, with keyboard shortcuts (`V`, `C`, `B`, `E`, `S`, `T`). Tooltips show each shortcut.
+- **Extended Photoshop-7 tools** (hidden from the tool rail; surfaced from the **More (⋯)** menu and the Props tab): **Marquee** (`Shift+M`), **Magic Wand** (`Shift+W`, tolerance slider, connected-component flood fill), **Clone Stamp** (Alt-click to sample a pixel, then drag — offset is pinned per stroke so it never drifts), **Healing Brush** (same flow, blended with surrounding texture), and **Dodge / Burn / Sponge** with shadow/midtone/highlight range and an exposure slider. Every extended-tool edit is undoable through the same history stack. Clone Stamp / Healing Brush and Dodge / Burn / Sponge edits are stored as **stroke records** (not a pixel buffer), so they survive undo/redo and flow into the print/export snapshot — the next clone pass samples from the committed strokes, not from painted pixels, so there is no double-image drift.
 - **Adjustments**: brightness, contrast, saturation, exposure (EV), grayscale, and quick filters (passport blue, clean white, sharpen, B/W document) — in the **Props** tab, which also shows the text controls while the text tool is active.
 - **Text/watermark controls**: caption text, visibility, font (Hind Siliguri, Segoe UI, Arial, Times New Roman, Courier New), size, colour, and alignment — available in both the options bar and the Props tab; font choice participates in undo/redo.
 - **Layers tab**: the ordered content stack (paint layers + the watermark text layer, plus the always-present Photo and Adjustments rows) with 36 px thumbnails, a `Normal • 100%` meta line, visibility and lock toggles, reorder arrows, row selection, and a real **+ New Layer** button that inserts a new paint layer above the active one (undoable).

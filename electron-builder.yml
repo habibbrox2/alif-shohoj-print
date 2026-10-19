@@ -2,17 +2,24 @@ appId: com.aaatech.alifshohojprint
 productName: Alif Shohoj Print
 directories:
   output: artifacts/releases
+  buildResources: build
 files:
   - dist/**/*
   - dist-electron/**/*
   - package.json
   - '!**/*.map'
+extraResources:
+  - from: public/sounds
+    to: sounds
+  - from: public/audio
+    to: audio
 asar: true
 npmRebuild: true
 asarUnpack:
   - node_modules/better-sqlite3/**/*
   - node_modules/pdf-to-printer/dist/SumatraPDF-3.4.6-32.exe
 win:
+  icon: build/icon.png
   target:
     - target: nsis
       arch:

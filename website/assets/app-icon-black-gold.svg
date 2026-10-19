@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="url(#goldGradient)" rx="20"/>
+  <defs>
+    <linearGradient id="goldGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF0A6"/>
+      <stop offset=".28" stop-color="#D99A19"/>
+      <stop offset=".55" stop-color="#FFE28A"/>
+      <stop offset=".78" stop-color="#B87908"/>
+      <stop offset="1" stop-color="#F7D66A"/>
+    </linearGradient>
+    <linearGradient id="blackGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#303030"/>
+      <stop offset="1" stop-color="#050505"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Main 'A' monogram -->
+  <path d="M156 85 L221 241 Q234 215 255 241 L291 85 L226 341 L161 85 Z" fill="white" stroke="url(#blackGradient)" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M169 209 Q238 290 322 147 L351 182 Q210 362 121 281 Z" fill="url(#goldGradient)"/>
+  
+  <!-- Plus sign -->
+  <rect x="256" y="180" width="40" height="152" fill="url(#blackGradient)"/>
+  <rect x="276" y="202" width="20" height="108" fill="white"/>
+  
+  <!-- Small decorative elements -->
+  <circle cx="363" cy="120" r="24" fill="url(#goldGradient)" opacity="0.7"/>
+  <circle cx="375" cy="135" r="12" fill="url(#blackGradient)"/>
+  
+  <!-- Text -->
+  <text x="260" y="390" font-family="Montserrat, sans-serif" font-size="48" font-weight="800" fill="white">A</text>
+</svg>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560">
+<defs>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#FFF0A6"/><stop offset=".28" stop-color="#D99A19"/>
+    <stop offset=".55" stop-color="#FFE28A"/><stop offset=".78" stop-color="#B87908"/><stop offset="1" stop-color="#F7D66A"/>
+  </linearGradient>
+  <linearGradient id="black" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#303030"/><stop offset="1" stop-color="#050505"/>
+  </linearGradient>
+</defs>
+<!-- A monogram -->
+<path d="M72 352 L225 65 Q239 39 259 65 L421 352 L342 352 L255 185 L168 352 Z" fill="url(#black)" stroke="url(#gold)" stroke-width="5" stroke-linejoin="round"/>
+<path d="M72 352 L225 65 Q239 39 259 65 L290 120 L244 202 L217 153 L126 352 Z" fill="url(#gold)"/>
+<path d="M109 245 Q209 319 336 172 L369 204 Q228 368 93 286 Z" fill="url(#gold)"/>
+<path d="M211 289 L302 289 L327 352 L186 352 Z" fill="#FFFFFF" stroke="url(#gold)" stroke-width="6" stroke-linejoin="round"/>
+<path d="M218 305 H294 M211 321 H301 M204 337 H308" stroke="#151515" stroke-width="8" stroke-linecap="round"/>
+<!-- digital pixels -->
+<rect x="306" y="50" width="24" height="24" rx="3" fill="url(#gold)"/>
+<rect x="339" y="80" width="18" height="18" rx="2" fill="#111111"/>
+<rect x="366" y="49" width="28" height="28" rx="3" fill="url(#gold)"/>
+<rect x="354" y="115" width="15" height="15" rx="2" fill="url(#gold)"/>
+<!-- Wordmark -->
+<text x="470" y="188" font-family="Montserrat, Arial, sans-serif" font-size="88" font-weight="800" letter-spacing="1" fill="url(#gold)">ALIF</text>
+<text x="470" y="274" font-family="Montserrat, Arial, sans-serif" font-size="66" font-weight="800" letter-spacing="-1" fill="#111111">SHOHOJ PRINT</text>
+<line x1="472" y1="306" x2="1090" y2="306" stroke="url(#gold)" stroke-width="5"/>
+<text x="472" y="360" font-family="Montserrat, Arial, sans-serif" font-size="38" font-weight="600" fill="#222222">by AAA Tech Solutions</text>
+<text x="472" y="414" font-family="Arial, sans-serif" font-size="24" letter-spacing="3" fill="#8D650E">PRINT — COPY — SCAN — DIGITAL SERVICE</text>
+</svg>
