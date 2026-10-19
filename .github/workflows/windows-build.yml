@@ -80,7 +80,7 @@ jobs:
         shell: bash
 
       - name: Package Windows NSIS installer
-        run: npx electron-builder --win nsis --publish never
+        run: npx electron-builder --win nsis --x64 --ia32 --publish never
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

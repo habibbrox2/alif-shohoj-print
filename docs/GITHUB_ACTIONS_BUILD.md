@@ -85,7 +85,7 @@ Compiles Electron main process TypeScript and copies preload script.
 
 ### 11. Package Windows NSIS Installer
 ```bash
-npx electron-builder --win nsis --publish never
+npx electron-builder --win nsis --x64 --ia32 --publish never
 ```
 Creates the NSIS installer executable for both `x64` and `ia32` architectures. The `--publish never` flag prevents electron-builder from attempting to publish to GitHub releases during the build process.
 
