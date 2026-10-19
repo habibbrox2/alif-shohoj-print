@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download — Alif Shohoj Print</title>
+  <meta name="description" content="Download Alif Shohoj Print for Windows. Free NSIS installer for x64 and 32-bit systems.">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="assets/logo.svg">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/logo.svg" alt="Alif Shohoj Print" height="36">
+      </a>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html">
+          <span class="lang-en">Home</span><span class="lang-bn">হোম</span>
+        </a></li>
+        <li><a href="features.html">
+          <span class="lang-en">Features</span><span class="lang-bn">ফিচার</span>
+        </a></li>
+        <li><a href="download.html" class="active">
+          <span class="lang-en">Download</span><span class="lang-bn">ডাউনলোড</span>
+        </a></li>
+        <li><a href="docs.html">
+          <span class="lang-en">Docs</span><span class="lang-bn">ডকুমেন্টেশন</span>
+        </a></li>
+        <li><a href="tutorial.html">
+          <span class="lang-en">Tutorial</span><span class="lang-bn">টিউটোরিয়াল</span>
+        </a></li>
+        <li><a href="faq.html">
+          <span class="lang-en">FAQ</span><span class="lang-bn">প্রশ্নোত্তর</span>
+        </a></li>
+        <li><a href="contact.html">
+          <span class="lang-en">Contact</span><span class="lang-bn">যোগাযোগ</span>
+        </a></li>
+      </ul>
+      <button class="lang-toggle" id="lang-toggle" onclick="toggleLanguage()">বাংলা</button>
+      <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <!-- Page Header -->
+  <section class="hero" style="min-height: 40vh; padding: 8rem 2rem 2rem;">
+    <div class="hero-container" style="grid-template-columns: 1fr; text-align: center;">
+      <div class="hero-content">
+        <h1>
+          <span class="lang-en">Download Alif Shohoj Print</span>
+          <span class="lang-bn">Alif Shohoj Print ডাউনলোড করুন</span>
+        </h1>
+        <p class="subtitle">
+          <span class="lang-en">Free Windows desktop app for print shop management. No subscription, no cloud dependency.</span>
+          <span class="lang-bn">প্রিন্ট শপ ম্যানেজমেন্টের জন্য ফ্রি Windows ডেস্কটপ অ্যাপ। কোনো সাবস্ক্রিপশন নেই, কোনো ক্লাউড ডিপেন্ডেন্সি নেই।</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download Cards -->
+  <section class="download-section">
+    <div class="section-container">
+      <div class="download-cards">
+        <div class="download-card">
+          <div class="icon">🖥️</div>
+          <h3>
+            <span class="lang-en">Windows (64-bit)</span>
+            <span class="lang-bn">Windows (64-bit)</span>
+          </h3>
+          <div class="version">v0.1.0</div>
+          <div class="size">
+            <span class="lang-en">~140 MB — x64 architecture</span>
+            <span class="lang-bn">~১৪০ MB — x64 আর্কিটেকচার</span>
+          </div>
+          <a href="https://github.com/habibbrox2/alif-shohoj-print/releases/download/v0.1.0/Alif-Shohoj-Print-0.1.0-Setup-x64.exe" class="btn btn-download" onclick="trackDownload('x64')">
+            <span>⬇</span>
+            <span class="lang-en">Download x64</span>
+            <span class="lang-bn">x64 ডাউনলোড</span>
+          </a>
+        </div>
+        <div class="download-card">
+          <div class="icon">💻</div>
+          <h3>
+            <span class="lang-en">Windows (32-bit)</span>
+            <span class="lang-bn">Windows (32-bit)</span>
+          </h3>
+          <div class="version">v0.1.0</div>
+          <div class="size">
+            <span class="lang-en">~127 MB — ia32 architecture</span>
+            <span class="lang-bn">~১২৭ MB — ia32 আর্কিটেকচার</span>
+          </div>
+          <a href="https://github.com/habibbrox2/alif-shohoj-print/releases/download/v0.1.0/Alif-Shohoj-Print-0.1.0-Setup-ia32.exe" class="btn btn-download" onclick="trackDownload('ia32')">
+            <span>⬇</span>
+            <span class="lang-en">Download 32-bit</span>
+            <span class="lang-bn">32-bit ডাউনলোড</span>
+          </a>
+        </div>
+        <div class="download-card">
+          <div class="icon">📦</div>
+          <h3>
+            <span class="lang-en">Combined Installer</span>
+            <span class="lang-bn">কম্বাইন্ড ইনস্টলার</span>
+          </h3>
+          <div class="version">v0.1.0</div>
+          <div class="size">
+            <span class="lang-en">~267 MB — Auto-detects architecture</span>
+            <span class="lang-bn">~২৬৭ MB — অটো-ডিটেক্ট আর্কিটেকচার</span>
+          </div>
+          <a href="https://github.com/habibbrox2/alif-shohoj-print/releases/download/v0.1.0/Alif-Shohoj-Print-0.1.0-Setup.exe" class="btn btn-download" onclick="trackDownload('combined')">
+            <span>⬇</span>
+            <span class="lang-en">Download Combined</span>
+            <span class="lang-bn">কম্বাইন্ড ডাউনলোড</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="download-requirements">
+        <h4>
+          <span class="lang-en">System Requirements</span>
+          <span class="lang-bn">সিস্টেম রিকোয়ারমেন্ট</span>
+        </h4>
+        <ul>
+          <li><span class="lang-en">Windows 10 or Windows 11</span><span class="lang-bn">Windows 10 বা Windows 11</span></li>
+          <li><span class="lang-en">x64 or 32-bit (ia32) processor</span><span class="lang-bn">x64 বা 32-bit (ia32) প্রসেসর</span></li>
+          <li><span class="lang-en">4 GB RAM (minimum)</span><span class="lang-bn">৪ GB RAM (সর্বনিম্ন)</span></li>
+          <li><span class="lang-en">500 MB free disk space</span><span class="lang-bn">৫০০ MB ফ্রি ডিস্ক স্পেস</span></li>
+          <li><span class="lang-en">Installed Windows printer (for printing)</span><span class="lang-bn">ইনস্টল করা Windows প্রিন্টার (প্রিন্টিংয়ের জন্য)</span></li>
+          <li><span class="lang-en">Internet (optional, for LAN features)</span><span class="lang-bn">ইন্টারনেট (ঐচ্ছিক, LAN ফিচারের জন্য)</span></li>
+        </ul>
+      </div>
+
+      <div style="max-width: 800px; margin: 3rem auto 0;">
+        <div class="alert alert-info">
+          <span>ℹ️</span>
+          <div>
+            <strong>
+              <span class="lang-en">Installation Note</span>
+              <span class="lang-bn">ইনস্টলেশন নোট</span>
+            </strong>
+            <p style="margin: 0.5rem 0 0;">
+              <span class="lang-en">The installer is unsigned and may trigger Windows SmartScreen. Click "More info" → "Run anyway" to proceed. This is normal for open-source apps without a code signing certificate.</span>
+              <span class="lang-bn">ইনস্টলারটি আনসাইনড এবং Windows SmartScreen ট্রিগার করতে পারে। "More info" → "Run anyway" ক্লিক করে এগিয়ে যান। কোড সাইনিং সার্টিফিকেট ছাড়া ওপেন-সোর্স অ্যাপের জন্য এটি স্বাভাবিক।</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Installation Steps -->
+  <section class="section" style="background: white;">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Installation Steps</span>
+          <span class="lang-bn">ইনস্টলেশন ধাপ</span>
+        </h2>
+      </div>
+      <div class="steps-container">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <h3>
+            <span class="lang-en">Download</span>
+            <span class="lang-bn">ডাউনলোড</span>
+          </h3>
+          <p>
+            <span class="lang-en">Download the installer for your Windows architecture (x64 or 32-bit).</span>
+            <span class="lang-bn">আপনার Windows আর্কিটেকচারের (x64 বা 32-bit) জন্য ইনস্টলার ডাউনলোড করুন।</span>
+          </p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <h3>
+            <span class="lang-en">Install</span>
+            <span class="lang-bn">ইনস্টল</span>
+          </h3>
+          <p>
+            <span class="lang-en">Run the installer. Choose installation directory. Shortcuts created automatically.</span>
+            <span class="lang-bn">ইনস্টলার রান করুন। ইনস্টলেশন ডিরেক্টরি বেছে নিন। শর্টকাট স্বয়ংক্রিয়ভাবে তৈরি হবে।</span>
+          </p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <h3>
+            <span class="lang-en">First Launch</span>
+            <span class="lang-bn">প্রথম লঞ্চ</span>
+          </h3>
+          <p>
+            <span class="lang-en">Choose master or counter PC mode. Set up printers and WebSocket token.</span>
+            <span class="lang-bn">মাস্টার বা কাউন্টার PC মোড বেছে নিন। প্রিন্টার ও WebSocket token সেটআপ করুন।</span>
+          </p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">4</div>
+          <h3>
+            <span class="lang-en">Start Using</span>
+            <span class="lang-bn">ব্যবহার শুরু</span>
+          </h3>
+          <p>
+            <span class="lang-en">Create orders, print jobs, and serve customers. You're ready!</span>
+            <span class="lang-bn">অর্ডার তৈরি, প্রিন্ট জব, এবং কাস্টমার সার্ভ করুন। আপনি প্রস্তুত!</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Additional Resources -->
+  <section class="section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Additional Resources</span>
+          <span class="lang-bn">অতিরিক্ত রিসোর্স</span>
+        </h2>
+      </div>
+      <div class="docs-grid">
+        <a href="https://github.com/habibbrox2/alif-shohoj-print/releases" target="_blank" class="doc-card">
+          <div class="icon">📋</div>
+          <h4>
+            <span class="lang-en">All Releases</span>
+            <span class="lang-bn">সব রিলিজ</span>
+          </h4>
+          <p>
+            <span class="lang-en">View all versions and release notes on GitHub.</span>
+            <span class="lang-bn">GitHub-এ সব ভার্সন ও রিলিজ নোট দেখুন।</span>
+          </p>
+        </a>
+        <a href="docs.html" class="doc-card">
+          <div class="icon">📖</div>
+          <h4>
+            <span class="lang-en">Documentation</span>
+            <span class="lang-bn">ডকুমেন্টেশন</span>
+          </h4>
+          <p>
+            <span class="lang-en">Full setup and configuration guide.</span>
+            <span class="lang-bn">সম্পূর্ণ সেটআপ ও কনফিগারেশন গাইড।</span>
+          </p>
+        </a>
+        <a href="tutorial.html" class="doc-card">
+          <div class="icon">🎓</div>
+          <h4>
+            <span class="lang-en">Tutorial</span>
+            <span class="lang-bn">টিউটোরিয়াল</span>
+          </h4>
+          <p>
+            <span class="lang-en">Step-by-step getting started guide.</span>
+            <span class="lang-bn">স্টেপ-বাই-স্টেপ শুরু করার গাইড।</span>
+          </p>
+        </a>
+        <a href="https://github.com/habibbrox2/alif-shohoj-print" target="_blank" class="doc-card">
+          <div class="icon">💻</div>
+          <h4>
+            <span class="lang-en">Source Code</span>
+            <span class="lang-bn">সোর্স কোড</span>
+          </h4>
+          <p>
+            <span class="lang-en">View and contribute on GitHub.</span>
+            <span class="lang-bn">GitHub-এ দেখুন এবং কন্ট্রিবিউট করুন।</span>
+          </p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <div class="logo">
+          <img src="assets/logo.svg" alt="Alif Shohoj Print" height="36">
+        </div>
+        <p>
+          <span class="lang-en">Shop point of sale with a Windows desktop print agent. By AAA Tech Solutions.</span>
+          <span class="lang-bn">Windows ডেস্কটপ প্রিন্ট এজেন্ট সহ শপ POS। AAA Tech Solutions দ্বারা।</span>
+        </p>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Product</span><span class="lang-bn">প্রোডাক্ট</span></h4>
+        <ul>
+          <li><a href="index.html"><span class="lang-en">Home</span><span class="lang-bn">হোম</span></a></li>
+          <li><a href="features.html"><span class="lang-en">Features</span><span class="lang-bn">ফিচার</span></a></li>
+          <li><a href="download.html"><span class="lang-en">Download</span><span class="lang-bn">ডাউনলোড</span></a></li>
+          <li><a href="docs.html"><span class="lang-en">Docs</span><span class="lang-bn">ডকুমেন্টেশন</span></a></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Support</span><span class="lang-bn">সাপোর্ট</span></h4>
+        <ul>
+          <li><a href="tutorial.html"><span class="lang-en">Tutorial</span><span class="lang-bn">টিউটোরিয়াল</span></a></li>
+          <li><a href="faq.html"><span class="lang-en">FAQ</span><span class="lang-bn">প্রশ্নোত্তর</span></a></li>
+          <li><a href="contact.html"><span class="lang-en">Contact</span><span class="lang-bn">যোগাযোগ</span></a></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Links</span><span class="lang-bn">লিংক</span></h4>
+        <ul>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print" target="_blank">GitHub</a></li>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print/releases" target="_blank"><span class="lang-en">Releases</span><span class="lang-bn">রিলিজ</span></a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Alif Shohoj Print by AAA Tech Solutions. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <button class="scroll-top" id="scroll-top" onclick="scrollToTop()">↑</button>
+  <script src="js/main.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="ogBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fef9f3"/>
+      <stop offset="50%" style="stop-color:#fdebd0"/>
+      <stop offset="100%" style="stop-color:#f8f4f0"/>
+    </linearGradient>
+    <linearGradient id="ogGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e67e22"/>
+      <stop offset="100%" style="stop-color:#f39c12"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1200" height="630" fill="url(#ogBg)"/>
+  
+  <!-- Logo -->
+  <rect x="80" y="80" width="80" height="80" rx="16" fill="url(#ogGrad)"/>
+  <text x="120" y="145" font-family="Segoe UI, sans-serif" font-size="56" font-weight="900" fill="white" text-anchor="middle">A</text>
+  
+  <!-- Title -->
+  <text x="180" y="120" font-family="Segoe UI, sans-serif" font-size="48" font-weight="800" fill="#2c3e50">Alif Shohoj Print</text>
+  <text x="180" y="160" font-family="Segoe UI, sans-serif" font-size="24" fill="#e67e22" font-weight="600">by AAA Tech Solutions</text>
+  
+  <!-- Tagline -->
+  <text x="80" y="260" font-family="Segoe UI, sans-serif" font-size="36" font-weight="700" fill="#2c3e50">Shop POS + Windows Print Agent</text>
+  <text x="80" y="310" font-family="Segoe UI, sans-serif" font-size="22" fill="#7f8c8d">Manage orders, print jobs, and customer service — all from one app.</text>
+  
+  <!-- Features -->
+  <text x="80" y="400" font-family="Segoe UI, sans-serif" font-size="20" fill="#2c3e50">✓ Shop POS  ✓ Print Agent  ✓ Customer PWA  ✓ Studio Editor  ✓ Reports</text>
+  
+  <!-- Download badge -->
+  <rect x="80" y="460" width="280" height="60" rx="30" fill="url(#ogGrad)"/>
+  <text x="220" y="498" font-family="Segoe UI, sans-serif" font-size="22" font-weight="700" fill="white" text-anchor="middle">Download for Windows</text>
+  
+  <!-- Bottom -->
+  <text x="80" y="580" font-family="Segoe UI, sans-serif" font-size="16" fill="#bdc3c7">habibbrox2.github.io/alif-shohoj-print</text>
+</svg>

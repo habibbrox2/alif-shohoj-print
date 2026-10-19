@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation — Alif Shohoj Print</title>
+  <meta name="description" content="Complete documentation for Alif Shohoj Print — setup, configuration, WebSocket protocol, queue management, and more.">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="assets/logo.svg">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/logo.svg" alt="Alif Shohoj Print" height="36">
+      </a>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html">
+          <span class="lang-en">Home</span><span class="lang-bn">হোম</span>
+        </a></li>
+        <li><a href="features.html">
+          <span class="lang-en">Features</span><span class="lang-bn">ফিচার</span>
+        </a></li>
+        <li><a href="download.html">
+          <span class="lang-en">Download</span><span class="lang-bn">ডাউনলোড</span>
+        </a></li>
+        <li><a href="docs.html" class="active">
+          <span class="lang-en">Docs</span><span class="lang-bn">ডকুমেন্টেশন</span>
+        </a></li>
+        <li><a href="tutorial.html">
+          <span class="lang-en">Tutorial</span><span class="lang-bn">টিউটোরিয়াল</span>
+        </a></li>
+        <li><a href="faq.html">
+          <span class="lang-en">FAQ</span><span class="lang-bn">প্রশ্নোত্তর</span>
+        </a></li>
+        <li><a href="contact.html">
+          <span class="lang-en">Contact</span><span class="lang-bn">যোগাযোগ</span>
+        </a></li>
+      </ul>
+      <button class="lang-toggle" id="lang-toggle" onclick="toggleLanguage()">বাংলা</button>
+      <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <!-- Page Header -->
+  <section class="hero" style="min-height: 40vh; padding: 8rem 2rem 2rem;">
+    <div class="hero-container" style="grid-template-columns: 1fr; text-align: center;">
+      <div class="hero-content">
+        <h1>
+          <span class="lang-en">Documentation</span>
+          <span class="lang-bn">ডকুমেন্টেশন</span>
+        </h1>
+        <p class="subtitle">
+          <span class="lang-en">Complete guide to setting up, configuring, and using Alif Shohoj Print.</span>
+          <span class="lang-bn">Alif Shohoj Print সেটআপ, কনফিগার এবং ব্যবহার করার সম্পূর্ণ গাইড।</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Docs Content -->
+  <section class="section">
+    <div class="section-container">
+      <div class="docs-grid">
+        <a href="#getting-started" class="doc-card">
+          <div class="icon">🚀</div>
+          <h4>
+            <span class="lang-en">Getting Started</span>
+            <span class="lang-bn">শুরু করা</span>
+          </h4>
+          <p>
+            <span class="lang-en">Installation, first launch, and basic setup.</span>
+            <span class="lang-bn">ইনস্টলেশন, প্রথম লঞ্চ, এবং বেসিক সেটআপ।</span>
+          </p>
+        </a>
+        <a href="#master-counter" class="doc-card">
+          <div class="icon">🏪</div>
+          <h4>
+            <span class="lang-en">Master & Counter Setup</span>
+            <span class="lang-bn">মাস্টার ও কাউন্টার সেটআপ</span>
+          </h4>
+          <p>
+            <span class="lang-en">Configure master PC and counter PCs.</span>
+            <span class="lang-bn">মাস্টার PC এবং কাউন্টার PC কনফিগার করুন।</span>
+          </p>
+        </a>
+        <a href="#websocket" class="doc-card">
+          <div class="icon">🔌</div>
+          <h4>
+            <span class="lang-en">WebSocket Protocol</span>
+            <span class="lang-bn">WebSocket প্রোটোকল</span>
+          </h4>
+          <p>
+            <span class="lang-en">Authentication, job submission, and responses.</span>
+            <span class="lang-bn">অথেন্টিকেশন, জব সাবমিশন, এবং রেসপন্স।</span>
+          </p>
+        </a>
+        <a href="#print-agent" class="doc-card">
+          <div class="icon">🖨️</div>
+          <h4>
+            <span class="lang-en">Print Agent Setup</span>
+            <span class="lang-bn">প্রিন্ট এজেন্ট সেটআপ</span>
+          </h4>
+          <p>
+            <span class="lang-en">Token, listener, TLS, and queue management.</span>
+            <span class="lang-bn">টোকেন, লিসেনার, TLS, এবং কিউ ম্যানেজমেন্ট।</span>
+          </p>
+        </a>
+        <a href="#customer-pwa" class="doc-card">
+          <div class="icon">📱</div>
+          <h4>
+            <span class="lang-en">Customer PWA</span>
+            <span class="lang-bn">কাস্টমার PWA</span>
+          </h4>
+          <p>
+            <span class="lang-en">QR codes, customer ordering, and gateway.</span>
+            <span class="lang-bn">QR কোড, কাস্টমার অর্ডারিং, এবং গেটওয়ে।</span>
+          </p>
+        </a>
+        <a href="#studio" class="doc-card">
+          <div class="icon">🎨</div>
+          <h4>
+            <span class="lang-en">Studio Editor</span>
+            <span class="lang-bn">স্টুডিও এডিটর</span>
+          </h4>
+          <p>
+            <span class="lang-en">Image editing tools and print dialog.</span>
+            <span class="lang-bn">ইমেজ এডিটিং টুলস এবং প্রিন্ট ডায়ালগ।</span>
+          </p>
+        </a>
+        <a href="#env-vars" class="doc-card">
+          <div class="icon">⚙️</div>
+          <h4>
+            <span class="lang-en">Environment Variables</span>
+            <span class="lang-bn">এনভায়রনমেন্ট ভেরিয়েবল</span>
+          </h4>
+          <p>
+            <span class="lang-en">All configuration options.</span>
+            <span class="lang-bn">সব কনফিগারেশন অপশন।</span>
+          </p>
+        </a>
+        <a href="#troubleshooting" class="doc-card">
+          <div class="icon">🔧</div>
+          <h4>
+            <span class="lang-en">Troubleshooting</span>
+            <span class="lang-bn">ট্রাবলশুটিং</span>
+          </h4>
+          <p>
+            <span class="lang-en">Common issues and solutions.</span>
+            <span class="lang-bn">সাধারণ সমস্যা ও সমাধান।</span>
+          </p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Getting Started -->
+  <section class="section" id="getting-started" style="background: white;">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Getting Started</span>
+          <span class="lang-bn">শুরু করা</span>
+        </h2>
+      </div>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <h3>
+          <span class="lang-en">Installation</span>
+          <span class="lang-bn">ইনস্টলেশন</span>
+        </h3>
+        <p>
+          <span class="lang-en">1. Download the installer from the <a href="download.html">Download page</a>.</span>
+          <span class="lang-bn">১. <a href="download.html">ডাউনলোড পেইজ</a> থেকে ইনস্টলার ডাউনলোড করুন।</span>
+        </p>
+        <p>
+          <span class="lang-en">2. Run the installer. Choose installation directory (default: Program Files).</span>
+          <span class="lang-bn">২. ইনস্টলার রান করুন। ইনস্টলেশন ডিরেক্টরি বেছে নিন (ডিফল্ট: Program Files)।</span>
+        </p>
+        <p>
+          <span class="lang-en">3. The installer creates Start Menu and desktop shortcuts.</span>
+          <span class="lang-bn">৩. ইনস্টলার Start Menu এবং ডেস্কটপ শর্টকাট তৈরি করে।</span>
+        </p>
+        <p>
+          <span class="lang-en">4. Launch the app. On first run, choose whether this PC is the master (shopkeeper) or counter (operator) PC.</span>
+          <span class="lang-bn">৪. অ্যাপ লঞ্চ করুন। প্রথম রানে, এই PC মাস্টার (শপকিপার) নাকি কাউন্টার (অপারেটর) PC তা বেছে নিন।</span>
+        </p>
+
+        <h3 style="margin-top: 2rem;">
+          <span class="lang-en">First Launch Setup</span>
+          <span class="lang-bn">প্রথম লঞ্চ সেটআপ</span>
+        </h3>
+        <p>
+          <span class="lang-en">On the master PC:</span>
+          <span class="lang-bn">মাস্টার PC-তে:</span>
+        </p>
+        <ul style="margin-left: 1.5rem; margin-bottom: 1rem;">
+          <li><span class="lang-en">Configure installed printers in Settings → Printers</span><span class="lang-bn">Settings → Printers-এ ইনস্টল করা প্রিন্টার কনফিগার করুন</span></li>
+          <li><span class="lang-en">Set up services (ID card, A4 print, passport photo, etc.)</span><span class="lang-bn">সার্ভিস সেটআপ করুন (ID কার্ড, A4 প্রিন্ট, পাসপোর্ট ফটো ইত্যাদি)</span></li>
+          <li><span class="lang-en">Configure business hours</span><span class="lang-bn">ব্যবসায়িক সময় কনফিগার করুন</span></li>
+          <li><span class="lang-en">Set WebSocket token (auto-generated or custom)</span><span class="lang-bn">WebSocket token সেট করুন (অটো-জেনারেটেড বা কাস্টম)</span></li>
+          <li><span class="lang-en">Enable customer PWA gateway (port 43822)</span><span class="lang-bn">কাস্টমার PWA গেটওয়ে এনাবল করুন (পোর্ট 43822)</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Master & Counter -->
+  <section class="section" id="master-counter">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Master & Counter Setup</span>
+          <span class="lang-bn">মাস্টার ও কাউন্টার সেটআপ</span>
+        </h2>
+      </div>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <h3>
+          <span class="lang-en">Master PC</span>
+          <span class="lang-bn">মাস্টার PC</span>
+        </h3>
+        <p>
+          <span class="lang-en">The master PC is the central hub. It runs the print agent, hosts the customer PWA, manages all orders, and performs all printing.</span>
+          <span class="lang-bn">মাস্টার PC হলো সেন্ট্রাল হাব। এটি প্রিন্ট এজেন্ট রান করে, কাস্টমার PWA হোস্ট করে, সব অর্ডার ম্যানেজ করে, এবং সব প্রিন্টিং সম্পাদন করে।</span>
+        </p>
+        <ul style="margin-left: 1.5rem; margin-bottom: 2rem;">
+          <li><span class="lang-en">Dashboard with order inbox, job summary, printer fleet</span><span class="lang-bn">অর্ডার ইনবক্স, জব সামারি, প্রিন্টার ফ্লিট সহ ড্যাশবোর্ড</span></li>
+          <li><span class="lang-en">Studio image editor</span><span class="lang-bn">স্টুডিও ইমেজ এডিটর</span></li>
+          <li><span class="lang-en">Reports (today & this month)</span><span class="lang-bn">রিপোর্ট (আজ ও এই মাস)</span></li>
+          <li><span class="lang-en">Settings (services, printers, business hours)</span><span class="lang-bn">সেটিংস (সার্ভিস, প্রিন্টার, ব্যবসায়িক সময়)</span></li>
+          <li><span class="lang-en">Customer PWA gateway (port 43822)</span><span class="lang-bn">কাস্টমার PWA গেটওয়ে (পোর্ট 43822)</span></li>
+        </ul>
+
+        <h3>
+          <span class="lang-en">Counter PC</span>
+          <span class="lang-bn">কাউন্টার PC</span>
+        </h3>
+        <p>
+          <span class="lang-en">Counter PCs have restricted access. They show only the Counter Inbox with their orders. All printing happens on the master PC.</span>
+          <span class="lang-bn">কাউন্টার PC-এর সীমিত অ্যাক্সেস আছে। তারা শুধু Counter Inbox তাদের অর্ডার সহ দেখায়। সব প্রিন্টিং মাস্টার PC-তে হয়।</span>
+        </p>
+        <ul style="margin-left: 1.5rem; margin-bottom: 2rem;">
+          <li><span class="lang-en">Locked Counter Inbox (no POS, no settings, no printers)</span><span class="lang-bn">লকড কাউন্টার ইনবক্স (কোনো POS, সেটিংস, প্রিন্টার নেই)</span></li>
+          <li><span class="lang-en">Counter pairing with master PC (encrypted key)</span><span class="lang-bn">মাস্টার PC-এর সাথে কাউন্টার পেয়ারিং (এনক্রিপ্টেড কী)</span></li>
+          <li><span class="lang-en">Counter QR code generation</span><span class="lang-bn">কাউন্টার QR কোড জেনারেশন</span></li>
+          <li><span class="lang-en">Heartbeat monitoring (online/offline status)</span><span class="lang-bn">হার্টবিট মনিটরিং (অনলাইন/অফলাইন স্ট্যাটাস)</span></li>
+        </ul>
+
+        <h3>
+          <span class="lang-en">Counter Pairing</span>
+          <span class="lang-bn">কাউন্টার পেয়ারিং</span>
+        </h3>
+        <p>
+          <span class="lang-en">1. On master PC, open Shop POS → Counter QR poster → copy the pairing key.</span>
+          <span class="lang-bn">১. মাস্টার PC-তে, Shop POS → Counter QR poster → পেয়ারিং কী কপি করুন।</span>
+        </p>
+        <p>
+          <span class="lang-en">2. On counter PC, enter the master gateway URL and pairing key during first-run setup or in Counter Inbox.</span>
+          <span class="lang-bn">২. কাউন্টার PC-তে, প্রথম-রান সেটআপ বা Counter Inbox-এ মাস্টার গেটওয়ে URL এবং পেয়ারিং কী এন্টার করুন।</span>
+        </p>
+        <p>
+          <span class="lang-en">3. The key is stored encrypted (DPAPI) and never shown again.</span>
+          <span class="lang-bn">৩. কী এনক্রিপ্টেড (DPAPI) স্টোর হয় এবং আর কখনো দেখানো হয় না।</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- WebSocket Protocol -->
+  <section class="section" id="websocket" style="background: white;">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">WebSocket Protocol</span>
+          <span class="lang-bn">WebSocket প্রোটোকল</span>
+        </h2>
+      </div>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <h3>
+          <span class="lang-en">Authentication</span>
+          <span class="lang-bn">অথেন্টিকেশন</span>
+        </h3>
+        <p>
+          <span class="lang-en">Clients must authenticate within 5 seconds of connecting:</span>
+          <span class="lang-bn">ক্লায়েন্টদের কানেক্ট করার ৫ সেকেন্ডের মধ্যে অথেন্টিকেট করতে হবে:</span>
+        </p>
+        <div class="code-block">
+          {"type":"auth","token":"&lt;shared-token&gt;"}
+        </div>
+        <p>
+          <span class="lang-en">Server responds with:</span>
+          <span class="lang-bn">সার্ভার রেসপন্ড করে:</span>
+        </p>
+        <div class="code-block">
+          {"type":"authenticated"}
+        </div>
+
+        <h3 style="margin-top: 2rem;">
+          <span class="lang-en">Job Submission</span>
+          <span class="lang-bn">জব সাবমিশন</span>
+        </h3>
+        <div class="code-block">
+          {"type":"job","job":&lt;PrintJob&gt;}
+        </div>
+        <p>
+          <span class="lang-en">The server validates the job, stores it in SQLite, and replies with an accepted message. Supported formats: PDF, JPEG, PNG (up to 40 MiB).</span>
+          <span class="lang-bn">সার্ভার জব ভ্যালিডেট করে, SQLite-এ সংরক্ষণ করে, এবং accepted মেসেজ রিপ্লাই করে। সাপোর্টেড ফরম্যাট: PDF, JPEG, PNG (৪০ MiB পর্যন্ত)।</span>
+        </p>
+        <div class="alert alert-warning">
+          <span>⚠️</span>
+          <div>
+            <span class="lang-en"><strong>Note:</strong> Acceptance means the job is queued — not that printing is complete.</span>
+            <span class="lang-bn"><strong>নোট:</strong> Acceptance মানে জব কিউতে আছে — প্রিন্টিং সম্পন্ন হয়েছে তা নয়।</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Print Agent -->
+  <section class="section" id="print-agent">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Print Agent Setup</span>
+          <span class="lang-bn">প্রিন্ট এজেন্ট সেটআপ</span>
+        </h2>
+      </div>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <h3>
+          <span class="lang-en">Authentication Token</span>
+          <span class="lang-bn">অথেন্টিকেশন টোকেন</span>
+        </h3>
+        <p>
+          <span class="lang-en">On startup, the app uses <code>ALIF_SHOHOJ_PRINT_WS_TOKEN</code> if set. Otherwise, it reads/generates a token from Electron's user-data directory. The token is available in Shop POS settings.</span>
+          <span class="lang-bn">স্টার্টআপে, অ্যাপ <code>ALIF_SHOHOJ_PRINT_WS_TOKEN</code> ব্যবহার করে যদি সেট করা থাকে। না হলে, Electron-এর user-data ডিরেক্টরি থেকে টোকেন রিড/জেনারেট করে। টোকেন Shop POS settings-এ পাওয়া যায়।</span>
+        </p>
+
+        <h3 style="margin-top: 2rem;">
+          <span class="lang-en">Listener & TLS</span>
+          <span class="lang-bn">লিসেনার ও TLS</span>
+        </h3>
+        <p>
+          <span class="lang-en">By default, the WebSocket listener binds to <code>127.0.0.1:43821</code>. For LAN access, set host/port and TLS certificate/key environment variables.</span>
+          <span class="lang-bn">ডিফল্টরূপে, WebSocket লিসেনার <code>127.0.0.1:43821</code>-এ বাইন্ড হয়। LAN অ্যাক্সেসের জন্য, host/port এবং TLS certificate/key এনভায়রনমেন্ট ভেরিয়েবল সেট করুন।</span>
+        </p>
+
+        <h3 style="margin-top: 2rem;">
+          <span class="lang-en">Queue & Printing</span>
+          <span class="lang-bn">কিউ ও প্রিন্টিং</span>
+        </h3>
+        <ul style="margin-left: 1.5rem;">
+          <li><span class="lang-en">Jobs stored in SQLite before acknowledgment</span><span class="lang-bn">জবগুলো acknowledgment-এর আগে SQLite-এ সংরক্ষিত</span></li>
+          <li><span class="lang-en">Temporary PDFs staged and sent via SumatraPDF</span><span class="lang-bn">টেম্পোরারি PDF স্টেজ করে SumatraPDF এর মাধ্যমে পাঠানো</span></li>
+          <li><span class="lang-en">Source data removed after successful print</span><span class="lang-bn">সফল প্রিন্টের পর সোর্স ডেটা রিমুভ</span></li>
+          <li><span class="lang-en">Failed jobs retain source for retry</span><span class="lang-bn">ফেইলড জবগুলো রিট্রাইয়ের জন্য সোর্স ধরে রাখে</span></li>
+          <li><span class="lang-en">Logs rotate at 5 MiB, 5 files retained</span><span class="lang-bn">লগ ৫ MiB-এ রোটেট, ৫টি ফাইল ধরে রাখে</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Customer PWA -->
+  <section class="section" id="customer-pwa">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Customer PWA & Gateway</span>
+          <span class="lang-bn">কাস্টমার PWA ও গেটওয়ে</span>
+        </h2>
+      </div>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <p>
+          <span class="lang-en">The master PC hosts the customer PWA and order gateway on port 43822. Customers scan a QR code to access the ordering app on their phone.</span>
+          <span class="lang-bn">মাস্টার PC পোর্ট 43822-এ কাস্টমার PWA এবং অর্ডার গেটওয়ে হোস্ট করে। কাস্টমাররা QR কোড স্ক্যান করে তাদের ফোনে অর্ডারিং অ্যাপ অ্যাক্সেস করে।</span>
+        </p>
+        <h3 style="margin-top: 1.5rem;">
+          <span class="lang-en">TLS Configuration</span>
+          <span class="lang-bn">TLS কনফিগারেশন</span>
+        </h3>
+        <p>
+          <span class="lang-en">Set <code>ALIF_SHOHOJ_PRINT_WS_TLS_CERT</code> and <code>ALIF_SHOHOJ_PRINT_WS_TLS_KEY</code> for HTTPS. Both the PWA and gateway use HTTPS. Without TLS, the gateway listens on loopback only.</span>
+          <span class="lang-bn">HTTPS-এর জন্য <code>ALIF_SHOHOJ_PRINT_WS_TLS_CERT</code> এবং <code>ALIF_SHOHOJ_PRINT_WS_TLS_KEY</code> সেট করুন। PWA এবং গেটওয়ে উভয় HTTPS ব্যবহার করে। TLS ছাড়া, গেটওয়ে শুধু loopback-এ লিসেন করে।</span>
+        </p>
+        <h3 style="margin-top: 1.5rem;">
+          <span class="lang-en">Counter Order Feed</span>
+          <span class="lang-bn">কাউন্টার অর্ডার ফিড</span>
+        </h3>
+        <p>
+          <span class="lang-en">Counter PCs read their orders from the master PC every 15 seconds via <code>GET /api/counter-orders</code> with <code>x-counter-feed-key</code> header. Feed is scoped to the counter that owns the key.</span>
+          <span class="lang-bn">কাউন্টার PC-গুলো প্রতি ১৫ সেকেন্ডে মাস্টার PC থেকে <code>x-counter-feed-key</code> হেডার সহ <code>GET /api/counter-orders</code> এর মাধ্যমে তাদের অর্ডার পড়ে। ফিড সেই কাউন্টারের জন্য স্কোপড যেটি কী মালিক।</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Studio Editor -->
+  <section class="section" id="studio" style="background: white;">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Studio Image Editor</span>
+          <span class="lang-bn">স্টুডিও ইমেজ এডিটর</span>
+        </h2>
+      </div>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <p>
+          <span class="lang-en">Built-in image editor with Photoshop-like tools. Available on the master PC's Studio tab.</span>
+          <span class="lang-bn">Photoshop-সদৃশ টুলসহ বিল্ট-ইন ইমেজ এডিটর। মাস্টার PC-এর Studio ট্যাবে উপলব্ধ।</span>
+        </p>
+        <h3 style="margin-top: 1.5rem;">
+          <span class="lang-en">Tools</span>
+          <span class="lang-bn">টুলস</span>
+        </h3>
+        <ul style="margin-left: 1.5rem; margin-bottom: 1.5rem;">
+          <li><span class="lang-en">Selection: Marquee, Magic Wand (flood fill)</span><span class="lang-bn">সিলেকশন: মার্কি, ম্যাজিক ওয়ান্ড (ফ্লাড ফিল)</span></li>
+          <li><span class="lang-en">Transform: Move, Crop & Rotate</span><span class="lang-bn">ট্রান্সফর্ম: মুভ, ক্রপ ও রোটেট</span></li>
+          <li><span class="lang-en">Painting: Brush, Eraser, Clone Stamp, Healing Brush</span><span class="lang-bn">পেইন্টিং: ব্রাশ, ইরেজার, ক্লোন স্ট্যাম্প, হিলিং ব্রাশ</span></li>
+          <li><span class="lang-en">Objects: Shape, Text</span><span class="lang-bn">অবজেক্ট: শেপ, টেক্সট</span></li>
+          <li><span class="lang-en">Adjustments: Dodge, Burn, Sponge</span><span class="lang-bn">অ্যাডজাস্টমেন্ট: ডজ, বার্ন, স্পঞ্জ</span></li>
+          <li><span class="lang-en">AI: Background Removal (on-device)</span><span class="lang-bn">AI: ব্যাকগ্রাউন্ড রিমুভাল (অন-ডিভাইস)</span></li>
+        </ul>
+        <h3>
+          <span class="lang-en">Print Dialog</span>
+          <span class="lang-bn">প্রিন্ট ডায়ালগ</span>
+        </h3>
+        <p>
+          <span class="lang-en">Position, scale, paper size, orientation, margins. Preview matches printed output. Settings persist for next job.</span>
+          <span class="lang-bn">পজিশন, স্কেল, পেপার সাইজ, ওরিয়েন্টেশন, মার্জিন। প্রিভিউ প্রিন্টেড আউটপুটের সাথে মিলে যায়। সেটিংস পরবর্তী জবের জন্য পার্সিস্ট হয়।</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Environment Variables -->
+  <section class="section" id="env-vars">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Environment Variables</span>
+          <span class="lang-bn">এনভায়রনমেন্ট ভেরিয়েবল</span>
+        </h2>
+      </div>
+      <div style="max-width: 800px; margin: 0 auto; overflow-x: auto;">
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th><span class="lang-en">Variable</span><span class="lang-bn">ভেরিয়েবল</span></th>
+              <th><span class="lang-en">Description</span><span class="lang-bn">বিবরণ</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ALIF_SHOHOJ_PRINT_WS_TOKEN</code></td>
+              <td><span class="lang-en">WebSocket bearer token (overrides saved file)</span><span class="lang-bn">WebSocket bearer token (সেভড ফাইল ওভাররাইড করে)</span></td>
+            </tr>
+            <tr>
+              <td><code>ALIF_SHOHOJ_PRINT_WS_HOST</code></td>
+              <td><span class="lang-en">WebSocket listener host (default: 127.0.0.1)</span><span class="lang-bn">WebSocket লিসেনার হোস্ট (ডিফল্ট: 127.0.0.1)</span></td>
+            </tr>
+            <tr>
+              <td><code>ALIF_SHOHOJ_PRINT_WS_PORT</code></td>
+              <td><span class="lang-en">WebSocket listener port (default: 43821)</span><span class="lang-bn">WebSocket লিসেনার পোর্ট (ডিফল্ট: 43821)</span></td>
+            </tr>
+            <tr>
+              <td><code>ALIF_SHOHOJ_PRINT_WS_TLS_CERT</code></td>
+              <td><span class="lang-en">TLS certificate path (for LAN listener)</span><span class="lang-bn">TLS সার্টিফিকেট পাথ (LAN লিসেনারের জন্য)</span></td>
+            </tr>
+            <tr>
+              <td><code>ALIF_SHOHOJ_PRINT_WS_TLS_KEY</code></td>
+              <td><span class="lang-en">TLS private key path</span><span class="lang-bn">TLS প্রাইভেট কী পাথ</span></td>
+            </tr>
+            <tr>
+              <td><code>CSC_LINK</code></td>
+              <td><span class="lang-en">Code signing certificate path</span><span class="lang-bn">কোড সাইনিং সার্টিফিকেট পাথ</span></td>
+            </tr>
+            <tr>
+              <td><code>CSC_KEY_PASSWORD</code></td>
+              <td><span class="lang-en">Certificate password</span><span class="lang-bn">সার্টিফিকেট পাসওয়ার্ড</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Troubleshooting -->
+  <section class="section" id="troubleshooting" style="background: white;">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Troubleshooting</span>
+          <span class="lang-bn">ট্রাবলশুটিং</span>
+        </h2>
+      </div>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <div class="faq-item active">
+          <div class="faq-question">
+            <span>
+              <span class="lang-en">SmartScreen blocks the installer</span>
+              <span class="lang-bn">SmartScreen ইনস্টলার ব্লক করে</span>
+            </span>
+            <span class="faq-toggle">+</span>
+          </div>
+          <div class="faq-answer">
+            <span class="lang-en">Click "More info" → "Run anyway". The app is unsigned (no code signing certificate). This is normal for open-source apps.</span>
+            <span class="lang-bn">"More info" → "Run anyway" ক্লিক করুন। অ্যাপটি আনসাইনড (কোড সাইনিং সার্টিফিকেট নেই)। ওপেন-সোর্স অ্যাপের জন্য এটি স্বাভাবিক।</span>
+          </div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>
+              <span class="lang-en">Printer not found</span>
+              <span class="lang-bn">প্রিন্টার পাওয়া যায় না</span>
+            </span>
+            <span class="faq-toggle">+</span>
+          </div>
+          <div class="faq-answer">
+            <span class="lang-en">Ensure the printer is installed in Windows Settings → Printers. Restart the app. Check the Windows Agent window for detected printers.</span>
+            <span class="lang-bn">Windows Settings → Printers-এ প্রিন্টার ইনস্টল করা আছে কিনা নিশ্চিত করুন। অ্যাপ রিস্টার্ট করুন। ডিটেক্টেড প্রিন্টারের জন্য Windows Agent উইন্ডো চেক করুন।</span>
+          </div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>
+              <span class="lang-en">WebSocket connection failed</span>
+              <span class="lang-bn">WebSocket কানেকশন ফেইল</span>
+            </span>
+            <span class="faq-toggle">+</span>
+          </div>
+          <div class="faq-answer">
+            <span class="lang-en">Check the token matches on both sides. Ensure the listener is running (master PC). For LAN, verify TLS cert and firewall rules.</span>
+            <span class="lang-bn">উভয় পাশে টোকেন মিলছে কিনা চেক করুন। লিসেনার রানিং আছে কিনা নিশ্চিত করুন (মাস্টার PC)। LAN-এর জন্য TLS সার্ট এবং ফায়ারওয়াল রুলস ভেরিফাই করুন।</span>
+          </div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>
+              <span class="lang-en">Counter shows "Not paired"</span>
+              <span class="lang-bn">কাউন্টার "Not paired" দেখায়</span>
+            </span>
+            <span class="faq-toggle">+</span>
+          </div>
+          <div class="faq-answer">
+            <span class="lang-en">Enter the pairing key from the master PC's Counter QR poster. Ensure the master gateway URL is correct (same host:port as QR, without ?shop= query).</span>
+            <span class="lang-bn">মাস্টার PC-এর Counter QR poster থেকে পেয়ারিং কী এন্টার করুন। মাস্টার গেটওয়ে URL সঠিক কিনা নিশ্চিত করুন (QR-এর মতো একই host:port, ?shop= query ছাড়া)।</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <div class="logo">
+          <img src="assets/logo.svg" alt="Alif Shohoj Print" height="36">
+        </div>
+        <p>
+          <span class="lang-en">Shop point of sale with a Windows desktop print agent. By AAA Tech Solutions.</span>
+          <span class="lang-bn">Windows ডেস্কটপ প্রিন্ট এজেন্ট সহ শপ POS। AAA Tech Solutions দ্বারা।</span>
+        </p>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Product</span><span class="lang-bn">প্রোডাক্ট</span></h4>
+        <ul>
+          <li><a href="index.html"><span class="lang-en">Home</span><span class="lang-bn">হোম</span></a></li>
+          <li><a href="features.html"><span class="lang-en">Features</span><span class="lang-bn">ফিচার</span></a></li>
+          <li><a href="download.html"><span class="lang-en">Download</span><span class="lang-bn">ডাউনলোড</span></a></li>
+          <li><a href="docs.html"><span class="lang-en">Docs</span><span class="lang-bn">ডকুমেন্টেশন</span></a></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Support</span><span class="lang-bn">সাপোর্ট</span></h4>
+        <ul>
+          <li><a href="tutorial.html"><span class="lang-en">Tutorial</span><span class="lang-bn">টিউটোরিয়াল</span></a></li>
+          <li><a href="faq.html"><span class="lang-en">FAQ</span><span class="lang-bn">প্রশ্নোত্তর</span></a></li>
+          <li><a href="contact.html"><span class="lang-en">Contact</span><span class="lang-bn">যোগাযোগ</span></a></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Links</span><span class="lang-bn">লিংক</span></h4>
+        <ul>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print" target="_blank">GitHub</a></li>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print/releases" target="_blank"><span class="lang-en">Releases</span><span class="lang-bn">রিলিজ</span></a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Alif Shohoj Print by AAA Tech Solutions. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <button class="scroll-top" id="scroll-top" onclick="scrollToTop()">↑</button>
+  <script src="js/main.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial — Alif Shohoj Print</title>
+  <meta name="description" content="Step-by-step tutorial for setting up and using Alif Shohoj Print.">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="assets/logo.svg">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/logo.svg" alt="Alif Shohoj Print" height="36">
+      </a>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html">
+          <span class="lang-en">Home</span><span class="lang-bn">হোম</span>
+        </a></li>
+        <li><a href="features.html">
+          <span class="lang-en">Features</span><span class="lang-bn">ফিচার</span>
+        </a></li>
+        <li><a href="download.html">
+          <span class="lang-en">Download</span><span class="lang-bn">ডাউনলোড</span>
+        </a></li>
+        <li><a href="docs.html">
+          <span class="lang-en">Docs</span><span class="lang-bn">ডকুমেন্টেশন</span>
+        </a></li>
+        <li><a href="tutorial.html" class="active">
+          <span class="lang-en">Tutorial</span><span class="lang-bn">টিউটোরিয়াল</span>
+        </a></li>
+        <li><a href="faq.html">
+          <span class="lang-en">FAQ</span><span class="lang-bn">প্রশ্নোত্তর</span>
+        </a></li>
+        <li><a href="contact.html">
+          <span class="lang-en">Contact</span><span class="lang-bn">যোগাযোগ</span>
+        </a></li>
+      </ul>
+      <button class="lang-toggle" id="lang-toggle" onclick="toggleLanguage()">বাংলা</button>
+      <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <!-- Page Header -->
+  <section class="hero" style="min-height: 40vh; padding: 8rem 2rem 2rem;">
+    <div class="hero-container" style="grid-template-columns: 1fr; text-align: center;">
+      <div class="hero-content">
+        <h1>
+          <span class="lang-en">Step-by-Step Tutorial</span>
+          <span class="lang-bn">স্টেপ-বাই-স্টেপ টিউটোরিয়াল</span>
+        </h1>
+        <p class="subtitle">
+          <span class="lang-en">Get up and running with Alif Shohoj Print in minutes.</span>
+          <span class="lang-bn">কয়েক মিনিটে Alif Shohoj Print দিয়ে শুরু করুন।</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tutorial Steps -->
+  <section class="section">
+    <div class="section-container">
+      <div style="max-width: 800px; margin: 0 auto;">
+
+        <div class="step-card" style="text-align: left; background: white; border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <div class="step-number" style="margin: 0;">1</div>
+            <h3 style="margin: 0;">
+              <span class="lang-en">Download & Install</span>
+              <span class="lang-bn">ডাউনলোড ও ইনস্টল</span>
+            </h3>
+          </div>
+          <p>
+            <span class="lang-en">Download the installer from the <a href="download.html">Download page</a>. Run it and follow the wizard. The app installs to Program Files and creates shortcuts.</span>
+            <span class="lang-bn"><a href="download.html">ডাউনলোড পেইজ</a> থেকে ইনস্টলার ডাউনলোড করুন। রান করুন এবং উইজার্ড ফলো করুন। অ্যাপ Program Files-এ ইনস্টল হয় এবং শর্টকাট তৈরি করে।</span>
+          </p>
+        </div>
+
+        <div class="step-card" style="text-align: left; background: white; border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <div class="step-number" style="margin: 0;">2</div>
+            <h3 style="margin: 0;">
+              <span class="lang-en">Choose PC Mode</span>
+              <span class="lang-bn">PC মোড বেছে নিন</span>
+            </h3>
+          </div>
+          <p>
+            <span class="lang-en">On first launch, choose "Master PC" (shopkeeper) or "Counter PC" (operator). Master PC has full access. Counter PC has restricted access.</span>
+            <span class="lang-bn">প্রথম লঞ্চে, "Master PC" (শপকিপার) বা "Counter PC" (অপারেটর) বেছে নিন। মাস্টার PC-এর সম্পূর্ণ অ্যাক্সেস আছে। কাউন্টার PC-এর সীমিত অ্যাক্সেস আছে।</span>
+          </p>
+        </div>
+
+        <div class="step-card" style="text-align: left; background: white; border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <div class="step-number" style="margin: 0;">3</div>
+            <h3 style="margin: 0;">
+              <span class="lang-en">Set Up Printers</span>
+              <span class="lang-bn">প্রিন্টার সেটআপ</span>
+            </h3>
+          </div>
+          <p>
+            <span class="lang-en">Open Settings → Printers (or Windows Agent window). The app auto-detects installed Windows printers. Select which printers to use for different paper types.</span>
+            <span class="lang-bn">Settings → Printers ওপেন করুন (বা Windows Agent উইন্ডো)। অ্যাপ অটো-ডিটেক্ট করে ইনস্টল করা Windows প্রিন্টার। বিভিন্ন পেপার টাইপের জন্য কোন প্রিন্টার ব্যবহার করবেন সিলেক্ট করুন।</span>
+          </p>
+        </div>
+
+        <div class="step-card" style="text-align: left; background: white; border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <div class="step-number" style="margin: 0;">4</div>
+            <h3 style="margin: 0;">
+              <span class="lang-en">Configure Services</span>
+              <span class="lang-bn">সার্ভিস কনফিগার</span>
+            </h3>
+          </div>
+          <p>
+            <span class="lang-en">Go to Settings → Services. Add services from presets (ID card, A4 B/W, A4 Color, passport photo, etc.). Set pricing for each service.</span>
+            <span class="lang-bn">Settings → Services-এ যান। প্রিসেট থেকে সার্ভিস অ্যাড করুন (ID কার্ড, A4 B/W, A4 কালার, পাসপোর্ট ফটো ইত্যাদি)। প্রতিটি সার্ভিসের প্রাইসিং সেট করুন।</span>
+          </p>
+        </div>
+
+        <div class="step-card" style="text-align: left; background: white; border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <div class="step-number" style="margin: 0;">5</div>
+            <h3 style="margin: 0;">
+              <span class="lang-en">Set Business Hours</span>
+              <span class="lang-bn">ব্যবসায়িক সময় সেট</span>
+            </h3>
+          </div>
+          <p>
+            <span class="lang-en">Go to Settings → Shop & Orders. Enable business hours and select open days with open/close times. Customer orders are only accepted during business hours.</span>
+            <span class="lang-bn">Settings → Shop & Orders-এ যান। ব্যবসায়িক সময় এনাবল করুন এবং ওপেন/ক্লোজ টাইম সহ ওপেন ডে সিলেক্ট করুন। ব্যবসায়িক সময়ের মধ্যেই শুধু কাস্টমার অর্ডার গ্রহণ করা হয়।</span>
+          </p>
+        </div>
+
+        <div class="step-card" style="text-align: left; background: white; border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <div class="step-number" style="margin: 0;">6</div>
+            <h3 style="margin: 0;">
+              <span class="lang-en">Set Up Customer PWA (Optional)</span>
+              <span class="lang-bn">কাস্টমার PWA সেটআপ (ঐচ্ছিক)</span>
+            </h3>
+          </div>
+          <p>
+            <span class="lang-en">For customer self-ordering: Configure TLS certificate, enable gateway on port 43822, and print QR codes from Shop POS. Customers scan QR to order.</span>
+            <span class="lang-bn">কাস্টমার সেলফ-অর্ডারিংয়ের জন্য: TLS সার্টিফিকেট কনফিগার করুন, পোর্ট 43822-এ গেটওয়ে এনাবল করুন, এবং Shop POS থেকে QR কোড প্রিন্ট করুন। কাস্টমাররা অর্ডার করতে QR স্ক্যান করে।</span>
+          </p>
+        </div>
+
+        <div class="step-card" style="text-align: left; background: white; border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <div class="step-number" style="margin: 0;">7</div>
+            <h3 style="margin: 0;">
+              <span class="lang-en">Set Up Counter PC (Optional)</span>
+              <span class="lang-bn">কাউন্টার PC সেটআপ (ঐচ্ছিক)</span>
+            </h3>
+          </div>
+          <p>
+            <span class="lang-en">Install on a second PC. Choose "Counter PC" mode. Enter master gateway URL and pairing key. Counter will show only its orders.</span>
+            <span class="lang-bn">দ্বিতীয় PC-তে ইনস্টল করুন। "Counter PC" মোড বেছে নিন। মাস্টার গেটওয়ে URL এবং পেয়ারিং কী এন্টার করুন। কাউন্টার শুধু তার অর্ডার দেখাবে।</span>
+          </p>
+        </div>
+
+        <div class="step-card" style="text-align: left; background: white; border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <div class="step-number" style="margin: 0;">8</div>
+            <h3 style="margin: 0;">
+              <span class="lang-en">Start Serving Customers!</span>
+              <span class="lang-bn">কাস্টমার সার্ভ শুরু করুন!</span>
+            </h3>
+          </div>
+          <p>
+            <span class="lang-en">Create orders, edit images in Studio, approve and print. Track revenue and reports. You're ready to go!</span>
+            <span class="lang-bn">অর্ডার তৈরি, Studio-তে ইমেজ এডিট, অনুমোদন এবং প্রিন্ট করুন। রেভিনিউ এবং রিপোর্ট ট্র্যাক করুন। আপনি প্রস্তুত!</span>
+          </p>
+        </div>
+
+        <div style="text-align: center; margin-top: 3rem;">
+          <a href="download.html" class="btn btn-download">
+            <span>⬇</span>
+            <span class="lang-en">Download Now</span>
+            <span class="lang-bn">ডাউনলোড করুন</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <div class="logo">
+          <img src="assets/logo.svg" alt="Alif Shohoj Print" height="36">
+        </div>
+        <p>
+          <span class="lang-en">Shop point of sale with a Windows desktop print agent. By AAA Tech Solutions.</span>
+          <span class="lang-bn">Windows ডেস্কটপ প্রিন্ট এজেন্ট সহ শপ POS। AAA Tech Solutions দ্বারা।</span>
+        </p>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Product</span><span class="lang-bn">প্রোডাক্ট</span></h4>
+        <ul>
+          <li><a href="index.html"><span class="lang-en">Home</span><span class="lang-bn">হোম</span></a></li>
+          <li><a href="features.html"><span class="lang-en">Features</span><span class="lang-bn">ফিচার</span></a></li>
+          <li><a href="download.html"><span class="lang-en">Download</span><span class="lang-bn">ডাউনলোড</span></a></li>
+          <li><a href="docs.html"><span class="lang-en">Docs</span><span class="lang-bn">ডকুমেন্টেশন</span></a></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Support</span><span class="lang-bn">সাপোর্ট</span></h4>
+        <ul>
+          <li><a href="tutorial.html"><span class="lang-en">Tutorial</span><span class="lang-bn">টিউটোরিয়াল</span></a></li>
+          <li><a href="faq.html"><span class="lang-en">FAQ</span><span class="lang-bn">প্রশ্নোত্তর</span></a></li>
+          <li><a href="contact.html"><span class="lang-en">Contact</span><span class="lang-bn">যোগাযোগ</span></a></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Links</span><span class="lang-bn">লিংক</span></h4>
+        <ul>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print" target="_blank">GitHub</a></li>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print/releases" target="_blank"><span class="lang-en">Releases</span><span class="lang-bn">রিলিজ</span></a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Alif Shohoj Print by AAA Tech Solutions. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <button class="scroll-top" id="scroll-top" onclick="scrollToTop()">↑</button>
+  <script src="js/main.js"></script>
+</body>
+</html>
+

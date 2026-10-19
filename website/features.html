@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Features — Alif Shohoj Print</title>
+  <meta name="description" content="Explore all features of Alif Shohoj Print — Shop POS, Print Agent, Customer PWA, Studio Editor, Reports, and more.">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="assets/logo.svg">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/logo.svg" alt="Alif Shohoj Print" height="36">
+      </a>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html">
+          <span class="lang-en">Home</span><span class="lang-bn">হোম</span>
+        </a></li>
+        <li><a href="features.html" class="active">
+          <span class="lang-en">Features</span><span class="lang-bn">ফিচার</span>
+        </a></li>
+        <li><a href="download.html">
+          <span class="lang-en">Download</span><span class="lang-bn">ডাউনলোড</span>
+        </a></li>
+        <li><a href="docs.html">
+          <span class="lang-en">Docs</span><span class="lang-bn">ডকুমেন্টেশন</span>
+        </a></li>
+        <li><a href="tutorial.html">
+          <span class="lang-en">Tutorial</span><span class="lang-bn">টিউটোরিয়াল</span>
+        </a></li>
+        <li><a href="faq.html">
+          <span class="lang-en">FAQ</span><span class="lang-bn">প্রশ্নোত্তর</span>
+        </a></li>
+        <li><a href="contact.html">
+          <span class="lang-en">Contact</span><span class="lang-bn">যোগাযোগ</span>
+        </a></li>
+      </ul>
+      <button class="lang-toggle" id="lang-toggle" onclick="toggleLanguage()">বাংলা</button>
+      <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <!-- Page Header -->
+  <section class="hero" style="min-height: 50vh; padding: 8rem 2rem 3rem;">
+    <div class="hero-container" style="grid-template-columns: 1fr; text-align: center;">
+      <div class="hero-content">
+        <h1>
+          <span class="lang-en">Features</span>
+          <span class="lang-bn">ফিচারসমূহ</span>
+        </h1>
+        <p class="subtitle">
+          <span class="lang-en">Everything you need to run a modern print shop — from order management to printing, from customer service to reporting.</span>
+          <span class="lang-bn">একটি আধুনিক প্রিন্ট শপ চালানোর জন্য সব কিছু — অর্ডার ম্যানেজমেন্ট থেকে প্রিন্টিং, কাস্টমার সার্ভিস থেকে রিপোর্টিং।</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Detailed Features -->
+  <section class="section">
+    <div class="section-container">
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon orange">🛒</div>
+          <h3>
+            <span class="lang-en">Shop POS (Point of Sale)</span>
+            <span class="lang-bn">শপ POS (পয়েন্ট অফ সেল)</span>
+          </h3>
+          <p>
+            <span class="lang-en">Complete point-of-sale system designed specifically for print shops. Handle walk-in customers, manage services, set pricing, and track revenue.</span>
+            <span class="lang-bn">প্রিন্ট শপের জন্য বিশেষভাবে ডিজাইন করা সম্পূর্ণ POS সিস্টেম। ওয়াক-ইন কাস্টমার হ্যান্ডেল, সার্ভিস ম্যানেজ, প্রাইসিং সেট, রেভিনিউ ট্র্যাক করুন।</span>
+          </p>
+          <ul class="feature-list">
+            <li><span class="lang-en">Service management (ID card, A4 print, passport photo, etc.)</span><span class="lang-bn">সার্ভিস ম্যানেজমেন্ট (আইডি কার্ড, A4 প্রিন্ট, পাসপোর্ট ফটো ইত্যাদি)</span></li>
+            <li><span class="lang-en">Business hours configuration</span><span class="lang-bn">ব্যবসায়িক সময় কনফিগারেশন</span></li>
+            <li><span class="lang-en">Paper type, quality, DPI settings</span><span class="lang-bn">পেপার টাইপ, কোয়ালিটি, DPI সেটিংস</span></li>
+            <li><span class="lang-en">Revenue & print count tracking</span><span class="lang-bn">রেভিনিউ ও প্রিন্ট কাউন্ট ট্র্যাকিং</span></li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon green">🖨️</div>
+          <h3>
+            <span class="lang-en">Windows Print Agent</span>
+            <span class="lang-bn">Windows প্রিন্ট এজেন্ট</span>
+          </h3>
+          <p>
+            <span class="lang-en">A system tray app that receives print jobs via authenticated WebSocket, queues them in SQLite, and sends to installed Windows printers.</span>
+            <span class="lang-bn">একটি সিস্টেম ট্রে অ্যাপ যা authenticated WebSocket এর মাধ্যমে প্রিন্ট জব গ্রহণ করে, SQLite-এ কিউ করে, এবং ইনস্টল করা Windows প্রিন্টারে পাঠায়।</span>
+          </p>
+          <ul class="feature-list">
+            <li><span class="lang-en">Authenticated WebSocket (bearer token)</span><span class="lang-bn">Authenticated WebSocket (bearer token)</span></li>
+            <li><span class="lang-en">SQLite job queue with retry</span><span class="lang-bn">SQLite জব কিউ রিট্রাই সহ</span></li>
+            <li><span class="lang-en">SumatraPDF silent printing</span><span class="lang-bn">SumatraPDF সাইলেন্ট প্রিন্টিং</span></li>
+            <li><span class="lang-en">Local-only crash dumps</span><span class="lang-bn">লোকাল-অনলি ক্র্যাশ ডাম্প</span></li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon blue">📱</div>
+          <h3>
+            <span class="lang-en">Customer PWA & QR Orders</span>
+            <span class="lang-bn">কাস্টমার PWA ও QR অর্ডার</span>
+          </h3>
+          <p>
+            <span class="lang-en">Customers scan a QR code to access the mobile ordering app. No app installation needed. Orders go directly to the shop.</span>
+            <span class="lang-bn">কাস্টমাররা QR কোড স্ক্যান করে মোবাইল অর্ডারিং অ্যাপ অ্যাক্সেস করে। কোনো অ্যাপ ইনস্টলেশন প্রয়োজন নেই। অর্ডার সরাসরি শপে যায়।</span>
+          </p>
+          <ul class="feature-list">
+            <li><span class="lang-en">QR code per counter</span><span class="lang-bn">প্রতি কাউন্টারে QR কোড</span></li>
+            <li><span class="lang-en">Document upload (PDF, JPEG, PNG)</span><span class="lang-bn">ডকুমেন্ট আপলোড (PDF, JPEG, PNG)</span></li>
+            <li><span class="lang-en">Service & paper size selection</span><span class="lang-bn">সার্ভিস ও পেপার সাইজ সিলেকশন</span></li>
+            <li><span class="lang-en">Cash-only payment (counter payment)</span><span class="lang-bn">ক্যাশ-অনলি পেমেন্ট (কাউন্টার পেমেন্ট)</span></li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon purple">🎨</div>
+          <h3>
+            <span class="lang-en">Studio Image Editor</span>
+            <span class="lang-bn">স্টুডিও ইমেজ এডিটর</span>
+          </h3>
+          <p>
+            <span class="lang-en">Built-in Photoshop-like image editor. Edit customer images, remove backgrounds, add watermarks, adjust colors, and print directly.</span>
+            <span class="lang-bn">বিল্ট-ইন Photoshop-সদৃশ ইমেজ এডিটর। কাস্টমার ইমেজ এডিট, ব্যাকগ্রাউন্ড রিমুভ, ওয়াটারমার্ক যোগ, কালার অ্যাডজাস্ট, এবং সরাসরি প্রিন্ট।</span>
+          </p>
+          <ul class="feature-list">
+            <li><span class="lang-en">Crop, rotate, brush, eraser, shapes, text</span><span class="lang-bn">ক্রপ, রোটেট, ব্রাশ, ইরেজার, শেপ, টেক্সট</span></li>
+            <li><span class="lang-en">Magic wand, clone stamp, healing brush</span><span class="lang-bn">ম্যাজিক ওয়ান্ড, ক্লোন স্ট্যাম্প, হিলিং ব্রাশ</span></li>
+            <li><span class="lang-en">AI background removal (on-device)</span><span class="lang-bn">AI ব্যাকগ্রাউন্ড রিমুভাল (অন-ডিভাইস)</span></li>
+            <li><span class="lang-en">Layers, adjustments, filters</span><span class="lang-bn">লেয়ার, অ্যাডজাস্টমেন্ট, ফিল্টার</span></li>
+            <li><span class="lang-en">Print dialog with paper preview</span><span class="lang-bn">পেপার প্রিভিউ সহ প্রিন্ট ডায়ালগ</span></li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon teal">📊</div>
+          <h3>
+            <span class="lang-en">Reports & Dashboard</span>
+            <span class="lang-bn">রিপোর্ট ও ড্যাশবোর্ড</span>
+          </h3>
+          <p>
+            <span class="lang-en">Comprehensive dashboard with order inbox, job summary, printer fleet status, and revenue tracking.</span>
+            <span class="lang-bn">অর্ডার ইনবক্স, জব সামারি, প্রিন্টার ফ্লিট স্ট্যাটাস, এবং রেভিনিউ ট্র্যাকিং সহ সম্পূর্ণ ড্যাশবোর্ড।</span>
+          </p>
+          <ul class="feature-list">
+            <li><span class="lang-en">Today & this month summaries</span><span class="lang-bn">আজ ও এই মাসের সামারি</span></li>
+            <li><span class="lang-en">Printer fleet management</span><span class="lang-bn">প্রিন্টার ফ্লিট ম্যানেজমেন্ট</span></li>
+            <li><span class="lang-en">Job queue status</span><span class="lang-bn">জব কিউ স্ট্যাটাস</span></li>
+            <li><span class="lang-en">Auto-print controls</span><span class="lang-bn">অটো-প্রিন্ট কন্ট্রোল</span></li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon red">🏪</div>
+          <h3>
+            <span class="lang-en">Counter Management</span>
+            <span class="lang-bn">কাউন্টার ম্যানেজমেন্ট</span>
+          </h3>
+          <p>
+            <span class="lang-en">Multi-counter support with restricted access. Counter operators see only their orders, master PC handles all printing.</span>
+            <span class="lang-bn">সীমিত অ্যাক্সেস সহ মাল্টি-কাউন্টার সাপোর্ট। কাউন্টার অপারেটররা শুধু তাদের অর্ডার দেখেন, মাস্টার PC সব প্রিন্টিং হ্যান্ডেল করে।</span>
+          </p>
+          <ul class="feature-list">
+            <li><span class="lang-en">Counter pairing with encrypted keys</span><span class="lang-bn">এনক্রিপ্টেড কী সহ কাউন্টার পেয়ারিং</span></li>
+            <li><span class="lang-en">Counter heartbeat monitoring</span><span class="lang-bn">কাউন্টার হার্টবিট মনিটরিং</span></li>
+            <li><span class="lang-en">Offline counter alerts</span><span class="lang-bn">অফলাইন কাউন্টার অ্যালার্ট</span></li>
+            <li><span class="lang-en">Counter QR code generation</span><span class="lang-bn">কাউন্টার QR কোড জেনারেশন</span></li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon orange">🔊</div>
+          <h3>
+            <span class="lang-en">Voice Guide</span>
+            <span class="lang-bn">ভয়েস গাইড</span>
+          </h3>
+          <p>
+            <span class="lang-en">Bengali & English voice announcements for new orders, confirmations, and status updates. Hands-free operation.</span>
+            <span class="lang-bn">নতুন অর্ডার, কনফার্মেশন, এবং স্ট্যাটাস আপডেটের জন্য বাংলা ও ইংরেজি ভয়েস অ্যানাউন্সমেন্ট। হ্যান্ডস-ফ্রি অপারেশন।</span>
+          </p>
+          <ul class="feature-list">
+            <li><span class="lang-en">Pre-recorded MP3 clips</span><span class="lang-bn">প্রি-রেকর্ডেড MP3 ক্লিপ</span></li>
+            <li><span class="lang-en">Voice commands (12 commands)</span><span class="lang-bn">ভয়েস কমান্ড (১২টি কমান্ড)</span></li>
+            <li><span class="lang-en">On-device TTS fallback</span><span class="lang-bn">অন-ডিভাইস TTS ফলব্যাক</span></li>
+            <li><span class="lang-en">Counter number announcements</span><span class="lang-bn">কাউন্টার নম্বর অ্যানাউন্সমেন্ট</span></li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon blue">🔐</div>
+          <h3>
+            <span class="lang-en">Security & Privacy</span>
+            <span class="lang-bn">সিকিউরিটি ও প্রাইভেসি</span>
+          </h3>
+          <p>
+            <span class="lang-en">Local-first architecture. Data stays on your PC. No cloud dependency for core operations.</span>
+            <span class="lang-bn">লোকাল-ফার্স্ট আর্কিটেকচার। ডেটা আপনার PC-তে থাকে। কোর অপারেশনের জন্য কোনো ক্লাউড ডিপেন্ডেন্সি নেই।</span>
+          </p>
+          <ul class="feature-list">
+            <li><span class="lang-en">Bearer token authentication</span><span class="lang-bn">Bearer token অথেন্টিকেশন</span></li>
+            <li><span class="lang-en">TLS support for LAN</span><span class="lang-bn">LAN-এর জন্য TLS সাপোর্ট</span></li>
+            <li><span class="lang-en">DPAPI-encrypted counter keys</span><span class="lang-bn">DPAPI-এনক্রিপ্টেড কাউন্টার কী</span></li>
+            <li><span class="lang-en">Local crash dumps (not uploaded)</span><span class="lang-bn">লোকাল ক্র্যাশ ডাম্প (আপলোড হয় না)</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison Table -->
+  <section class="section" style="background: white;">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Why Alif Shohoj Print?</span>
+          <span class="lang-bn">কেন Alif Shohoj Print?</span>
+        </h2>
+        <p>
+          <span class="lang-en">See how it compares to traditional print shop management.</span>
+          <span class="lang-bn">ঐতিহ্যবাহী প্রিন্ট শপ ম্যানেজমেন্টের সাথে তুলনা করুন।</span>
+        </p>
+      </div>
+      <table class="feature-table">
+        <thead>
+          <tr>
+            <th><span class="lang-en">Feature</span><span class="lang-bn">ফিচার</span></th>
+            <th><span class="lang-en">Traditional</span><span class="lang-bn">ঐতিহ্যবাহী</span></th>
+            <th><span class="lang-en">Alif Shohoj Print</span><span class="lang-bn">Alif Shohoj Print</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="lang-en">Order Management</span><span class="lang-bn">অর্ডার ম্যানেজমেন্ট</span></td>
+            <td><span class="lang-en">Paper-based</span><span class="lang-bn">পেপার-ভিত্তিক</span></td>
+            <td><span class="lang-en">Digital with tracking</span><span class="lang-bn">ট্র্যাকিং সহ ডিজিটাল</span></td>
+          </tr>
+          <tr>
+            <td><span class="lang-en">Customer Orders</span><span class="lang-bn">কাস্টমার অর্ডার</span></td>
+            <td><span class="lang-en">In-person only</span><span class="lang-bn">শুধু ইন-পারসন</span></td>
+            <td><span class="lang-en">QR code mobile ordering</span><span class="lang-bn">QR কোড মোবাইল অর্ডারিং</span></td>
+          </tr>
+          <tr>
+            <td><span class="lang-en">Image Editing</span><span class="lang-bn">ইমেজ এডিটিং</span></td>
+            <td><span class="lang-en">External software</span><span class="lang-bn">এক্সটার্নাল সফটওয়্যার</span></td>
+            <td><span class="lang-en">Built-in Studio editor</span><span class="lang-bn">বিল্ট-ইন স্টুডিও এডিটর</span></td>
+          </tr>
+          <tr>
+            <td><span class="lang-en">Print Queue</span><span class="lang-bn">প্রিন্ট কিউ</span></td>
+            <td><span class="lang-en">Manual</span><span class="lang-bn">ম্যানুয়াল</span></td>
+            <td><span class="lang-en">Automated SQLite queue</span><span class="lang-bn">অটোমেটেড SQLite কিউ</span></td>
+          </tr>
+          <tr>
+            <td><span class="lang-en">Reports</span><span class="lang-bn">রিপোর্ট</span></td>
+            <td><span class="lang-en">Manual calculation</span><span class="lang-bn">ম্যানুয়াল ক্যালকুলেশন</span></td>
+            <td><span class="lang-en">Auto-generated daily/monthly</span><span class="lang-bn">অটো-জেনারেটেড দৈনিক/মাসিক</span></td>
+          </tr>
+          <tr>
+            <td><span class="lang-en">Multi-counter</span><span class="lang-bn">মাল্টি-কাউন্টার</span></td>
+            <td><span class="lang-en">Not supported</span><span class="lang-bn">সাপোর্ট নেই</span></td>
+            <td><span class="lang-en">Full counter management</span><span class="lang-bn">সম্পূর্ণ কাউন্টার ম্যানেজমেন্ট</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section" style="background: var(--bg-soft);">
+    <div class="section-container" style="text-align: center;">
+      <h2>
+        <span class="lang-en">Ready to Simplify Your Print Shop?</span>
+        <span class="lang-bn">আপনার প্রিন্ট শপ সহজ করতে প্রস্তুত?</span>
+      </h2>
+      <p style="color: var(--text-muted); margin-bottom: 2rem;">
+        <span class="lang-en">Download Alif Shohoj Print for Windows and start managing your shop today.</span>
+        <span class="lang-bn">Windows-এর জন্য Alif Shohoj Print ডাউনলোড করুন এবং আজই আপনার শপ ম্যানেজ করা শুরু করুন।</span>
+      </p>
+      <a href="download.html" class="btn btn-download">
+        <span>⬇</span>
+        <span class="lang-en">Download Now</span>
+        <span class="lang-bn">ডাউনলোড করুন</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <div class="logo">
+          <img src="assets/logo.svg" alt="Alif Shohoj Print" height="36">
+        </div>
+        <p>
+          <span class="lang-en">Shop point of sale with a Windows desktop print agent. By AAA Tech Solutions.</span>
+          <span class="lang-bn">Windows ডেস্কটপ প্রিন্ট এজেন্ট সহ শপ POS। AAA Tech Solutions দ্বারা।</span>
+        </p>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Product</span><span class="lang-bn">প্রোডাক্ট</span></h4>
+        <ul>
+          <li><a href="index.html"><span class="lang-en">Home</span><span class="lang-bn">হোম</span></a></li>
+          <li><a href="features.html"><span class="lang-en">Features</span><span class="lang-bn">ফিচার</span></a></li>
+          <li><a href="download.html"><span class="lang-en">Download</span><span class="lang-bn">ডাউনলোড</span></a></li>
+          <li><a href="docs.html"><span class="lang-en">Docs</span><span class="lang-bn">ডকুমেন্টেশন</span></a></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Support</span><span class="lang-bn">সাপোর্ট</span></h4>
+        <ul>
+          <li><a href="tutorial.html"><span class="lang-en">Tutorial</span><span class="lang-bn">টিউটোরিয়াল</span></a></li>
+          <li><a href="faq.html"><span class="lang-en">FAQ</span><span class="lang-bn">প্রশ্নোত্তর</span></a></li>
+          <li><a href="contact.html"><span class="lang-en">Contact</span><span class="lang-bn">যোগাযোগ</span></a></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4><span class="lang-en">Links</span><span class="lang-bn">লিংক</span></h4>
+        <ul>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print" target="_blank">GitHub</a></li>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print/releases" target="_blank"><span class="lang-en">Releases</span><span class="lang-bn">রিলিজ</span></a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Alif Shohoj Print by AAA Tech Solutions. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <button class="scroll-top" id="scroll-top" onclick="scrollToTop()">↑</button>
+  <script src="js/main.js"></script>
+</body>
+</html>
+

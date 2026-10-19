@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alif Shohoj Print — Print Shop POS & Windows Print Agent</title>
+  <meta name="description" content="Alif Shohoj Print by AAA Tech Solutions — Shop POS with Windows desktop print agent. Manage orders, print jobs, and customer service from one app.">
+  <meta name="keywords" content="print shop, POS, print agent, Windows, Electron, Bangladesh, প্রিন্ট শপ">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="assets/logo.svg">
+  <!-- Open Graph -->
+  <meta property="og:title" content="Alif Shohoj Print — Print Shop POS & Windows Print Agent">
+  <meta property="og:description" content="Shop POS with Windows desktop print agent. Manage orders, print jobs, and customer service from one app.">
+  <meta property="og:image" content="assets/og-image.svg">
+  <meta property="og:url" content="https://habibbrox2.github.io/alif-shohoj-print/">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Alif Shohoj Print">
+  <meta name="twitter:description" content="Shop POS with Windows desktop print agent by AAA Tech Solutions.">
+  <meta name="twitter:image" content="assets/og-image.svg">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/logo.svg" alt="Alif Shohoj Print" height="40">
+      </a>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html" class="active">
+          <span class="lang-en">Home</span><span class="lang-bn">হোম</span>
+        </a></li>
+        <li><a href="features.html">
+          <span class="lang-en">Features</span><span class="lang-bn">ফিচার</span>
+        </a></li>
+        <li><a href="download.html">
+          <span class="lang-en">Download</span><span class="lang-bn">ডাউনলোড</span>
+        </a></li>
+        <li><a href="docs.html">
+          <span class="lang-en">Docs</span><span class="lang-bn">ডকুমেন্টেশন</span>
+        </a></li>
+        <li><a href="tutorial.html">
+          <span class="lang-en">Tutorial</span><span class="lang-bn">টিউটোরিয়াল</span>
+        </a></li>
+        <li><a href="faq.html">
+          <span class="lang-en">FAQ</span><span class="lang-bn">প্রশ্নোত্তর</span>
+        </a></li>
+        <li><a href="contact.html">
+          <span class="lang-en">Contact</span><span class="lang-bn">যোগাযোগ</span>
+        </a></li>
+      </ul>
+      <button class="lang-toggle" id="lang-toggle" onclick="toggleLanguage()">বাংলা</button>
+      <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-container">
+      <div class="hero-content">
+        <h1>
+          <span class="lang-en">Your Print Shop, <br>Simplified</span>
+          <span class="lang-bn">আপনার প্রিন্ট শপ, <br>সহজ করে তোলা</span>
+        </h1>
+        <p class="subtitle">
+          <span class="lang-en">Alif Shohoj Print combines a shop point-of-sale with a Windows desktop print agent. Manage orders, send print jobs to installed printers, and serve customers — all from one app.</span>
+          <span class="lang-bn">Alif Shohoj Print একটি প্রিন্ট শপ POS এবং Windows ডেস্কটপ প্রিন্ট এজেন্ট। অর্ডার ম্যানেজ করুন, ইনস্টল করা প্রিন্টারে প্রিন্ট জব পাঠান, এবং কাস্টমার সার্ভ করুন — সব একটি অ্যাপ থেকে।</span>
+        </p>
+        <div class="hero-buttons">
+          <a href="download.html" class="btn btn-download">
+            <span>⬇</span>
+            <span class="lang-en">Download Now</span>
+            <span class="lang-bn">ডাউনলোড করুন</span>
+          </a>
+          <a href="features.html" class="btn btn-secondary">
+            <span class="lang-en">Explore Features</span>
+            <span class="lang-bn">ফিচার দেখুন</span>
+          </a>
+        </div>
+      </div>
+      <div class="hero-image">
+        <img src="assets/hero-illustration.svg" alt="Alif Shohoj Print Dashboard" style="max-width: 100%; height: auto;">
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="section" style="background: white; padding: 3rem 2rem;">
+    <div class="section-container">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number">100%</div>
+          <div class="stat-label">
+            <span class="lang-en">Local & Offline Capable</span>
+            <span class="lang-bn">লোকাল ও অফলাইন সক্ষম</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">2</div>
+          <div class="stat-label">
+            <span class="lang-en">Architectures (x64 + 32-bit)</span>
+            <span class="lang-bn">আর্কিটেকচার (x64 + 32-bit)</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">40MB</div>
+          <div class="stat-label">
+            <span class="lang-en">Max File Size Support</span>
+            <span class="lang-bn">সর্বোচ্চ ফাইল সাইজ সাপোর্ট</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">3</div>
+          <div class="stat-label">
+            <span class="lang-en">Windows (Main, Settings, Agent)</span>
+            <span class="lang-bn">উইন্ডো (মেইন, সেটিংস, এজেন্ট)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Overview -->
+  <section class="section">
+    <div class="section-container">
+      <div class="section-header">
+        <span class="badge">
+          <span class="lang-en">Features</span>
+          <span class="lang-bn">ফিচারসমূহ</span>
+        </span>
+        <h2>
+          <span class="lang-en">Everything Your Print Shop Needs</span>
+          <span class="lang-bn">আপনার প্রিন্ট শপের সব প্রয়োজন</span>
+        </h2>
+        <p>
+          <span class="lang-en">From order management to printing, reporting to customer service — Alif Shohoj Print handles it all.</span>
+          <span class="lang-bn">অর্ডার ম্যানেজমেন্ট থেকে প্রিন্টিং, রিপোর্টিং থেকে কাস্টমার সার্ভিস — Alif Shohoj Print সব কিছু হ্যান্ডেল করে।</span>
+        </p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon orange">🛒</div>
+          <h3>
+            <span class="lang-en">Shop POS</span>
+            <span class="lang-bn">শপ POS</span>
+          </h3>
+          <p>
+            <span class="lang-en">Complete point-of-sale for print shops. Create orders, manage services, track revenue, and handle payments — all in one interface.</span>
+            <span class="lang-bn">প্রিন্ট শপের জন্য সম্পূর্ণ POS। অর্ডার তৈরি, সার্ভিস ম্যানেজ, রেভিনিউ ট্র্যাক, পেমেন্ট হ্যান্ডেল — সব এক ইন্টারফেসে।</span>
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon green">🖨️</div>
+          <h3>
+            <span class="lang-en">Print Agent</span>
+            <span class="lang-bn">প্রিন্ট এজেন্ট</span>
+          </h3>
+          <p>
+            <span class="lang-en">Windows desktop app that receives print jobs via authenticated WebSocket, queues them in SQLite, and sends to installed printers via SumatraPDF.</span>
+            <span class="lang-bn">Windows ডেস্কটপ অ্যাপ যা authenticated WebSocket এর মাধ্যমে প্রিন্ট জব গ্রহণ করে, SQLite-এ কিউ করে, এবং SumatraPDF এর মাধ্যমে ইনস্টল করা প্রিন্টারে পাঠায়।</span>
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon blue">📱</div>
+          <h3>
+            <span class="lang-en">Customer PWA</span>
+            <span class="lang-bn">কাস্টমার PWA</span>
+          </h3>
+          <p>
+            <span class="lang-en">Customers scan a QR code to access the mobile ordering app. Submit print orders directly from their phone — no app installation needed.</span>
+            <span class="lang-bn">কাস্টমাররা QR কোড স্ক্যান করে মোবাইল অর্ডারিং অ্যাপ অ্যাক্সেস করে। ফোন থেকে সরাসরি প্রিন্ট অর্ডার সাবমিট করুন — কোনো অ্যাপ ইনস্টলেশন প্রয়োজন নেই।</span>
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon purple">🎨</div>
+          <h3>
+            <span class="lang-en">Studio Editor</span>
+            <span class="lang-bn">স্টুডিও এডিটর</span>
+          </h3>
+          <p>
+            <span class="lang-en">Built-in image editor with Photoshop-like tools. Edit customer images, remove backgrounds, add watermarks, and print directly.</span>
+            <span class="lang-bn">Photoshop-সদৃশ টুলসহ বিল্ট-ইন ইমেজ এডিটর। কাস্টমার ইমেজ এডিট, ব্যাকগ্রাউন্ড রিমুভ, ওয়াটারমার্ক যোগ, এবং সরাসরি প্রিন্ট।</span>
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon teal">📊</div>
+          <h3>
+            <span class="lang-en">Reports & Analytics</span>
+            <span class="lang-bn">রিপোর্ট ও অ্যানালিটিক্স</span>
+          </h3>
+          <p>
+            <span class="lang-en">Daily and monthly reports from the local job queue. Track revenue, print counts, and job status at a glance.</span>
+            <span class="lang-bn">লোকাল জব কিউ থেকে দৈনিক ও মাসিক রিপোর্ট। রেভিনিউ, প্রিন্ট কাউন্ট, এবং জব স্ট্যাটাস এক নজরে ট্র্যাক করুন।</span>
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon red">🏪</div>
+          <h3>
+            <span class="lang-en">Counter Management</span>
+            <span class="lang-bn">কাউন্টার ম্যানেজমেন্ট</span>
+          </h3>
+          <p>
+            <span class="lang-en">Set up counter PCs with restricted access. Counter operators see only their orders. Master PC handles all printing.</span>
+            <span class="lang-bn">সীমিত অ্যাক্সেস সহ কাউন্টার PC সেটআপ করুন। কাউন্টার অপারেটররা শুধু তাদের অর্ডার দেখেন। মাস্টার PC সব প্রিন্টিং হ্যান্ডেল করে।</span>
+          </p>
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 3rem;">
+        <a href="features.html" class="btn btn-primary">
+          <span class="lang-en">View All Features →</span>
+          <span class="lang-bn">সব ফিচার দেখুন →</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="section" style="background: white;">
+    <div class="section-container">
+      <div class="section-header">
+        <span class="badge">
+          <span class="lang-en">How It Works</span>
+          <span class="lang-bn">কীভাবে কাজ করে</span>
+        </span>
+        <h2>
+          <span class="lang-en">Simple 4-Step Process</span>
+          <span class="lang-bn">সহজ ৪-ধাপের প্রক্রিয়া</span>
+        </h2>
+        <p>
+          <span class="lang-en">From customer order to printed output — all automated and tracked.</span>
+          <span class="lang-bn">কাস্টমার অর্ডার থেকে প্রিন্টেড আউটপুট — সব স্বয়ংক্রিয় এবং ট্র্যাকড।</span>
+        </p>
+      </div>
+      <div class="steps-container">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <h3>
+            <span class="lang-en">Customer Orders</span>
+            <span class="lang-bn">কাস্টমার অর্ডার</span>
+          </h3>
+          <p>
+            <span class="lang-en">Customer scans QR code, uploads document, selects service & paper size. Order sent to master PC.</span>
+            <span class="lang-bn">কাস্টমার QR কোড স্ক্যান করে, ডকুমেন্ট আপলোড করে, সার্ভিস ও পেপার সাইজ সিলেক্ট করে। অর্ডার মাস্টার PC-তে পাঠানো হয়।</span>
+          </p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <h3>
+            <span class="lang-en">Shop Reviews</span>
+            <span class="lang-bn">শপ রিভিউ</span>
+          </h3>
+          <p>
+            <span class="lang-en">Shopkeeper reviews order, can edit image in Studio, sets price, and approves or rejects.</span>
+            <span class="lang-bn">শপকিপার অর্ডার রিভিউ করে, Studio-তে ইমেজ এডিট করতে পারে, প্রাইস সেট করে, এবং অনুমোদন বা প্রত্যাখ্যান করে।</span>
+          </p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <h3>
+            <span class="lang-en">Print Job Queued</span>
+            <span class="lang-bn">প্রিন্ট জব কিউ</span>
+          </h3>
+          <p>
+            <span class="lang-en">Approved order becomes a print job. Stored in SQLite queue, sent to print agent via WebSocket.</span>
+            <span class="lang-bn">অনুমোদিত অর্ডার প্রিন্ট জব হয়ে যায়। SQLite কিউতে সংরক্ষিত, WebSocket এর মাধ্যমে প্রিন্ট এজেন্টে পাঠানো হয়।</span>
+          </p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">4</div>
+          <h3>
+            <span class="lang-en">Printed & Delivered</span>
+            <span class="lang-bn">প্রিন্ট ও ডেলিভারি</span>
+          </h3>
+          <p>
+            <span class="lang-en">Print agent sends to installed printer via SumatraPDF. Customer collects printed document.</span>
+            <span class="lang-bn">প্রিন্ট এজেন্ট SumatraPDF এর মাধ্যমে ইনস্টল করা প্রিন্টারে পাঠায়। কাস্টমার প্রিন্টেড ডকুমেন্ট সংগ্রহ করে।</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download CTA -->
+  <section class="download-section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>
+          <span class="lang-en">Ready to Get Started?</span>
+          <span class="lang-bn">শুরু করতে প্রস্তুত?</span>
+        </h2>
+        <p>
+          <span class="lang-en">Download Alif Shohoj Print for Windows. Free to use, easy to install.</span>
+          <span class="lang-bn">Windows-এর জন্য Alif Shohoj Print ডাউনলোড করুন। বিনামূল্যে ব্যবহার, সহজ ইনস্টলেশন।</span>
+        </p>
+      </div>
+      <div style="text-align: center;">
+        <a href="download.html" class="btn btn-download" style="font-size: 1.1rem; padding: 1rem 2.5rem;">
+          <span>⬇</span>
+          <span class="lang-en">Download for Windows</span>
+          <span class="lang-bn">Windows-এর জন্য ডাউনলোড</span>
+        </a>
+        <p style="margin-top: 1rem; opacity: 0.7; font-size: 0.9rem;">
+          <span class="lang-en">v0.1.0 — Windows 10/11 (x64 & 32-bit)</span>
+          <span class="lang-bn">v0.1.0 — Windows 10/11 (x64 ও 32-bit)</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <div class="logo">
+          <img src="assets/logo.svg" alt="Alif Shohoj Print" height="36">
+        </div>
+        <p>
+          <span class="lang-en">Shop point of sale with a Windows desktop print agent. By AAA Tech Solutions.</span>
+          <span class="lang-bn">Windows ডেস্কটপ প্রিন্ট এজেন্ট সহ শপ POS। AAA Tech Solutions দ্বারা।</span>
+        </p>
+      </div>
+      <div class="footer-column">
+        <h4>
+          <span class="lang-en">Product</span>
+          <span class="lang-bn">প্রোডাক্ট</span>
+        </h4>
+        <ul>
+          <li><a href="features.html">
+            <span class="lang-en">Features</span><span class="lang-bn">ফিচার</span>
+          </a></li>
+          <li><a href="download.html">
+            <span class="lang-en">Download</span><span class="lang-bn">ডাউনলোড</span>
+          </a></li>
+          <li><a href="docs.html">
+            <span class="lang-en">Documentation</span><span class="lang-bn">ডকুমেন্টেশন</span>
+          </a></li>
+          <li><a href="tutorial.html">
+            <span class="lang-en">Tutorial</span><span class="lang-bn">টিউটোরিয়াল</span>
+          </a></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4>
+          <span class="lang-en">Support</span>
+          <span class="lang-bn">সাপোর্ট</span>
+        </h4>
+        <ul>
+          <li><a href="faq.html">
+            <span class="lang-en">FAQ</span><span class="lang-bn">প্রশ্নোত্তর</span>
+          </a></li>
+          <li><a href="contact.html">
+            <span class="lang-en">Contact</span><span class="lang-bn">যোগাযোগ</span>
+          </a></li>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print/issues" target="_blank">
+            <span class="lang-en">GitHub Issues</span><span class="lang-bn">গিটহাব ইস্যু</span>
+          </a></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4>
+          <span class="lang-en">Links</span>
+          <span class="lang-bn">লিংক</span>
+        </h4>
+        <ul>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print" target="_blank">GitHub</a></li>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print/releases" target="_blank">
+            <span class="lang-en">Releases</span><span class="lang-bn">রিলিজ</span>
+          </a></li>
+          <li><a href="https://github.com/habibbrox2/alif-shohoj-print/actions" target="_blank">
+            <span class="lang-en">Actions</span><span class="lang-bn">অ্যাকশন</span>
+          </a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Alif Shohoj Print by AAA Tech Solutions. All rights reserved.</p>
+      <div class="links">
+        <a href="https://github.com/habibbrox2/alif-shohoj-print" target="_blank">GitHub</a>
+        <a href="https://github.com/habibbrox2/alif-shohoj-print/blob/main/LICENSE" target="_blank">License</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scroll to top -->
+  <button class="scroll-top" id="scroll-top" onclick="scrollToTop()">↑</button>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
