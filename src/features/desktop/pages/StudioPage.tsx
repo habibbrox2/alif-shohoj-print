@@ -11,6 +11,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { StudioEditorCanvas } from '../../studio-editor/StudioEditorCanvas';
+import { validateImageFile } from '../../studio-editor/validateImageFile';
 import { createJobId, nextTokenNumber } from '../../../shared/services/jobIdentity';
 import { matchPrinterForJob } from '../../printers/printerRouting';
 
@@ -91,17 +92,9 @@ export const StudioPage: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff'];
-    if (!validTypes.includes(file.type)) {
-      setError('অবৈধ ফাইল টাইপ। শুধু ছবি ফাইল (JPG, PNG, WebP, BMP, TIFF) গ্রহণযোগ্য।');
-      return;
-    }
-
-    // Validate file size (max 50MB)
-    const maxSize = 50 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setError('ফাইল আকার খুব বড়। সর্বোচ্চ ৫০ MB অনুমোদিত।');
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      setError(validation.reason ?? 'অবৈধ ফাইল।');
       return;
     }
 
@@ -246,6 +239,10 @@ export const StudioPage: React.FC = () => {
         rotation: adjustments.rotation,
         brightness: adjustments.brightness,
         contrast: adjustments.contrast,
+        hue: adjustments.hue,
+        warmth: adjustments.warmth,
+        skewX: adjustments.skewX,
+        skewY: adjustments.skewY,
         aspectRatio: adjustments.cropPreset,
       },
       auditLogs: [
@@ -332,6 +329,7 @@ export const StudioPage: React.FC = () => {
           key={`${selectedSource?.type ?? 'empty'}-${selectedSource?.job?.id ?? selectedSource?.fileName ?? 'none'}-${sourceNonce}`}
           initialImageUrl={selectedSource?.dataUrl}
           job={selectedSource?.job}
+          printers={printers}
           onSave={handleEditorSave}
           onClose={handleEditorClose}
         />

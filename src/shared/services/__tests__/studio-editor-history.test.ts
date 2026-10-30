@@ -1,49 +1,85 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { HISTORY_LIMIT, pushHistory, redo, undo } from '../../../features/studio-editor/editorHistory.js';
-import type { EditorSnapshot } from '../../../features/studio-editor/editorHistory.js';
-import { defaultContentLayerStack } from '../../../features/studio-editor/strokeModel.js';
+import { pushHistory, undo, redo, HISTORY_LIMIT } from '../../../features/studio-editor/editorHistory.js';
+import type { EditorSnapshot } from '../../../features/studio-editor/strokeModel.js';
 
-const snap = (n: number): EditorSnapshot => ({
-  rotation: n,
-  zoom: 1,
-  brightness: 100,
-  contrast: 100,
-  saturation: 100,
-  exposure: 0,
-  grayscale: false,
-  activeFilter: 'none',
-  cropPreset: 'free',
-  annotationText: '',
-  showWatermark: false,
-  textColor: '#fff',
-  textSize: 22,
-  textAlign: 'center',
-  textFont: 'hind',
-  backgroundColor: '#0f172a',
-  contentLayers: defaultContentLayerStack(),
-  showBgRemoved: false,
+function makeSnapshot(label?: string): EditorSnapshot {
+  return {
+    rotation: 0,
+    zoom: 1,
+    brightness: 100,
+    contrast: 100,
+    saturation: 100,
+    exposure: 0,
+    grayscale: false,
+    activeFilter: 'none',
+    cropPreset: 'free',
+    annotationText: '',
+    showWatermark: false,
+    textColor: '#ffffff',
+    textSize: 24,
+    textAlign: 'center',
+    textFont: 'Inter',
+    backgroundColor: '#ffffff',
+    contentLayers: [],
+    showBgRemoved: false,
+    label,
+  };
+}
+
+test('pushHistory appends and sets index to last entry', () => {
+  const s1 = makeSnapshot('a');
+  const s2 = makeSnapshot('b');
+  const r1 = pushHistory([], -1, s1);
+  assert.equal(r1.history.length, 1);
+  assert.equal(r1.index, 0);
+  const r2 = pushHistory(r1.history, r1.index, s2);
+  assert.equal(r2.history.length, 2);
+  assert.equal(r2.index, 1);
 });
 
-test('pushHistory truncates any redo tail before appending', () => {
-  const { history, index } = pushHistory([snap(0), snap(1), snap(2)], 1, snap(9));
-  assert.equal(index, 2);
-  assert.equal(history.length, 3);
-  assert.equal(history[2].rotation, 9);
+test('pushHistory truncates redo tail', () => {
+  const s1 = makeSnapshot('1');
+  const s2 = makeSnapshot('2');
+  const s3 = makeSnapshot('3');
+  const s4 = makeSnapshot('4');
+  let r = pushHistory([], -1, s1);
+  r = pushHistory(r.history, r.index, s2);
+  r = pushHistory(r.history, r.index, s3);
+  // undo twice
+  const u1 = undo(r.history, r.index);
+  assert.ok(u1);
+  const u2 = undo(u1.history, u1.index);
+  assert.ok(u2);
+  // push new snapshot should truncate s2, s3 (redo tail)
+  r = pushHistory(u2.history, u2.index, s4);
+  assert.equal(r.history.length, 2); // s1, s4
+  assert.equal(r.history[r.index].label, '4');
 });
 
-test('undo and redo move the index and are null at the ends', () => {
-  const seeded = pushHistory([snap(0)], 0, snap(1));
-  assert.equal(undo(seeded.history, 1)?.index, 0);
-  assert.equal(undo(seeded.history, 0), null);
-  assert.equal(redo(seeded.history, 0)?.index, 1);
-  assert.equal(redo(seeded.history, 1), null);
-});
-
-test('history never exceeds HISTORY_LIMIT', () => {
-  let state = { history: [snap(0)], index: 0 };
-  for (let i = 1; i <= HISTORY_LIMIT + 20; i += 1) {
-    state = pushHistory(state.history, state.index, snap(i));
+test('pushHistory caps at HISTORY_LIMIT', () => {
+  let history: EditorSnapshot[] = [];
+  let index = -1;
+  for (let i = 0; i < HISTORY_LIMIT + 5; i++) {
+    const res = pushHistory(history, index, makeSnapshot(String(i)));
+    history = res.history;
+    index = res.index;
   }
-  assert.equal(state.history.length, HISTORY_LIMIT);
+  assert.equal(history.length, HISTORY_LIMIT);
+  assert.equal(history[index].label, String(HISTORY_LIMIT + 4));
+});
+
+test('undo/redo behave correctly', () => {
+  let r = pushHistory([], -1, makeSnapshot('1'));
+  r = pushHistory(r.history, r.index, makeSnapshot('2'));
+  r = pushHistory(r.history, r.index, makeSnapshot('3'));
+  assert.equal(r.index, 2);
+  let u = undo(r.history, r.index);
+  assert.ok(u);
+  assert.equal(u.index, 1);
+  let re = redo(u.history, u.index);
+  assert.ok(re);
+  assert.equal(re.index, 2);
+  assert.equal(undo(r.history, 0), null);
+  assert.equal(redo(r.history, r.history.length - 1), null);
 });
