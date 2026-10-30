@@ -1,0 +1,19 @@
+{
+  "name": "Alif Shohoj Print — Customer PWA",
+  "short_name": "Alif Print",
+  "description": "QR scan to print — Alif Shohoj Print customer ordering",
+  "start_url": "/resources/views/pwa.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#0f766e",
+  "lang": "bn",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230F766E'/%3E%3Cpath d='M8 9h16v3H8zm2 5h12v10H10zm3 2v6h6v-6z' fill='%23fff'/%3E%3C/svg%3E",
+      "sizes": "32x32",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

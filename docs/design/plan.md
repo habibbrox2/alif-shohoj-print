@@ -33,7 +33,7 @@
 | দোকানদার | Windows EXE (Electron + TypeScript, Tray App, login-এ অটো-স্টার্ট) |
 | আর্কিটেকচার (এখন) | **LAN-ভিত্তিক:** মূল (Master) PC gateway হোস্ট করে, PWA সার্ভ করে, SQLite queue রাখে, প্রিন্টারে ছাপে। কাউন্টার PC ও কাস্টমারের ফোন একই LAN-এ। |
 | সেন্ট্রাল ক্লাউড সার্ভার | **এখন নেই।** পরে আলাদা সিদ্ধান্ত (দেখো §১১)। |
-| প্রিন্ট ইঞ্জিন | `pdf-to-printer`/SumatraPDF silent print; paper type/quality/borderless ড্রাইভার সেটিংয়ে |
+| প্রিন্ট ইঞ্জিন | Windows printing API silent print; paper type/quality/borderless ড্রাইভার সেটিংয়ে |
 | POS | EXE-তে থাকবে (বিদ্যমান ShopPosView পুনরুপযোগ) |
 | ভাষা | UI লেবেল ইংরেজি (ডিজাইন অনুযায়ী); অর্ডারের বিষয়বস্তু ও Settings গ্রুপের নাম বাংলা; সব টেক্সট i18n কী দিয়ে; বাংলা ফন্ট ফলব্যাক (Nirmala UI / Noto Sans Bengali) |
 | থিম | হালকা (teal `#0F766E` প্রাইমারি, সাদা সারফেস, বর্ডার `#E4E7EB`, radius 8–12px); dark পরে |

@@ -1,0 +1,41 @@
+
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "anyapi": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "AnyAPI",
+      "options": {
+        "baseURL": "https://api.anyapi.ai/v1",
+        "apiKey": "{env:ANYAPI_API_KEY}"
+      },
+      "models": {
+        "YOUR_MODEL_ID": {
+          "name": "AnyAPI Model"
+        }
+      }
+    }
+  },
+  "mcp": {
+    "servers": {
+      "cloudflare": {
+        "type": "remote",
+        "url": "https://mcp.cloudflare.com/mcp"
+      },
+      "subagent-dispatch": {
+        "type": "local",
+        "command": [
+          "node",
+          "scripts/subagent-dispatch.mjs",
+          "--mcp"
+        ],
+        "cwd": ".",
+        "timeout": {
+          "startup": 10000,
+          "catalog": 10000,
+          "execution": 900000
+        }
+      }
+    }
+  }
+}
