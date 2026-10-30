@@ -1,5 +1,8 @@
 import type { CropPreset } from './cropPresets.js';
+import type { CropRect } from './cropTool.js';
 import type { EditorFilter, TextAlign } from './studioTypes.js';
+import type { CloneStroke } from './cloneStamp.js';
+import type { TonalStroke } from './tonalTools.js';
 
 /**
  * A drawn overlay stroke. Coordinates are normalised (0..1) so marks survive a crop resize.
@@ -205,9 +208,28 @@ export interface EditorSnapshot {
   saturation: number;
   /** Exposure in stops (EV), applied on top of brightness. */
   exposure: number;
+  /** Hue rotation in degrees. */
+  hue?: number;
+  /** Warmth in percent. */
+  warmth?: number;
+  /** Timestamp (ms) when the history entry was created. */
+  timestamp?: number;
+  /** Skew X in degrees. */
+  skewX?: number;
+  /** Skew Y in degrees. */
+  skewY?: number;
   grayscale: boolean;
   activeFilter: EditorFilter;
   cropPreset: CropPreset;
+  /** Active interactive crop region, normalised against the working canvas.
+   *  `undefined`/`null` means the whole canvas is kept. */
+  cropRect?: CropRect | null;
+  /** Custom crop width in pixels when cropPreset === 'custom'. Optional so
+   *  history entries and fixtures recorded before the field existed still
+   *  type-check. */
+  customWidth?: number;
+  /** Custom crop height in pixels when cropPreset === 'custom'. */
+  customHeight?: number;
   annotationText: string;
   showWatermark: boolean;
   textColor: string;
@@ -215,9 +237,45 @@ export interface EditorSnapshot {
   textAlign: TextAlign;
   /** Font id from `STUDIO_FONTS`; resolved to a CSS stack when rendering. */
   textFont: string;
+  /** Whether the watermark text is rendered in bold. */
+  textBold?: boolean;
+  /** Whether the watermark text is rendered in italic. */
+  textItalic?: boolean;
+  /** Whether a drop shadow is drawn behind the watermark text. */
+  textShadow?: boolean;
+  /** Opacity of the watermark text (0..100). */
+  textOpacity?: number;
   backgroundColor: string;
   contentLayers: ContentLayer[];
+  /**
+   * Clone Stamp / Healing Brush strokes that have been committed to the hidden
+   * source canvas. Stored so undo/redo can replay them from the photo state
+   * instead of relying on a serialised pixel buffer.
+   */
+  /**
+   * Clone Stamp / Healing Brush strokes that have been committed to the hidden
+   * source canvas. Optional so snapshots taken before this field existed
+   * (older history entries, tests) still type-check.
+   */
+  cloneStrokes?: CloneStroke[];
+  /**
+   * Dodge / Burn / Sponge strokes committed to the hidden source canvas.
+   * Optional for the same reason as `cloneStrokes`.
+   */
+  tonalStrokes?: TonalStroke[];
   showBgRemoved: boolean;
+  /**
+   * Blob URL of the background-removed render. Stored so undo/redo can rebuild
+   * the `<img>` element; without it, undoing "Remove background" would flip
+   * the flag back while the canvas still showed the transparent pixels.
+   */
+  bgRemovedImageUrl?: string;
+  /**
+   * Data URL of the render after a background colour replacement. Stored for
+   * the same reason as `bgRemovedImageUrl`: the history snapshot has to carry
+   * the pixels, otherwise undoing the replacement would only flip a flag.
+   */
+  replacedImageUrl?: string;
   /**
    * Optional human-readable label for the history step that produced this
    * snapshot. Not part of the restored state; it only drives the History list.

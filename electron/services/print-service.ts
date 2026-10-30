@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { createRequire } from 'node:module';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { degrees, PDFDocument, PageSizes } from 'pdf-lib';
@@ -15,11 +14,17 @@ import {
   sanitizePrintLayout,
 } from './print-layout.js';
 
-const require = createRequire(import.meta.url);
-const { print: printPdf } = require('pdf-to-printer') as typeof import('pdf-to-printer');
 const MAX_DOCUMENT_BYTES = 40 * 1024 * 1024;
 
-type SpoolerOptions = NonNullable<Parameters<typeof printPdf>[1]>;
+export interface PrintSpoolerOptions {
+  printer: string;
+  copies: number;
+  silent: boolean;
+  paperSize: string;
+  monochrome: boolean;
+  scale: 'fit';
+  orientation?: 'landscape';
+}
 
 const getDataUrlBytes = (dataUrl: string): { mimeType: string; bytes: Buffer } => {
   const match = /^data:(application\/pdf|image\/jpeg|image\/png);base64,([A-Za-z0-9+/=\r\n]+)$/i.exec(dataUrl);
@@ -53,7 +58,7 @@ const getSumatraPaperSize = (job: PrintJob): string => {
 
 export interface PrintServiceOptions {
   userDataPath: string;
-  print: typeof printPdf;
+  print: (pdfPath: string, options: PrintSpoolerOptions) => void | Promise<void>;
 }
 
 export class PrintService {
@@ -77,7 +82,7 @@ export class PrintService {
         await writeFile(pdfPath, pdfBytes, { flag: 'wx' });
       });
 
-      const options: SpoolerOptions = {
+      const options: PrintSpoolerOptions = {
         printer: job.targetPrinterName,
         copies: job.copies,
         silent: true,
@@ -89,7 +94,7 @@ export class PrintService {
       // saved before the dialog existed is spooled with exactly today's options.
       // SumatraPDF rotates the page content 90 degrees and leaves the paper to
       // the printer driver; a genuinely landscape sheet would also need its
-      // auto-rotation suppressed, which pdf-to-printer does not expose.
+      // auto-rotation suppressed, which the Windows print path does not expose.
       if (layout?.orientation === 'landscape') {
         options.orientation = 'landscape';
       }
@@ -187,5 +192,7 @@ export class PrintService {
   }
 }
 
-export const createPrintService = (userDataPath: string): PrintService =>
-  new PrintService({ userDataPath, print: printPdf });
+export const createPrintService = (
+  userDataPath: string,
+  print: PrintServiceOptions['print']
+): PrintService => new PrintService({ userDataPath, print });

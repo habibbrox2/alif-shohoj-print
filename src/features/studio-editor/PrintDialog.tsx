@@ -21,6 +21,13 @@ export interface PrintDialogProps {
   docPx: { w: number; h: number };
   docDataUrl: string;
   onClose: () => void;
+  /**
+   * Optional printer override. The default path routes through the desktop
+   * queue (`printWithSettings`), which refuses when there is no job — that is
+   * the walk-in case, where the host page owns job creation and hands back a
+   * result instead.
+   */
+  onPrint?: (request: { settings: PrintSettings; dataUrl: string }) => Promise<PrintResult>;
 }
 
 const INPUT_CLASS =
@@ -129,7 +136,7 @@ const ActionButton: React.FC<{
   </button>
 );
 
-export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl, onClose }) => {
+export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl, onClose, onPrint }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const [settings, setSettings] = useState<PrintSettings>(loadPrintSettings);
@@ -176,7 +183,10 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
     setIsPrinting(true);
     setPrintStatus(null);
     try {
-      setPrintStatus(await printWithSettings({ settings, dataUrl: docDataUrl, job }));
+      const result = onPrint
+        ? await onPrint({ settings, dataUrl: docDataUrl })
+        : await printWithSettings({ settings, dataUrl: docDataUrl, job });
+      setPrintStatus(result);
     } finally {
       setIsPrinting(false);
     }
@@ -194,11 +204,47 @@ export const PrintDialog: React.FC<PrintDialogProps> = ({ job, docPx, docDataUrl
   // check: the window chain would unmount the dialog mid saveJob/printJob and
   // lose the result message.
   const handleDialogKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key !== 'Escape') return;
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      if (isPrinting) return;
+      event.preventDefault();
+      onClose();
+      return;
+    }
+
+    // Tab trap: the dialog owns the keyboard while it is open, so Tab and
+    // Shift+Tab must not leak into the editor chrome hidden behind the overlay.
+    if (event.key !== 'Tab') return;
     event.stopPropagation();
-    if (isPrinting) return;
     event.preventDefault();
-    onClose();
+
+    const panel = panelRef.current;
+    const focusable = panel ?
+      Array.from(panel.querySelectorAll<HTMLElement>(
+        'input:not([disabled]), select:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ))
+      : [];
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+
+    if (event.shiftKey) {
+      if (active === first || !panel?.contains(active)) {
+        last.focus();
+      } else {
+        const index = focusable.indexOf(active as HTMLElement);
+        if (index <= 0) last.focus();
+      }
+    } else {
+      if (active === last || !panel?.contains(active)) {
+        first.focus();
+      } else {
+        const index = focusable.indexOf(active as HTMLElement);
+        if (index < 0 || index >= focusable.length - 1) first.focus();
+      }
+    }
   };
 
   const dismiss = () => {

@@ -6,6 +6,8 @@ export const ADJUSTMENT_RANGES = {
   brightness: { min: 50, max: 180, step: 1, suffix: '%' },
   contrast: { min: 50, max: 180, step: 1, suffix: '%' },
   saturation: { min: 0, max: 200, step: 1, suffix: '%' },
+  hue: { min: -180, max: 180, step: 1, suffix: '°' },
+  warmth: { min: 0, max: 100, step: 1, suffix: '%' },
   // Exposure is measured in stops (EV) and multiplies on top of brightness.
   exposure: { min: -2, max: 2, step: 0.1, suffix: ' EV' },
   scale: { min: 0.5, max: 2.5, step: 0.05, suffix: '×' },
@@ -59,6 +61,10 @@ export interface PhotoFilterInput {
   adjustmentsVisible: boolean;
   /** Exposure in stops (EV); multiplies the brightness term. Defaults to 0. */
   exposure?: number;
+  /** Hue rotation in degrees. */
+  hue?: number;
+  /** Warmth in percent, approximated with sepia. */
+  warmth?: number;
 }
 
 /**
@@ -72,11 +78,15 @@ export function buildPhotoFilter(input: PhotoFilterInput): string {
   const c = adjustmentsVisible ? contrast : 100;
   const s = adjustmentsVisible ? saturation : 100;
   const exposure = adjustmentsVisible ? input.exposure ?? 0 : 0;
+  const hue = adjustmentsVisible ? input.hue ?? 0 : 0;
+  const warmth = adjustmentsVisible ? input.warmth ?? 0 : 0;
 
   // Exposure is multiplicative: +1 EV doubles the brightness term.
   const exposedBrightness = Math.round(b * 2 ** exposure * 100) / 100;
 
   let filter = `brightness(${exposedBrightness}%) contrast(${c}%) saturate(${s}%)`;
+  if (hue !== 0) filter += ` hue-rotate(${hue}deg)`;
+  if (warmth !== 0) filter += ` sepia(${Math.min(100, Math.max(0, warmth))}%)`;
   if (adjustmentsVisible && (grayscale || activeFilter === 'bw_doc')) filter += ' grayscale(100%)';
   if (adjustmentsVisible && activeFilter === 'high_sharp') filter += ' contrast(130%) brightness(105%)';
   return filter;

@@ -8,6 +8,13 @@ export interface PrintResult {
 
 const NOT_CONNECTED = 'Print backend not yet connected';
 
+/**
+ * Desktop print agent hard limit, shared with `electron/services/print-service.ts`.
+ * A snapshot larger than this is refused before anything touches the queue,
+ * so a 60 MB canvas cannot silently replace the file behind a job.
+ */
+const MAX_PRINT_SNAPSHOT_BYTES = 40 * 1024 * 1024;
+
 /** MIME subtypes of a canvas snapshot that map to a different file extension. */
 const DATA_URL_EXTENSION_PATTERN = /^data:image\/(png|webp|bmp|avif)(?:;[^,]*)?,/i;
 
@@ -19,14 +26,23 @@ function dataUrlExtension(dataUrl: string): string {
 
 /** Byte size of the base64 payload, formatted the way the order card and status bar show it. */
 function formatDataUrlSize(dataUrl: string): string {
+  return formatBytes(dataUrlBytes(dataUrl));
+}
+
+/** Raw byte size of the base64 payload, used for the 40 MB pre-validation. */
+function dataUrlBytes(dataUrl: string): number {
   const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
-  const fileBytes = Math.max(
+  return Math.max(
     0,
     Math.floor((base64.length * 3) / 4) - (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0)
   );
-  return fileBytes >= 1024 * 1024
-    ? `${(fileBytes / (1024 * 1024)).toFixed(2)} MB`
-    : `${Math.max(1, Math.round(fileBytes / 1024))} KB`;
+}
+
+/** Short human-readable byte size for error messages. */
+function formatBytes(bytes: number): string {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 /**
@@ -43,12 +59,24 @@ export async function printWithSettings(request: {
 }): Promise<PrintResult> {
   const { settings, dataUrl, job } = request;
 
-  // TODO: an empty snapshot has no pixels to print, and saving it would replace
-  // the file attached to the queue job with an empty string, so the job path is
+  // An empty snapshot has no pixels to print, and saving it would replace the
+  // file attached to the queue job with an empty string, so the job path is
   // refused until the canvas can hand over a real image.
   if (!dataUrl) return { ok: false, message: 'No image snapshot to print.' };
 
-  // TODO: a canvas opened from a local file has no queue job to attach to, so
+  // Pre-validate against the desktop agent's own ceiling. The agent throws on
+  // anything over 40 MB, so refusing here keeps the error in the renderer,
+  // where the operator can act on it, instead of after the queue has already
+  // mutated the job record.
+  const snapshotBytes = dataUrlBytes(dataUrl);
+  if (snapshotBytes > MAX_PRINT_SNAPSHOT_BYTES) {
+    return {
+      ok: false,
+      message: `স্ন্যাপশট আকার খুব বড় (${formatBytes(snapshotBytes)})। সর্বোচ্চ ৪০ MB প্রিন্ট করা যায়।`,
+    };
+  }
+
+  // A canvas opened from a local file has no queue job to attach to, so
   // standalone printing cannot reach the desktop queue yet.
   if (!job) return { ok: false, message: NOT_CONNECTED };
 

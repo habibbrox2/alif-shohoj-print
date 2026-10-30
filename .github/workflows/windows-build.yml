@@ -52,8 +52,6 @@ jobs:
         run: |
           echo "Checking better-sqlite3..."
           node -e "const db = require('better-sqlite3'); console.log('better-sqlite3 OK:', db.version);"
-          echo "Checking pdf-to-printer..."
-          node -e "const p = require('pdf-to-printer'); console.log('pdf-to-printer OK');"
         shell: bash
 
       - name: Run linting

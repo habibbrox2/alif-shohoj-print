@@ -91,6 +91,23 @@ export interface DesktopBridge {
   onIncomingJob(callback: (job: PrintJob) => void): () => void;
   onQueueChanged(callback: (queueJob: DesktopQueueJob) => void): () => void;
   onTrayAction(callback: (action: DesktopTrayAction) => void): () => void;
+
+  /** Staff authentication — bootstrap, login, logout, and role-scoped CRUD. */
+  getStaffBootstrapStatus(): Promise<{ bootstrapped: boolean }>;
+  bootstrapOwner(pin: string): Promise<{ id: string; role: 'owner'; enabled: boolean; createdAt: number }>;
+  loginStaff(pin: string): Promise<{ id: string; userId: string; role: 'owner' | 'manager' | 'operator'; expiresAt: number }>;
+  logoutStaff(sessionId: string): Promise<void>;
+  authorizeStaff(sessionId: string, permission: string): Promise<{ id: string; role: 'owner' | 'manager' | 'operator'; enabled: boolean; createdAt: number }>;
+  listStaff(sessionId: string): Promise<Array<{ id: string; role: 'owner' | 'manager' | 'operator'; enabled: boolean; createdAt: number }>>;
+  createStaff(sessionId: string, pin: string, role: 'owner' | 'manager' | 'operator'): Promise<{ id: string; role: 'owner' | 'manager' | 'operator'; enabled: boolean; createdAt: number }>;
+  setStaffRole(sessionId: string, userId: string, role: 'owner' | 'manager' | 'operator'): Promise<{ id: string; role: 'owner' | 'manager' | 'operator'; enabled: boolean; createdAt: number }>;
+  setStaffEnabled(sessionId: string, userId: string, enabled: boolean): Promise<{ id: string; role: 'owner' | 'manager' | 'operator'; enabled: boolean; createdAt: number }>;
+
+  /** Cloud relay — push orders from an external relay server to this master PC. */
+  connectCloudRelay(options: { relayUrl: string; deviceId: string; token: string }): Promise<void>;
+  disconnectCloudRelay(): Promise<void>;
+  getCloudRelayStatus(): Promise<'connecting' | 'authenticated' | 'reconnecting' | null>;
+  onCloudRelayStatus?(callback: (status: 'connecting' | 'authenticated' | 'reconnecting') => void): () => void;
   openFileDialog(options?: { filters?: Array<{ name: string; extensions: string[] }>; properties?: string[] }): Promise<{ filePath: string; dataUrl: string; fileName: string } | null>;
 }
 

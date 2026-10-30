@@ -139,6 +139,10 @@ export interface PrintJob {
     rotation: number;
     brightness: number;
     contrast: number;
+    hue?: number;
+    warmth?: number;
+    skewX?: number;
+    skewY?: number;
     aspectRatio: string;
   };
   printingPreferences?: ServicePrintingPreferences;

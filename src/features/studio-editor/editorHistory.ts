@@ -14,6 +14,8 @@ export function pushHistory(
   next: EditorSnapshot,
   limit = HISTORY_LIMIT
 ): { history: EditorSnapshot[]; index: number } {
+  // Stamp the entry so the history panel can show when it was created.
+  if (next.timestamp === undefined) next.timestamp = Date.now();
   // Truncate any redo tail (entries after the current index)
   const truncated = history.slice(0, index + 1);
   // Append the new snapshot

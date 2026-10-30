@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { Check, Languages, Plus, Printer, RotateCcw, Save, Settings as SettingsIcon, Trash2, TriangleAlert } from 'lucide-react';
 import { INITIAL_STUDIO_SERVICES } from '../../../shared/services/studioServices';
+import { StaffAccessPage } from './StaffAccessPage';
 import { SERVICE_PRESETS, createServiceFromPreset, type ServicePreset } from '../../../shared/services/servicePresets';
 import { INITIAL_SERVICE_PRICING } from '../../../shared/services/pricing';
 import type { ServicePricing, ShopProfile, StudioService } from '../../../shared/types';
@@ -358,13 +359,15 @@ export const SettingsPage: FC<SettingsPageProps> = ({ onOpenPrinterSettings }) =
     activeGroup === 'notifications' ||
     activeGroup === 'voiceGuide' ||
     (activeGroup === 'services' && isMaster) ||
-    activeGroup === 'agent';
+    activeGroup === 'agent' ||
+    activeGroup === 'staff';
   const canReset = activeGroup === 'shopOrders' ||
     activeGroup === 'approval' ||
     activeGroup === 'services' ||
     activeGroup === 'notifications' ||
     activeGroup === 'voiceGuide' ||
-    activeGroup === 'agent';
+    activeGroup === 'agent' ||
+    activeGroup === 'staff';
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -787,6 +790,9 @@ const SupportedSetting: FC<SupportedSettingProps> = ({
         </div>
       </div>
     );
+  }
+  if (id === 'staffAccounts' || id === 'staffRoles') {
+    return <div className="px-4 py-3"><StaffAccessPage /></div>;
   }
   if (id === 'voiceCommands') {
     return (

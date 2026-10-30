@@ -1,16 +1,20 @@
 import { app, BrowserWindow, crashReporter, Menu, nativeImage, Notification, safeStorage, Tray, ipcMain, screen } from 'electron';
 import { randomBytes } from 'node:crypto';
-import { cpSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppLogger } from './services/app-logger.js';
 import { createPrintService } from './services/print-service.js';
+import { getWindowsPrintBackend, disposeWindowsPrintBackend } from './services/windows-print-backend.js';
 import { JobStore } from './services/job-store.js';
 import { isPrintJob, startJobWebSocket } from './services/job-websocket.js';
 import { createSoundService, getSoundService } from './services/sound-service.js';
 import { LocalGateway } from './services/local-gateway.js';
 import { SettingsStore } from './services/settings-store.js';
+import { StaffAuthService } from './services/staff-auth.js';
+import { StaffStore } from './services/staff-store.js';
+import { CloudRelayClient } from './services/cloud-relay-client.js';
 import { CounterFeedStore } from './services/counter-feed-store.js';
 import { CounterFeedSecretStore, pullCounterFeed } from './services/counter-feed-client.js';
 import { CounterFeedWsClient } from './services/counter-feed-ws-client.js';
@@ -26,7 +30,6 @@ import { COUNTER_ID_PATTERN } from '../src/shared/services/counterFeed.js';
 
 const appDirectory = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const pdfToPrinter = require('pdf-to-printer') as typeof import('pdf-to-printer');
 const developmentUrl = new URL(
   '/resources/views/desktop.html',
   process.env.VITE_DEV_SERVER_URL || 'http://localhost:3000'
@@ -50,16 +53,10 @@ const isAllowedNavigation = (url: string): boolean => {
 };
 
 app.setName('Alif Shohoj Print');
+import { resolveUserDataDirectory } from './services/data-directory-migration.js';
+
 const appDataDirectory = app.getPath('appData');
-const userDataDirectory = join(appDataDirectory, 'AlifShohojPrint');
-const legacyUserDataDirectory = join(appDataDirectory, 'BroxPrint Studio');
-if (existsSync(legacyUserDataDirectory)) {
-  if (existsSync(userDataDirectory)) {
-    cpSync(legacyUserDataDirectory, userDataDirectory, { recursive: true, force: false, errorOnExist: false });
-  } else {
-    renameSync(legacyUserDataDirectory, userDataDirectory);
-  }
-}
+const userDataDirectory = resolveUserDataDirectory(appDataDirectory);
 app.setPath('userData', userDataDirectory);
 const websocketHost = process.env.ALIF_SHOHOJ_PRINT_WS_HOST || '127.0.0.1';
 const websocketPort = Number(process.env.ALIF_SHOHOJ_PRINT_WS_PORT || 43821);
@@ -88,6 +85,9 @@ let desktopPrintService: ReturnType<typeof createPrintService> | null = null;
 let counterFeedStore: CounterFeedStore | null = null;
 let counterFeedSecret: CounterFeedSecretStore | null = null;
 let soundService: ReturnType<typeof createSoundService> | null = null;
+let staffStore: StaffStore | null = null;
+let staffAuth: StaffAuthService | null = null;
+let cloudRelayClient: CloudRelayClient | null = null;
 let isQuitting = false;
 let closeToTray = true;
 const activePrints = new Set<string>();
@@ -348,6 +348,10 @@ const isTrustedDesktopSender = (sender: WebContents): boolean =>
     window !== null && !window.isDestroyed() && window.webContents === sender
   );
 
+/** Staff sessions are only honoured from the main desktop window. */
+const isTrustedStaffSender = (sender: WebContents): boolean =>
+  mainWindow !== null && !mainWindow.isDestroyed() && mainWindow.webContents === sender;
+
 /** The agent window's own page list, mirrored from the renderer's AgentPage. */
 const AGENT_WINDOW_PAGES = new Set(['console', 'printers', 'services', 'counters', 'server']);
 
@@ -420,6 +424,97 @@ const registerIpcHandlers = (token: string): void => {
       );
     }
   });
+  ipcMain.handle('desktop:staff:bootstrap-status', () => ({
+    bootstrapped: staffAuth?.isBootstrapped() ?? false,
+  }));
+  ipcMain.handle('desktop:staff:bootstrap-owner', (_event, pin: unknown) => {
+    if (typeof pin !== 'string') throw new Error('A valid PIN is required.');
+    if (!staffAuth || !staffStore) throw new Error('The staff service is not ready.');
+    if (staffAuth.isBootstrapped()) throw new Error('Staff accounts have already been bootstrapped.');
+    return staffAuth.createOwner(pin);
+  });
+  ipcMain.handle('desktop:staff:login', (_event, pin: unknown) => {
+    if (typeof pin !== 'string') throw new Error('A valid PIN is required.');
+    if (!staffAuth) throw new Error('The staff service is not ready.');
+    return staffAuth.login(pin);
+  });
+  ipcMain.handle('desktop:staff:logout', (_event, sessionId: unknown) => {
+    if (typeof sessionId !== 'string' || !sessionId) throw new Error('A valid session ID is required.');
+    staffAuth?.logout(sessionId);
+  });
+  ipcMain.handle('desktop:staff:authorize', (event, sessionId: unknown, permission: unknown) => {
+    if (!isTrustedStaffSender(event.sender)) throw new Error('Only the desktop window can authorize staff actions.');
+    if (typeof sessionId !== 'string' || !sessionId) throw new Error('A valid session ID is required.');
+    if (typeof permission !== 'string') throw new Error('A valid permission is required.');
+    if (!staffAuth) throw new Error('The staff service is not ready.');
+    return staffAuth.authorize(sessionId, permission as never);
+  });
+  ipcMain.handle('desktop:staff:list', (event, sessionId: unknown) => {
+    if (!isTrustedStaffSender(event.sender)) throw new Error('Only the desktop window can list staff accounts.');
+    if (typeof sessionId !== 'string' || !sessionId) throw new Error('A valid session ID is required.');
+    if (!staffAuth) throw new Error('The staff service is not ready.');
+    return staffAuth.listStaff(sessionId);
+  });
+  ipcMain.handle('desktop:staff:create', (event, sessionId: unknown, pin: unknown, role: unknown) => {
+    if (!isTrustedStaffSender(event.sender)) throw new Error('Only the desktop window can create staff accounts.');
+    if (typeof sessionId !== 'string' || !sessionId) throw new Error('A valid session ID is required.');
+    if (typeof pin !== 'string') throw new Error('A valid PIN is required.');
+    if (role !== 'owner' && role !== 'manager' && role !== 'operator') throw new Error('A valid staff role is required.');
+    if (!staffAuth) throw new Error('The staff service is not ready.');
+    return staffAuth.createStaff(sessionId, pin, role);
+  });
+  ipcMain.handle('desktop:staff:set-role', (event, sessionId: unknown, userId: unknown, role: unknown) => {
+    if (!isTrustedStaffSender(event.sender)) throw new Error('Only the desktop window can change staff roles.');
+    if (typeof sessionId !== 'string' || !sessionId) throw new Error('A valid session ID is required.');
+    if (typeof userId !== 'string' || !userId) throw new Error('A valid staff user ID is required.');
+    if (role !== 'owner' && role !== 'manager' && role !== 'operator') throw new Error('A valid staff role is required.');
+    if (!staffAuth) throw new Error('The staff service is not ready.');
+    return staffAuth.setStaffRole(sessionId, userId, role);
+  });
+  ipcMain.handle('desktop:staff:set-enabled', (event, sessionId: unknown, userId: unknown, enabled: unknown) => {
+    if (!isTrustedStaffSender(event.sender)) throw new Error('Only the desktop window can enable or disable staff accounts.');
+    if (typeof sessionId !== 'string' || !sessionId) throw new Error('A valid session ID is required.');
+    if (typeof userId !== 'string' || !userId) throw new Error('A valid staff user ID is required.');
+    if (typeof enabled !== 'boolean') throw new Error('A valid enabled state is required.');
+    if (!staffAuth) throw new Error('The staff service is not ready.');
+    return staffAuth.setStaffEnabled(sessionId, userId, enabled);
+  });
+
+  ipcMain.handle('desktop:cloud-relay:connect', (event, options: { relayUrl: string; deviceId: string; token: string }) => {
+    if (!isTrustedDesktopSender(event.sender)) throw new Error('Only the desktop window can manage the cloud relay.');
+    if (!options || typeof options.relayUrl !== 'string' || typeof options.deviceId !== 'string' || typeof options.token !== 'string') {
+      throw new Error('A valid relay URL, device ID, and token are required.');
+    }
+    cloudRelayClient?.disconnect();
+    cloudRelayClient = new CloudRelayClient({
+      relayUrl: options.relayUrl,
+      deviceId: options.deviceId,
+      token: options.token,
+      allowInsecure: !app.isPackaged,
+      onOrder: (job) => {
+        const saved = jobStore?.enqueue(job);
+        if (saved) {
+          broadcastQueueJob(saved);
+          sendToDesktopWindows('desktop:job:incoming', saved.job);
+          markNewOrder();
+          logger?.info('Cloud relay order persisted.', { jobId: saved.job.id });
+        }
+      },
+      onStatusChange: status => {
+        for (const desktopWindow of [mainWindow, settingsWindow, agentWindow]) {
+          if (desktopWindow && !desktopWindow.isDestroyed()) desktopWindow.webContents.send('desktop:cloud-relay:status', status);
+        }
+      },
+      onError: error => logger?.error('Cloud relay client error.', error),
+    });
+    cloudRelayClient.connect();
+  });
+  ipcMain.handle('desktop:cloud-relay:disconnect', () => {
+    cloudRelayClient?.disconnect();
+    cloudRelayClient = null;
+  });
+  ipcMain.handle('desktop:cloud-relay:status', () => cloudRelayClient?.getStatus() ?? null);
+
   ipcMain.handle('desktop:settings:get', (event) => {
     if (!isTrustedDesktopSender(event.sender)) throw new Error('Only the desktop window can read application settings.');
     if (!settingsStore) throw new Error('The application settings store is not ready.');
@@ -631,7 +726,7 @@ const registerIpcHandlers = (token: string): void => {
     return { orders: result.orders, serverTime: result.serverTime };
   });
   ipcMain.handle('desktop:printers:list', async () => {
-    return (await pdfToPrinter.getPrinters()).map(printer => printer.name);
+    return await getWindowsPrintBackend().getPhysicalPrinters();
   });
   ipcMain.handle('desktop:queue:list', () => jobStore?.list() ?? []);
   ipcMain.handle('desktop:queue:remove-job', (_event, jobId: unknown) => {
@@ -660,8 +755,8 @@ const registerIpcHandlers = (token: string): void => {
     if (queueJob.status === 'completed') throw new Error(`Print job ${jobId} has already completed.`);
     activePrints.add(jobId);
     try {
-      const availablePrinters = await pdfToPrinter.getPrinters();
-      if (!availablePrinters.some(printer => printer.name === queueJob.job.targetPrinterName)) {
+      const availablePrinters = await getWindowsPrintBackend().getPrinters();
+      if (!availablePrinters.some(printer => printer === queueJob.job.targetPrinterName)) {
         throw new Error(`Windows printer "${queueJob.job.targetPrinterName}" is not installed or available.`);
       }
       broadcastQueueJob(jobStore.markPrinting(jobId));
@@ -744,7 +839,7 @@ const startDesktopServices = (): void => {
   jobStore = new JobStore(join(userDataPath, 'print-queue.sqlite'));
   settingsStore = new SettingsStore(join(userDataPath, 'settings.sqlite'));
   const initialSettings = settingsStore.get();
-  desktopPrintService = createPrintService(userDataPath);
+  desktopPrintService = createPrintService(userDataPath, getWindowsPrintBackend().print.bind(getWindowsPrintBackend()));
 
   // The master PC hands each counter PC its own feed key; the counter PC keeps
   // only its own key, encrypted with the OS keychain when that is available.
@@ -763,6 +858,9 @@ const startDesktopServices = (): void => {
     counterFeedSecret = new CounterFeedSecretStore(userDataPath);
     logger.info('OS encryption is unavailable; the counter feed key is stored in a protected plain file.');
   }
+
+  staffStore = new StaffStore(join(userDataPath, 'staff.sqlite'));
+  staffAuth = new StaffAuthService(staffStore);
 
   localGateway = new LocalGateway({
     port: gatewayPort,
@@ -945,6 +1043,7 @@ if (!hasSingleInstance) {
     settingsStore?.close();
     soundService?.destroy();
     if (remindersTimer) clearInterval(remindersTimer);
+    disposeWindowsPrintBackend();
     tray?.destroy();
   });
 

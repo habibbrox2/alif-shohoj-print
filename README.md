@@ -113,7 +113,7 @@ A GitHub Actions workflow (`.github/workflows/windows-build.yml`) automatically 
 2. Setup Python 3.x (for native module builds)
 3. Setup Node.js v22
 4. Install dependencies (`npm ci`)
-5. Verify native modules (`better-sqlite3`, `pdf-to-printer`)
+5. Verify native modules (`better-sqlite3`)
 6. Run linting (`npm run lint`)
 7. Run desktop tests (`npm run test:desktop`)
 8. Run renderer tests (`npm run test:renderer`)
@@ -181,9 +181,9 @@ Master/counter setup is a local app mode stored in browser `localStorage`, not a
 ### Queue and printing
 
 - Jobs are stored in SQLite before the agent acknowledges them.
-- The print service stages temporary PDFs and sends them silently to the selected installed Windows printer through SumatraPDF, then removes the staged file.
+- The print service stages temporary PDFs and sends them silently to the selected installed Windows printer through Electron's Windows printing path (Chromium/GDI), then removes the staged file.
 - After a successful print, the source data URL is removed from the SQLite record and the WAL is checkpointed. Failed jobs retain their source so an operator can retry.
-- Service preferences retain paper type, quality, DPI, borderless, color, and copy defaults. The current silent Sumatra path applies color, paper size, copies, and fit. Configure paper type, quality, DPI, and borderless settings in the Windows printer driver because Sumatra's silent-print interface does not expose those fields generically.
+- Service preferences retain paper type, quality, DPI, borderless, color, and copy defaults. The current silent print path applies color, paper size, copies, orientation, and fit. Configure paper type, quality, DPI, and borderless settings in the Windows printer driver because the silent-print interface does not expose those fields generically.
 - Logs rotate at 5 MiB and retain five rotated files. The queue database, logs, WebSocket token, and local crash dumps are stored under Electron's per-user `userData` directory. Crash reporting is local-only; dumps are not uploaded.
 
 ## Development commands
@@ -252,10 +252,11 @@ The desktop app now includes a **Studio** tab for image editing and walk-in prin
 - **Tools**: move/pan, crop & rotate, brush, eraser, shape, and text, grouped into Selection / Transform, Painting and Objects, with keyboard shortcuts (`V`, `C`, `B`, `E`, `S`, `T`). Tooltips show each shortcut.
 - **Extended Photoshop-7 tools** (hidden from the tool rail; surfaced from the **More (⋯)** menu and the Props tab): **Marquee** (`Shift+M`), **Magic Wand** (`Shift+W`, tolerance slider, connected-component flood fill), **Clone Stamp** (Alt-click to sample a pixel, then drag — offset is pinned per stroke so it never drifts), **Healing Brush** (same flow, blended with surrounding texture), and **Dodge / Burn / Sponge** with shadow/midtone/highlight range and an exposure slider. Every extended-tool edit is undoable through the same history stack. Clone Stamp / Healing Brush and Dodge / Burn / Sponge edits are stored as **stroke records** (not a pixel buffer), so they survive undo/redo and flow into the print/export snapshot — the next clone pass samples from the committed strokes, not from painted pixels, so there is no double-image drift.
 - **Adjustments**: brightness, contrast, saturation, exposure (EV), grayscale, and quick filters (passport blue, clean white, sharpen, B/W document) — in the **Props** tab, which also shows the text controls while the text tool is active.
+- **Interactive crop**: the **Crop** tool now draws a draggable crop box with corner/edge handles, a rule-of-thirds overlay and a dimmed excluded area. The box keeps the aspect ratio of the chosen print size (passport, 4R, custom …) and can be dragged, resized or redrawn at will; the output resolution can be entered in pixels, inches (300 DPI) or millimetres, with an aspect-ratio lock. The crop is non-destructive and undoable, and the exported/printed canvas uses the cropped resolution.
 - **Text/watermark controls**: caption text, visibility, font (Hind Siliguri, Segoe UI, Arial, Times New Roman, Courier New), size, colour, and alignment — available in both the options bar and the Props tab; font choice participates in undo/redo.
 - **Layers tab**: the ordered content stack (paint layers + the watermark text layer, plus the always-present Photo and Adjustments rows) with 36 px thumbnails, a `Normal • 100%` meta line, visibility and lock toggles, reorder arrows, row selection, and a real **+ New Layer** button that inserts a new paint layer above the active one (undoable).
 - **View aids**: transparency checkerboard, canvas pixel grid, rulers, zoom/pan controls, and a document info overlay (size + zoom).
-- **Print dialog**: the options bar **Print…** button (or `Ctrl+P`) opens a print dialog with a live paper preview, **Position** (top/left offsets or centre image), **Scaled Print Size** (scale, height/width, fit to media, bounding box) and a **Page Setup…** section (paper size, orientation, margins); **Done** persists the settings for the next job, while **Cancel**, `×` and `Esc` discard them (`Esc` is ignored while a print request is in flight, so its result is not lost). Position, scale, centring, fit and margins are applied by `electron/services/print-service.ts`, so the printed sheet matches the preview (the document is sized from the snapshot&apos;s own resolution at 300 DPI). Orientation is handed to SumatraPDF as a content rotation — the paper orientation remains the printer driver&apos;s setting. Jobs printed without a dialog layout keep the older centred, fit-to-paper behaviour.
+- **Print dialog**: the options bar **Print…** button (or `Ctrl+P`) opens a print dialog with a live paper preview, **Position** (top/left offsets or centre image), **Scaled Print Size** (scale, height/width, fit to media, bounding box) and a **Page Setup…** section (paper size, orientation, margins); **Done** persists the settings for the next job, while **Cancel**, `×` and `Esc` discard them (`Esc` is ignored while a print request is in flight, so its result is not lost). Position, scale, centring, fit and margins are applied by `electron/services/print-service.ts`, so the printed sheet matches the preview (the document is sized from the snapshot&apos;s own resolution at 300 DPI). Orientation is handed to the Windows printer as a page rotation. Jobs printed without a dialog layout keep the older centred, fit-to-paper behaviour.
 - **Collapsible panels**: the left tool palette (`F8`) and right sidebar (`F7`) can be hidden/shown from the options bar quick actions or the keyboard shortcuts at every supported window width (900 px and wider, where the fixed 56 px rail, canvas and 280 px sidebar still fit); each collapses to a thin handle on its canvas edge. A first-open tips card introduces the workspace.
 - **Undo / Redo / Reset** to original, with a clickable history list.
 - The print dialog refuses to queue an empty snapshot or a canvas that has no print job, and the job record — file name, size and audit log — is updated to describe the snapshot actually sent to the print queue.
@@ -266,6 +267,7 @@ The desktop app now includes a **Studio** tab for image editing and walk-in prin
 - Original image remains intact; a transparent PNG is produced on success.
 - Background preview and replacement (solid color / another image) are available.
 - On failure, the original image is preserved and an actionable error is shown.
+- **Colour replacement**: a chroma-key style **Colour replacement** panel in the Background section repaints a flat backdrop (blue studio wall, white paper) with a chosen colour. Tolerance, a softness edge band, luminance preservation and an optional selection mask (Magic Wand / Marquee) — including an inverted mask — keep the subject untouched. The replacement is baked into the photo and is undoable through the history stack.
 - Model and dependency licenses have been verified for production use.
 
 ### Walk-in printing (local file → print, no payment)

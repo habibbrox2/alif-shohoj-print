@@ -23,4 +23,12 @@ export interface StudioCanvasAdjustments {
   contrast: number;
   grayscale: boolean;
   cropPreset: CropPreset;
+  /** Hue rotation in degrees (Photoshop-like HSL adjustment). */
+  hue?: number;
+  /** Warmth in percent (Photoshop-like temperature). */
+  warmth?: number;
+  /** Skew X in degrees. */
+  skewX?: number;
+  /** Skew Y in degrees. */
+  skewY?: number;
 }

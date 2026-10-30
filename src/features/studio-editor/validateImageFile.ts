@@ -25,6 +25,19 @@ export interface ImageFileValidationResult {
 }
 
 /**
+ * MIME subtypes the browser's `Image` element can actually decode.
+ * TIFF is accepted by the file picker but no stock browser renders it, so it
+ * is rejected here with a message that points at a conversion instead of a
+ * silent dead canvas.
+ */
+const BROWSER_DECODEABLE_TYPES: readonly string[] = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/bmp',
+];
+
+/**
  * Validate a file for use in the Studio editor.
  * Checks MIME type against accepted image types and file size against the 50 MB limit.
  * Returns a result object with a Bengali reason string on failure.
@@ -34,6 +47,13 @@ export function validateImageFile(file: File): ImageFileValidationResult {
     return {
       valid: false,
       reason: 'অবৈধ ফাইল টাইপ। শুধু ছবি ফাইল (JPG, PNG, WebP, BMP, TIFF) গ্রহণযোগ্য।',
+    };
+  }
+
+  if (!BROWSER_DECODEABLE_TYPES.includes(file.type)) {
+    return {
+      valid: false,
+      reason: 'TIFF ছবি ব্রাউজারে সরাসরি দেখানো যায় না। আগে JPG/PNG-তে রূান্তর করে আবার চেষ্টা করুন।',
     };
   }
 

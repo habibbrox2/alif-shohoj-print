@@ -6,6 +6,8 @@ const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/resources/views/pwa.html',
+  '/resources/views/desktop.html',
 ];
 
 const AUDIO_ASSETS = [

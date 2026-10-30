@@ -41,9 +41,13 @@ test('validateImageFile accepts valid BMP under size limit', () => {
   assert.equal(result.valid, true);
 });
 
-test('validateImageFile accepts valid TIFF under size limit', () => {
+// TIFF is accepted by the picker but no stock browser renders it, so the
+// validator refuses it with a conversion hint rather than shipping a dead
+// canvas. The 50 MB ceiling still applies to every accepted type.
+test('validateImageFile rejects TIFF with a conversion hint', () => {
   const result = validateImageFile(makeFile('image/tiff', 1024));
-  assert.equal(result.valid, true);
+  assert.equal(result.valid, false);
+  assert.ok(result.reason?.includes('TIFF'));
 });
 
 test('validateImageFile rejects invalid MIME type with Bengali reason', () => {

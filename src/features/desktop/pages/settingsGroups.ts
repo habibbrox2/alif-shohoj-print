@@ -109,8 +109,8 @@ export const SETTINGS_GROUPS: readonly SettingsGroupDefinition[] = [
     id: 'staff',
     labelKey: 'settings.group.staff',
     items: [
-      { id: 'staffAccounts', labelKey: 'settings.staffAccounts', status: 'comingSoon' },
-      { id: 'staffRoles', labelKey: 'settings.staffRoles', status: 'comingSoon' },
+      { id: 'staffAccounts', labelKey: 'settings.staffAccounts', status: 'supported' },
+      { id: 'staffRoles', labelKey: 'settings.staffRoles', status: 'supported' },
       { id: 'jobLock', labelKey: 'settings.jobLock', status: 'comingSoon' },
     ],
   },

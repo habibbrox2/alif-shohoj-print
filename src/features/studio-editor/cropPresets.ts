@@ -1,5 +1,5 @@
 /** Crop preset identifiers used in the Studio editor. */
-export type CropPreset = 'free' | 'passport' | 'stamp' | 'nid' | '4r' | 'a4';
+export type CropPreset = 'free' | 'passport' | 'stamp' | 'nid' | '4r' | 'a4' | 'custom';
 
 /**
  * Human-readable crop preset definitions.
@@ -16,6 +16,7 @@ export const CROP_PRESETS: ReadonlyArray<{
   { id: 'nid', label: 'NID card', note: '85 × 54 mm' },
   { id: '4r', label: '4R photo', note: '4 × 6 in' },
   { id: 'a4', label: 'A4', note: 'document' },
+  { id: 'custom', label: 'Custom', note: 'নমনীয় মাপ' },
 ];
 
 /**
@@ -29,6 +30,7 @@ export const CROP_SIZE: Record<CropPreset, { w: number; h: number } | null> = {
   nid: { w: 590, h: 375 },
   '4r': { w: 600, h: 400 },
   a4: { w: 496, h: 701 },
+  custom: null,
 };
 
 /**
@@ -69,6 +71,8 @@ export function getInitialCropPreset(aspectRatio?: string): CropPreset {
       return 'a4';
     case '4r':
       return '4r';
+    case 'custom':
+      return 'custom';
     default:
       return 'free';
   }
